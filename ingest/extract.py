@@ -5,18 +5,19 @@ from pathlib import Path
 
 
 def unzip_all_recursive(raw_dir: Path) -> None:
-    """data/raw 안의 모든 .zip 을 자기 위치에 풀어둔다. 안의 .zip 도 재귀."""
+    """data/raw 안의 모든 .zip 을 자기 위치에 풀어둔다. 이미 처리한 zip 은 .extracted
+    마커 파일로 표시해 두번 풀지 않는다 (Notion 추출 결과의 폴더명이 zip stem 과
+    다르기 때문에 stem 기반 존재 체크는 무한 루프를 일으킴)."""
     while True:
         zips = list(raw_dir.rglob("*.zip"))
-        if not zips:
-            return
         progressed = False
         for z in zips:
-            out = z.with_suffix("")
-            if out.exists():
+            marker = z.with_suffix(z.suffix + ".extracted")
+            if marker.exists():
                 continue
             with zipfile.ZipFile(z) as zf:
                 zf.extractall(z.parent)
+            marker.write_text("ok")
             progressed = True
         if not progressed:
             return
