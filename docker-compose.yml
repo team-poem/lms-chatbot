@@ -1,6 +1,6 @@
 services:
   lms-chatbot:
-    image: ghcr.io/team-poem/lms-chatbot:latest
+    image: amazon7737/lms-chatbot:latest
     container_name: lms-chatbot
     restart: unless-stopped
     ports:

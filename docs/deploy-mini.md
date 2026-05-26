@@ -16,13 +16,14 @@ LMS 챗봇을 맥미니에 도커로 배포하고 운영하는 절차서.
 
 ## 1회만 — 개발 머신 셋업
 
-### 1.1 GitHub Container Registry 인증
-1. GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
-2. Generate new token → scope: `write:packages`, `read:packages` 체크
-3. 토큰 발급 후 로컬에서 로그인:
-   ```bash
-   echo "ghp_xxxxxxxxxxxxxxxxx" | docker login ghcr.io -u <github-username> --password-stdin
-   ```
+### 1.1 Docker Hub 인증
+이미 Docker Desktop 에 `amazon7737` 으로 로그인되어 있으면 추가 작업 불필요.
+확인: `cat ~/.docker/config.json` → `credsStore: desktop` + Docker Desktop 우상단 사용자 메뉴.
+
+문제 시:
+```bash
+docker login -u amazon7737
+```
 
 ### 1.2 buildx 확인 (Docker Desktop 기본 설치되어 있음)
 ```bash
@@ -36,6 +37,8 @@ docker buildx version
 ```
 
 이미지 크기 약 **3.5GB** (BGE-M3 모델 포함). 첫 푸시 시간은 회선에 따라.
+
+이미지는 `hub.docker.com/r/amazon7737/lms-chatbot` 에 올라감.
 
 ## 1회만 — 맥미니 셋업
 
@@ -52,17 +55,20 @@ brew install --cask docker
 open -a Docker            # 첫 실행 시 권한 동의 + Apple Silicon 자동 인식
 ```
 
-### 2.3 ghcr.io 로그인 (개발 머신과 같은 PAT 사용)
+### 2.3 Docker Hub 로그인 (또는 Docker Desktop 에서 GUI 로그인)
 ```bash
-echo "ghp_xxxxxxxxxxxxxxxxx" | docker login ghcr.io -u <github-username> --password-stdin
+docker login -u amazon7737
 ```
 
 ### 2.4 배포 디렉터리 + 데이터 + compose
 ```bash
 mkdir -p ~/lms-chatbot && cd ~/lms-chatbot
 
-# docker-compose.yml 가져오기 (repo 에서 복사 또는 직접 작성)
-curl -fsSLO https://raw.githubusercontent.com/team-poem/lms-chatbot/main/docker-compose.yml
+# docker-compose.yml 가져오기 (private repo 라 gh auth 필요하거나, scp 로 옮기기)
+# 가장 간단: 개발 머신에서 scp 로 한 번에 보내기
+#   scp docker-compose.yml <user>@<mini-ip>:~/lms-chatbot/
+# 또는 repo 가 public 이면:
+#   curl -fsSLO https://raw.githubusercontent.com/team-poem/lms-chatbot/main/docker-compose.yml
 
 # 인덱스 데이터 옮기기: 개발 머신에서 만든 것을 그대로 보내기
 # 개발 머신에서:
@@ -133,4 +139,4 @@ docker rmi ghcr.io/team-poem/lms-chatbot:latest  # 이미지 삭제
 | 첫 부팅 후 `/health` 503 | BGE-M3 로드 중 (최대 2분). `start_period: 180s` 동안 unhealthy 정상 |
 | 응답이 느림 (>30초) | gemma3:4b 콜드 스타트. Ollama 의 `keep_alive` 기본 5분이라 이후엔 빠름 |
 | 디스크 부족 | `docker system prune -a -f` 로 옛 이미지 정리 |
-| 이미지 푸시 실패 (denied) | ghcr.io 토큰 scope 확인 (`write:packages` 필수) |
+| 이미지 푸시 실패 (denied) | `docker login -u amazon7737` 재로그인. Docker Hub 계정 활성 상태 확인 |
