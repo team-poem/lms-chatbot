@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LMS 챗봇</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; margin: 0; background: #f6f8fa; color: #1f2328; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 18px; margin: 0 0 16px; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .modal { background: #fff; border-radius: 8px; padding: 24px; max-width: 540px; width: 90%; max-height: 90vh; overflow-y: auto; }
+  .modal h2 { font-size: 16px; margin: 0 0 12px; }
+  .modal section { border-top: 1px solid #d0d7de; padding: 10px 0; }
+  .modal section h3 { margin: 0 0 4px; font-size: 13px; color: #57606a; }
+  .modal section p { margin: 0; font-size: 14px; }
+  .modal .accent { background: #fff8c5; padding: 8px 10px; border-radius: 4px; margin: 8px 0; font-size: 13px; }
+  .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  button { padding: 8px 14px; border: 1px solid #d0d7de; background: #fff; border-radius: 6px; cursor: pointer; font-size: 14px; }
+  button.primary { background: #0969da; color: #fff; border-color: #0969da; }
+  .log { background: #fff; border: 1px solid #d0d7de; border-radius: 8px; padding: 16px; min-height: 320px; max-height: 60vh; overflow-y: auto; }
+  .turn { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px dashed #d0d7de; }
+  .turn:last-child { border-bottom: none; }
+  .q { color: #57606a; font-size: 13px; margin-bottom: 6px; }
+  .a { white-space: pre-wrap; line-height: 1.7; }
+  .src { margin-top: 8px; font-size: 12px; color: #57606a; }
+  .imgs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .imgs img { max-width: 200px; border: 1px solid #d0d7de; border-radius: 4px; }
+  .fb { margin-top: 8px; display: flex; gap: 6px; align-items: center; }
+  .fb button { padding: 4px 8px; font-size: 12px; }
+  .input { display: flex; gap: 8px; margin-top: 16px; }
+  .input input { flex: 1; padding: 10px; border: 1px solid #d0d7de; border-radius: 6px; font-size: 14px; }
+  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .top .label { font-size: 12px; color: #57606a; }
+  .empty { color: #8c959f; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>LMS 챗봇</h1>
+    <span class="label" id="user-label"></span>
+  </div>
+  <div class="log" id="log"><p class="empty">질문을 입력하시면 가이드 내용을 바탕으로 답변드리겠습니다.</p></div>
+  <form class="input" id="form">
+    <input id="q" placeholder="질문을 입력하십시오" autocomplete="off" disabled>
+    <button class="primary" type="submit" disabled>전송</button>
+  </form>
+  <p style="margin-top:12px;font-size:12px;color:#57606a">
+    <a href="#" id="purge">대화 기록 삭제 및 동의 철회</a>
+    &nbsp;·&nbsp;
+    <a href="/privacy" target="_blank">개인정보처리방침</a>
+  </p>
+</div>
+
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h2>개인정보 수집 및 이용 동의</h2>
+    <section><h3>수집 항목</h3><p>질의 본문, 응답 본문, 응답 시각, 표시명(선택), 피드백 점수와 코멘트</p></section>
+    <section><h3>수집 목적</h3><p>가이드북 업데이트 우선순위 도출 및 챗봇 응답 품질 모니터링</p></section>
+    <section><h3>보유 기간</h3><p>수집일로부터 6개월. 동의 철회 시 즉시 삭제</p></section>
+    <section><h3>동의 철회 방법</h3><p>화면 하단의 "대화 기록 삭제 및 동의 철회" 링크를 누르면 즉시 삭제됩니다</p></section>
+    <div class="accent">본 대화 내용은 모델 학습에 사용되지 않습니다.</div>
+    <div class="accent">외부 제3자에게 제공되지 않습니다 (모든 처리는 로컬에서 이루어집니다).</div>
+    <p style="font-size:12px;color:#57606a;margin:8px 0 0">보호책임자: 김강민 · 문의: 동서대학교 교육혁신처 교수학습개발센터 · <a href="/privacy" target="_blank">처리방침 전문</a></p>
+    <div style="margin-top:12px">
+      <label style="font-size:13px">표시명(선택): <input id="ulabel" style="border:1px solid #d0d7de;border-radius:4px;padding:4px 6px"></label>
+    </div>
+    <div class="actions">
+      <button id="deny">동의 안 함</button>
+      <button class="primary" id="agree">동의하고 시작</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let session = null;
+
+async function consent(userLabel) {
+  const r = await fetch("/consent", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({user_label: userLabel})});
+  const d = await r.json();
+  session = d.session_id;
+  localStorage.setItem("lms_session", session);
+  localStorage.setItem("lms_consent", d.consent_version);
+  if (userLabel) {
+    localStorage.setItem("lms_label", userLabel);
+    $("#user-label").textContent = userLabel;
+  }
+  $("#modal").style.display = "none";
+  $("#q").disabled = false;
+  $("#form button[type=submit]").disabled = false;
+  $("#q").focus();
+}
+
+function deny() {
+  document.body.innerHTML = "<div style='padding:40px;text-align:center'>동의하지 않으시면 챗봇을 사용하실 수 없습니다.</div>";
+}
+
+async function ask(query) {
+  const log = $("#log");
+  if (log.querySelector(".empty")) log.innerHTML = "";
+  const div = document.createElement("div");
+  div.className = "turn";
+  div.innerHTML = `<div class="q">${escape(query)}</div><div class="a"></div><div class="imgs"></div><div class="src"></div><div class="fb"></div>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+
+  const resp = await fetch("/chat", {method:"POST", headers: {"content-type":"application/json"}, body: JSON.stringify({session_id: session, query})});
+  const reader = resp.body.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  let turnId = null;
+  while (true) {
+    const {value, done} = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, {stream: true});
+    const lines = buf.split("\n\n");
+    buf = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const evt = JSON.parse(line.slice(6));
+      if (evt.type === "text") {
+        div.querySelector(".a").textContent += evt.delta;
+        log.scrollTop = log.scrollHeight;
+      } else if (evt.type === "done") {
+        const imgs = div.querySelector(".imgs");
+        evt.images.forEach(src => { const i = document.createElement("img"); i.src = src; imgs.appendChild(i); });
+        if (evt.sources?.length) div.querySelector(".src").textContent = "참고: " + evt.sources.join(", ");
+      } else if (evt.type === "turn_id") {
+        turnId = evt.turn_id;
+        const fb = div.querySelector(".fb");
+        const label = document.createElement("span");
+        label.textContent = "이 답변은 ";
+        label.style.fontSize = "12px";
+        label.style.color = "#57606a";
+        fb.appendChild(label);
+        [1,2,3].forEach(r => {
+          const b = document.createElement("button");
+          b.textContent = ["도움 안 됨","보통","도움 됨"][r-1];
+          b.onclick = () => fetch("/feedback", {method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({turn_id: turnId, rating: r})}).then(()=>{ fb.textContent = "감사합니다."; });
+          fb.appendChild(b);
+        });
+      }
+    }
+  }
+}
+
+function escape(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+
+$("#form").addEventListener("submit", e => {
+  e.preventDefault();
+  const q = $("#q").value.trim();
+  if (!q) return;
+  $("#q").value = "";
+  ask(q);
+});
+
+$("#agree").addEventListener("click", e => { e.preventDefault(); consent($("#ulabel").value.trim() || null); });
+$("#deny").addEventListener("click", e => { e.preventDefault(); deny(); });
+$("#purge").addEventListener("click", async e => {
+  e.preventDefault();
+  if (!session) return;
+  if (!confirm("이 세션의 대화 기록을 모두 삭제하고 동의를 철회합니다. 진행할까요?")) return;
+  await fetch("/purge", {method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({session_id: session})});
+  localStorage.removeItem("lms_session");
+  localStorage.removeItem("lms_consent");
+  localStorage.removeItem("lms_label");
+  location.reload();
+});
+
+const saved = localStorage.getItem("lms_session");
+const savedConsent = localStorage.getItem("lms_consent");
+if (saved && savedConsent) {
+  session = saved;
+  $("#modal").style.display = "none";
+  $("#q").disabled = false;
+  $("#form button[type=submit]").disabled = false;
+  const lbl = localStorage.getItem("lms_label");
+  if (lbl) $("#user-label").textContent = lbl;
+}
+</script>
+</body>
+</html>

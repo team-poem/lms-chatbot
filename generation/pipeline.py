@@ -1,0 +1,103 @@
+from __future__ import annotations
+import json
+import os
+from pathlib import Path
+from typing import AsyncIterator
+
+import httpx
+
+from index.embed import Embedder, get_chroma, query_embed
+from index.bm25_index import load_bm25, query_bm25
+from retrieval.hybrid import combine_scores
+from generation.persona import build_prompt
+from generation.filters import clean_response
+
+
+SCORE_THRESHOLD = 0.25
+TOP_K = 5
+EMBED_K = 20
+BM25_K = 20
+COLLECTION = "lms_chunks"
+
+
+class RagEngine:
+    def __init__(self) -> None:
+        self.embedder = Embedder()
+        self.chroma = get_chroma(Path(os.environ.get("CHROMA_DIR", "./data/chroma")))
+        self.bm25 = load_bm25(Path(os.environ.get("BM25_PATH", "./data/bm25.pkl")))
+        self.ollama_host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+        self.model = os.environ.get("OLLAMA_MODEL", "gemma3:4b")
+
+    def _fetch_chunks(self, ids: list[str]) -> dict[str, dict]:
+        coll = self.chroma.get_or_create_collection(COLLECTION)
+        res = coll.get(ids=ids, include=["documents", "metadatas"])
+        out: dict[str, dict] = {}
+        for cid, doc, meta in zip(res["ids"], res["documents"], res["metadatas"]):
+            out[cid] = {"text": doc, **meta}
+        return out
+
+    def retrieve(self, query: str) -> tuple[list[dict], float]:
+        bm = dict(query_bm25(self.bm25, query, k=BM25_K))
+        emb = dict(query_embed(self.chroma, self.embedder, query, k=EMBED_K))
+        merged = combine_scores(bm, emb, k=TOP_K)
+        if not merged:
+            return [], 0.0
+        chunk_map = self._fetch_chunks([cid for cid, _ in merged])
+        contexts: list[dict] = []
+        for cid, score in merged:
+            c = chunk_map.get(cid)
+            if not c:
+                continue
+            contexts.append({
+                "chunk_id": cid,
+                "score": score,
+                "title": c.get("title", ""),
+                "text": c.get("text", ""),
+                "image_refs": [s for s in (c.get("image_refs") or "").split(",") if s],
+                "source": c.get("source", ""),
+            })
+        top_score = merged[0][1]
+        return contexts, top_score
+
+    async def stream_chat(self, query: str) -> AsyncIterator[dict]:
+        contexts, top_score = self.retrieve(query)
+        if top_score < SCORE_THRESHOLD:
+            yield {"type": "text", "delta": "해당 내용은 현재 가이드에서 확인이 어렵습니다. 교육혁신처 교수학습개발센터로 문의 부탁드립니다."}
+            yield {"type": "done", "images": [], "sources": [], "score": top_score}
+            return
+
+        messages = build_prompt(query, [{"title": c["title"], "text": c["text"]} for c in contexts])
+        url = f"{self.ollama_host}/api/chat"
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "stream": True,
+            "options": {"num_ctx": 8192, "temperature": 0.2},
+        }
+
+        async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
+            async with client.stream("POST", url, json=payload) as resp:
+                async for line in resp.aiter_lines():
+                    if not line.strip():
+                        continue
+                    obj = json.loads(line)
+                    delta = obj.get("message", {}).get("content", "")
+                    if delta:
+                        # 토큰 단위로 후처리 필터 적용 (이모지/마크업 즉시 제거)
+                        yield {"type": "text", "delta": clean_response(delta)}
+                    if obj.get("done"):
+                        break
+
+        seen_imgs: list[str] = []
+        for c in contexts:
+            for img in c["image_refs"]:
+                if img and img not in seen_imgs:
+                    seen_imgs.append(img)
+            if len(seen_imgs) >= 5:
+                break
+        sources: list[str] = []
+        for c in contexts:
+            t = c["title"]
+            if t and t not in sources:
+                sources.append(t)
+        yield {"type": "done", "images": seen_imgs[:5], "sources": sources, "score": top_score}
