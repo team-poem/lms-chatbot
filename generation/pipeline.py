@@ -11,6 +11,7 @@ from index.bm25_index import load_bm25, query_bm25
 from retrieval.hybrid import combine_scores
 from generation.persona import build_prompt
 from generation.filters import clean_response, streaming_clean
+from generation.guardrail import is_meta_question, META_REPLY
 
 
 SCORE_THRESHOLD = 0.25       # 1위 점수가 이 미만이면 "가이드에 없음" 정형 응답
@@ -68,9 +69,18 @@ class RagEngine:
         return contexts, top_score
 
     async def stream_chat(self, query: str) -> AsyncIterator[dict]:
+        # 메타 질문(챗봇 자체에 대한 질문) 가드레일 — LLM 호출 전에 정형 응답
+        if is_meta_question(query):
+            yield {"type": "text", "delta": META_REPLY}
+            yield {"type": "text_final", "text": META_REPLY}
+            yield {"type": "done", "images": [], "sources": [], "score": 0.0}
+            return
+
         contexts, top_score = self.retrieve(query)
         if top_score < SCORE_THRESHOLD:
-            yield {"type": "text", "delta": "해당 내용은 현재 가이드에서 확인이 어렵습니다. 교육혁신처 교수학습개발센터로 문의 부탁드립니다."}
+            msg = "해당 내용은 현재 가이드에서 확인이 어렵습니다. 교육혁신처 교수학습개발센터로 문의 부탁드립니다."
+            yield {"type": "text", "delta": msg}
+            yield {"type": "text_final", "text": msg}
             yield {"type": "done", "images": [], "sources": [], "score": top_score}
             return
 

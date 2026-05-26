@@ -8,6 +8,39 @@ _BOLD = re.compile(r"\*\*([^*]+)\*\*")
 _ITALIC = re.compile(r"(?<!\*)\*([^*\n]+)\*(?!\*)")
 _HEADING = re.compile(r"^\s{0,3}#{1,6}\s*", flags=re.MULTILINE)
 
+# 운두언 안전망: 본문 첫 문장이 인사·공감·확인 표현을 포함하면 그 문장 전체를 제거.
+# LLM 이 페르소나 룰을 어겨도 사용자에게 노출되지 않도록 함. 룰 1의 금지 표현과 동기화.
+_PREAMBLE_KEYWORDS = (
+    # 호칭 / 인사 — 첫 문장에 등장하면 의미상 운두언으로 판정
+    r"교수님|안녕하세요|반갑습니다|"
+    # 명확한 운두언 표현 (substantive 답변에 잘 안 섞임)
+    r"문의하신\s*내용|이해(?:했|하였)습니다|"
+    r"질문\s*감사(?:합|드립)니다|"
+    r"도움(?:이\s*되)?\s*드리겠(?:습니다|어요)|"
+    # "다음과 같이 안내/답변/설명" 같은 정형 표현 (전체 매칭, 부분 단독 매칭 X)
+    r"(?:아래|다음)과?\s*같이\s*(?:안내|답변|설명)(?:해?\s*)?(?:드)?(?:립|리겠습)니다|"
+    r"안내(?:해\s*드)?리겠습니다|"  # 자체 의도 선언
+    r"답변(?:해\s*)?드립니다|설명(?:해\s*)?드립니다|"
+    # 사과/완충 표현
+    r"불편하시?더라도|번거로우?시?겠지만|양해\s*부탁(?:드)?립니다|"
+    r"우선\s*안내(?:해\s*)?(?:드)?립니다"
+)
+# 한 문장 = 종결 어미(다./요./오.) 또는 ./!/? 까지
+_PREAMBLE_SENTENCE = re.compile(
+    rf"^[^.!?\n]{{0,80}}(?:{_PREAMBLE_KEYWORDS})[^.!?\n]{{0,80}}[.!?]\s*"
+)
+
+
+def _strip_preamble(text: str) -> str:
+    """본문 첫 문장에 운두언 표현이 있으면 문장째 제거. 여러 문장이 겹쳐 나올 수
+    있어 변화가 없을 때까지 반복."""
+    prev = None
+    out = text
+    while out != prev:
+        prev = out
+        out = _PREAMBLE_SENTENCE.sub("", out, count=1).lstrip()
+    return out
+
 
 def clean_response(text: str) -> str:
     """완성된 텍스트에 대한 풀 클린업. 마크업 매칭은 양쪽 끝 마커가 모두
@@ -17,6 +50,7 @@ def clean_response(text: str) -> str:
     text = _BOLD.sub(lambda m: m.group(1), text)
     text = _ITALIC.sub(lambda m: m.group(1), text)
     text = _HEADING.sub("", text)
+    text = _strip_preamble(text)
     return text
 
 
