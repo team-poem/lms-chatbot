@@ -11,13 +11,23 @@ from retrieval.types import Chunk
 _COLLECTION = "lms_chunks"
 
 
+_MAX_SEQ_LEN = 1024  # BGE-M3 supports up to 8192, but on CPU 1024 is the practical cap
+
+
 class Embedder:
     def __init__(self, model_name: str | None = None) -> None:
         name = model_name or os.environ.get("EMBED_MODEL", "BAAI/bge-m3")
         self.model = SentenceTransformer(name)
+        # 토크나이저가 너무 긴 입력을 알아서 잘라내도록 강제.
+        self.model.max_seq_length = _MAX_SEQ_LEN
 
     def encode(self, texts: list[str]) -> list[list[float]]:
-        vecs = self.model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+        vecs = self.model.encode(
+            texts,
+            normalize_embeddings=True,
+            show_progress_bar=False,
+            batch_size=4,
+        )
         return [v.tolist() for v in vecs]
 
 

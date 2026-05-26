@@ -33,9 +33,21 @@ def test_chunk_markdown_large_splits_on_h2(tmp_path: Path):
     p = tmp_path / "큰페이지 abcdef1234567890.md"
     p.write_text(text, encoding="utf-8")
     chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
-    assert len(chunks) == 2
-    assert chunks[0].title == "큰페이지 — 섹션 A"
-    assert chunks[1].title == "큰페이지 — 섹션 B"
+    titles = [c.title for c in chunks]
+    # H2 분할이 일어났고, 각 섹션이 (필요 시 추가 분할되어) 등장해야 함
+    assert any("섹션 A" in t for t in titles)
+    assert any("섹션 B" in t for t in titles)
+
+
+def test_chunk_markdown_enforces_char_limit(tmp_path: Path):
+    """H2가 없고 본문이 _MAX_CHARS(3000)를 초과하면 글자 기준으로 분할."""
+    body = "한국어 본문 데이터입니다 " * 400  # 약 8000자
+    p = tmp_path / "긴페이지 abcdef1234567890.md"
+    p.write_text(f"# 긴 페이지\n\n{body}\n", encoding="utf-8")
+    chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
+    assert len(chunks) >= 2
+    for c in chunks:
+        assert len(c.text) <= 3500  # _MAX_CHARS + 약간 마진
 
 
 def test_chunk_csv_each_row_becomes_chunk(tmp_path: Path):

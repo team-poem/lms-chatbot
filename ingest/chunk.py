@@ -11,6 +11,8 @@ from retrieval.types import Chunk, DocSet
 _IMG_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
 _H2_RE = re.compile(r"^##\s+(.+)$", flags=re.MULTILINE)
 _TOKEN_LIMIT = 2000
+_MAX_CHARS = 3000  # 임베더(BGE-M3, max_seq=1024)에 안전하게 들어가는 한국어 청크 상한
+_OVERLAP = 200    # 분할 시 청크간 겹침
 
 
 def _hash_id(*parts: str) -> str:
@@ -31,12 +33,40 @@ def extract_image_refs(text: str) -> list[str]:
     return seen
 
 
+def _split_long(text: str) -> list[str]:
+    """문자 길이 _MAX_CHARS 를 넘는 본문을 약간 겹침을 주며 분할."""
+    if len(text) <= _MAX_CHARS:
+        return [text]
+    parts: list[str] = []
+    start = 0
+    while start < len(text):
+        end = min(start + _MAX_CHARS, len(text))
+        # 줄바꿈 경계에서 자르기
+        if end < len(text):
+            nl = text.rfind("\n", start, end)
+            if nl > start + _MAX_CHARS // 2:
+                end = nl
+        parts.append(text[start:end])
+        if end >= len(text):
+            break
+        start = max(end - _OVERLAP, start + 1)
+    return parts
+
+
+_EMPTY_PARENS_RE = re.compile(r"\s*\(\s*\)\s*")
+
+
 def _derive_title(path: Path) -> str:
     name = path.stem
     parts = name.rsplit(" ", 1)
     if len(parts) == 2 and len(parts[1]) >= 16:
-        return parts[0]
-    return name
+        name = parts[0]
+    # 파일명에 있던 (📄) 같은 장식 이모지가 preprocess 단계에서 사라지고
+    # () 빈 괄호만 남는 경우가 흔함 — 제거하고 공백 정리.
+    from ingest.preprocess import strip_emoji
+    name = strip_emoji(name)
+    name = _EMPTY_PARENS_RE.sub(" ", name)
+    return name.strip()
 
 
 def chunk_markdown_file(
@@ -49,32 +79,30 @@ def chunk_markdown_file(
     title = _derive_title(path)
     source = str(path)
 
-    if _approx_tokens(text) <= _TOKEN_LIMIT:
-        return [
-            Chunk(
-                chunk_id=_hash_id(source, "0"),
-                text=text,
-                source=source,
-                doc_set=doc_set,
-                title=title,
-                section_path=list(section_path),
-                image_refs=extract_image_refs(text),
+    def _emit(prefix: str, base_title: str, body: str) -> list[Chunk]:
+        out: list[Chunk] = []
+        parts = _split_long(body)
+        for j, part in enumerate(parts):
+            suffix = "" if len(parts) == 1 else f" ({j + 1}/{len(parts)})"
+            out.append(
+                Chunk(
+                    chunk_id=_hash_id(source, prefix, str(j)),
+                    text=part,
+                    source=source,
+                    doc_set=doc_set,
+                    title=base_title + suffix,
+                    section_path=list(section_path),
+                    image_refs=extract_image_refs(part),
+                )
             )
-        ]
+        return out
+
+    if _approx_tokens(text) <= _TOKEN_LIMIT:
+        return _emit("0", title, text)
 
     matches = list(_H2_RE.finditer(text))
     if not matches:
-        return [
-            Chunk(
-                chunk_id=_hash_id(source, "0"),
-                text=text,
-                source=source,
-                doc_set=doc_set,
-                title=title,
-                section_path=list(section_path),
-                image_refs=extract_image_refs(text),
-            )
-        ]
+        return _emit("0", title, text)
 
     chunks: list[Chunk] = []
     for i, m in enumerate(matches):
@@ -82,17 +110,7 @@ def chunk_markdown_file(
         start = m.start()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         body = text[start:end]
-        chunks.append(
-            Chunk(
-                chunk_id=_hash_id(source, str(i)),
-                text=body,
-                source=source,
-                doc_set=doc_set,
-                title=f"{title} — {section_title}",
-                section_path=list(section_path),
-                image_refs=extract_image_refs(body),
-            )
-        )
+        chunks.extend(_emit(str(i), f"{title} — {section_title}", body))
     return chunks
 
 
