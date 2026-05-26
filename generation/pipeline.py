@@ -101,11 +101,19 @@ class RagEngine:
                     seen_imgs.append(img)
             if len(seen_imgs) >= 5:
                 break
+        # 출처 표시: 사용자에게 유용한 것만. CSV 파생 chunk(제목이 "FAQ — ..."로 시작)는
+        # 매칭에는 기여하되 출처 클릭 대상으로는 부적합 (실제 같은 내용 .md 서브페이지가
+        # 따로 매칭됨). top-3 까지만.
         sources: list[dict] = []
         seen_titles: set[str] = set()
         for c in contexts:
             t = c["title"]
-            if t and t not in seen_titles:
-                sources.append({"title": t, "url": c.get("notion_url", "") or ""})
-                seen_titles.add(t)
+            if not t or t in seen_titles:
+                continue
+            if t.startswith("FAQ —"):
+                continue
+            sources.append({"title": t, "url": c.get("notion_url", "") or ""})
+            seen_titles.add(t)
+            if len(sources) >= 3:
+                break
         yield {"type": "done", "images": seen_imgs[:5], "sources": sources, "score": top_score}

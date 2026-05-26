@@ -24,7 +24,10 @@
   .turn:last-child { border-bottom: none; }
   .q { color: #57606a; font-size: 13px; margin-bottom: 6px; }
   .a { white-space: pre-wrap; line-height: 1.7; }
-  .src { margin-top: 10px; font-size: 12px; color: #57606a; }
+  .src { margin-top: 14px; padding-top: 10px; border-top: 1px solid #eaeef2; font-size: 13px; }
+  .src h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #57606a; }
+  .src ul { list-style: none; padding: 0; margin: 0; }
+  .src li { padding: 4px 0; font-size: 14px; }
   .src a { color: #0969da; text-decoration: none; }
   .src a:hover { text-decoration: underline; }
   .imgs {
@@ -179,50 +182,66 @@ async function ask(query) {
           const i = document.createElement("img");
           i.src = src;
           i.loading = "lazy";
-          i.alt = "가이드 캡처";
+          i.alt = "";
+          // 자산이 없는 경로(404)는 X 박스 대신 자리 제거
+          i.onerror = () => i.remove();
           i.onclick = () => openLightbox(src);
           imgs.appendChild(i);
         });
         if (evt.sources?.length) {
           const srcEl = div.querySelector(".src");
           srcEl.innerHTML = "";
-          srcEl.appendChild(document.createTextNode("참고: "));
-          evt.sources.forEach((s, i) => {
-            if (i > 0) srcEl.appendChild(document.createTextNode(", "));
+          const h = document.createElement("h4");
+          h.textContent = "관련 문서";
+          srcEl.appendChild(h);
+          const ul = document.createElement("ul");
+          evt.sources.forEach(s => {
             const title = typeof s === "string" ? s : (s.title || "");
             const url = typeof s === "object" ? (s.url || "") : "";
+            const li = document.createElement("li");
             if (url) {
               const a = document.createElement("a");
               a.href = url;
               a.target = "_blank";
               a.rel = "noopener noreferrer";
               a.textContent = title;
-              srcEl.appendChild(a);
+              li.appendChild(a);
             } else {
-              srcEl.appendChild(document.createTextNode(title));
+              li.textContent = title;
             }
+            ul.appendChild(li);
           });
+          srcEl.appendChild(ul);
         }
       } else if (evt.type === "turn_id") {
         turnId = evt.turn_id;
-        const fb = div.querySelector(".fb");
-        const label = document.createElement("span");
-        label.textContent = "이 답변은 ";
-        label.style.fontSize = "12px";
-        label.style.color = "#57606a";
-        fb.appendChild(label);
-        [1,2,3].forEach(r => {
-          const b = document.createElement("button");
-          b.textContent = ["도움 안 됨","보통","도움 됨"][r-1];
-          b.onclick = () => fetch("/feedback", {method:"POST", headers:{"content-type":"application/json"}, body: JSON.stringify({turn_id: turnId, rating: r})}).then(()=>{ fb.textContent = "감사합니다."; });
-          fb.appendChild(b);
-        });
+        renderFeedback(div.querySelector(".fb"), turnId);
       }
     }
   }
 }
 
 function escape(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+
+function renderFeedback(fb, turnId) {
+  fb.innerHTML = "";
+  const label = document.createElement("span");
+  label.textContent = "이 응답이 도움이 되었습니까?";
+  label.style.fontSize = "13px";
+  label.style.color = "#57606a";
+  fb.appendChild(label);
+  // "예"(긍정)를 먼저 배치
+  [["예", 3], ["아니오", 1]].forEach(([text, rating]) => {
+    const b = document.createElement("button");
+    b.textContent = text;
+    b.onclick = () => fetch("/feedback", {
+      method:"POST",
+      headers:{"content-type":"application/json"},
+      body: JSON.stringify({turn_id: turnId, rating}),
+    }).then(()=>{ fb.textContent = "피드백 감사합니다."; });
+    fb.appendChild(b);
+  });
+}
 
 function openLightbox(src) {
   const lb = document.getElementById("lightbox");

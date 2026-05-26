@@ -56,7 +56,9 @@ def _rewrite_image_refs(chunk: Chunk, mapping: dict[str, str], raw_dir: Path) ->
         doc_set=chunk.doc_set,
         title=chunk.title,
         section_path=chunk.section_path,
-        image_refs=new_refs or chunk.image_refs,
+        # 매핑 실패한 ref 는 그대로 두면 프런트에서 /<path> 형태로 404 발생.
+        # 안전하게 빈 리스트로 설정 — 이미지 없는 청크로 취급.
+        image_refs=new_refs,
         csv_refs=chunk.csv_refs,
         notion_url=chunk.notion_url,
     )

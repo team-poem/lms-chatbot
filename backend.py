@@ -1,7 +1,9 @@
 from __future__ import annotations
+import asyncio
 import json
 import os
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -19,18 +21,34 @@ CONSENT_VERSION = "2026-05-26-v1"
 ASSETS_DIR = Path(os.environ.get("ASSETS_DIR", "./data/assets"))
 LOGS_DB_PATH = Path(os.environ.get("LOGS_DB_PATH", "./data/chat_logs.db"))
 
-app = FastAPI(title="LMS 챗봇")
-db = Database(LOGS_DB_PATH)
-db.init()
 _engine = None
 
 
-def get_engine():
-    """RagEngine 지연 초기화. 임포트 자체가 무거우므로 첫 요청 시 로드."""
+def _build_engine():
+    """동기적으로 RagEngine 빌드 (BGE-M3 모델 로드 약 2분 소요)."""
     global _engine
+    from generation.pipeline import RagEngine
+    _engine = RagEngine()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 첫 요청 콜드 스타트(~2분) 회피: 서버 부팅 시 BGE-M3 + ChromaDB + BM25 미리 로드
+    print("[startup] RagEngine 사전 로드 시작 (BGE-M3 모델 로드, 약 1~2분)...", flush=True)
+    started = time.time()
+    await asyncio.to_thread(_build_engine)
+    print(f"[startup] RagEngine 준비 완료 ({time.time() - started:.1f}s)", flush=True)
+    yield
+
+
+app = FastAPI(title="LMS 챗봇", lifespan=lifespan)
+db = Database(LOGS_DB_PATH)
+db.init()
+
+
+def get_engine():
     if _engine is None:
-        from generation.pipeline import RagEngine
-        _engine = RagEngine()
+        _build_engine()
     return _engine
 
 
