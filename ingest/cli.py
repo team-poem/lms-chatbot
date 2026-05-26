@@ -3,6 +3,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from urllib.parse import unquote
 
 from dotenv import load_dotenv
 
@@ -29,18 +30,24 @@ def _detect_doc_set(rel_path: Path) -> str:
 
 
 def _rewrite_image_refs(chunk: Chunk, mapping: dict[str, str], raw_dir: Path) -> Chunk:
+    """Notion .md 의 image 경로는 URL 인코딩되어 있음 (예 '%EB%A1%9C').
+    파일 시스템 경로(매핑 키)는 비인코딩 한글이므로 unquote 후 조회한다.
+    """
     new_refs: list[str] = []
     new_text = chunk.text
     for ref in chunk.image_refs:
+        decoded = unquote(ref)
         src_dir = Path(chunk.source).parent
-        abs_path = (src_dir / ref).resolve()
+        abs_path = (src_dir / decoded).resolve()
         try:
             rel_to_raw = str(abs_path.relative_to(raw_dir.resolve()))
         except ValueError:
             continue
         if rel_to_raw in mapping:
             url = mapping[rel_to_raw]
+            # 원본 문서의 URL-encoded 형태와 디코드된 형태 둘 다 치환
             new_text = new_text.replace(f"({ref})", f"({url})")
+            new_text = new_text.replace(f"({decoded})", f"({url})")
             new_refs.append(url)
     return Chunk(
         chunk_id=chunk.chunk_id,

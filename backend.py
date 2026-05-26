@@ -81,11 +81,15 @@ async def chat(body: ChatBody):
     final_sources: list[str] = []
     final_score: float = 0.0
 
+    final_clean_text: str | None = None
+
     async def gen():
-        nonlocal final_images, final_sources, final_score
+        nonlocal final_images, final_sources, final_score, final_clean_text
         async for evt in eng.stream_chat(body.query):
             if evt.get("type") == "text":
                 response_text_parts.append(evt["delta"])
+            elif evt.get("type") == "text_final":
+                final_clean_text = evt["text"]
             elif evt.get("type") == "done":
                 final_images = evt.get("images", [])
                 final_sources = evt.get("sources", [])
@@ -93,7 +97,8 @@ async def chat(body: ChatBody):
             yield f"data: {json.dumps(evt, ensure_ascii=False)}\n\n"
 
         latency_ms = int((time.time() - started) * 1000)
-        full = "".join(response_text_parts)
+        # 로깅은 최종 정제된 텍스트를 우선 사용 (있으면)
+        full = final_clean_text if final_clean_text is not None else "".join(response_text_parts)
         turn_id = db.add_turn(
             session_id=body.session_id,
             query=body.query,

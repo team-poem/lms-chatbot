@@ -124,6 +124,8 @@ async function ask(query) {
       if (evt.type === "text") {
         div.querySelector(".a").textContent += evt.delta;
         log.scrollTop = log.scrollHeight;
+      } else if (evt.type === "text_final") {
+        div.querySelector(".a").textContent = evt.text;
       } else if (evt.type === "done") {
         const imgs = div.querySelector(".imgs");
         evt.images.forEach(src => { const i = document.createElement("img"); i.src = src; imgs.appendChild(i); });

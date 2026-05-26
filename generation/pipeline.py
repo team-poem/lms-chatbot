@@ -10,7 +10,7 @@ from index.embed import Embedder, get_chroma, query_embed
 from index.bm25_index import load_bm25, query_bm25
 from retrieval.hybrid import combine_scores
 from generation.persona import build_prompt
-from generation.filters import clean_response
+from generation.filters import clean_response, streaming_clean
 
 
 SCORE_THRESHOLD = 0.25
@@ -75,6 +75,7 @@ class RagEngine:
             "options": {"num_ctx": 8192, "temperature": 0.2},
         }
 
+        raw_buf = ""
         async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
             async with client.stream("POST", url, json=payload) as resp:
                 async for line in resp.aiter_lines():
@@ -83,10 +84,14 @@ class RagEngine:
                     obj = json.loads(line)
                     delta = obj.get("message", {}).get("content", "")
                     if delta:
-                        # 토큰 단위로 후처리 필터 적용 (이모지/마크업 즉시 제거)
-                        yield {"type": "text", "delta": clean_response(delta)}
+                        raw_buf += delta
+                        # 스트리밍은 이모지만 즉시 제거 (안전). 마크업은 종료 시 일괄.
+                        yield {"type": "text", "delta": streaming_clean(delta)}
                     if obj.get("done"):
                         break
+
+        # 스트림 종료: 누적 텍스트에 full 클린업 적용 후 프런트가 교체
+        yield {"type": "text_final", "text": clean_response(raw_buf)}
 
         seen_imgs: list[str] = []
         for c in contexts:
