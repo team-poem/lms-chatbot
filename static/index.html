@@ -24,12 +24,15 @@
   .turn:last-child { border-bottom: none; }
   .q { color: #57606a; font-size: 13px; margin-bottom: 6px; }
   .a { white-space: pre-wrap; line-height: 1.7; }
-  .src { margin-top: 14px; padding-top: 10px; border-top: 1px solid #eaeef2; font-size: 13px; }
-  .src h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #57606a; }
+  .src { margin-top: 16px; padding-top: 14px; border-top: 1px solid #eaeef2; }
+  .src h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #2b3137; }
+  .src h4 svg { color: #57606a; }
   .src ul { list-style: none; padding: 0; margin: 0; }
-  .src li { padding: 4px 0; font-size: 14px; }
-  .src a { color: #0969da; text-decoration: none; }
-  .src a:hover { text-decoration: underline; }
+  .src li { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 14px; }
+  .src li svg { color: #0969da; flex-shrink: 0; }
+  .src li a { color: #1f2328; text-decoration: none; }
+  .src li a:hover { color: #0969da; text-decoration: underline; }
+  .src li.no-link { color: #1f2328; }
   .imgs {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -75,8 +78,14 @@
     font-size: 12px;
     opacity: 0.7;
   }
-  .fb { margin-top: 8px; display: flex; gap: 6px; align-items: center; }
-  .fb button { padding: 4px 8px; font-size: 12px; }
+  .fb { margin-top: 14px; display: flex; gap: 10px; align-items: center; font-size: 14px; flex-wrap: wrap; }
+  .fb .q { color: #57606a; }
+  .fb button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: transparent; border: 1px solid #d0d7de; border-radius: 6px; color: #1f2328; font-size: 14px; cursor: pointer; }
+  .fb button:hover { background: #f6f8fa; border-color: #afb8c1; }
+  .fb button svg { color: #57606a; }
+  .fb button.yes:hover svg { color: #1a7f37; }
+  .fb button.no:hover svg { color: #cf222e; }
+  .fb .thanks { color: #1a7f37; font-size: 13px; }
   .input { display: flex; gap: 8px; margin-top: 16px; }
   .input input { flex: 1; padding: 10px; border: 1px solid #d0d7de; border-radius: 6px; font-size: 14px; }
   .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
@@ -192,13 +201,14 @@ async function ask(query) {
           const srcEl = div.querySelector(".src");
           srcEl.innerHTML = "";
           const h = document.createElement("h4");
-          h.textContent = "관련 문서";
+          h.innerHTML = ICON_PAPERCLIP + " <span>관련 문서</span>";
           srcEl.appendChild(h);
           const ul = document.createElement("ul");
           evt.sources.forEach(s => {
             const title = typeof s === "string" ? s : (s.title || "");
             const url = typeof s === "object" ? (s.url || "") : "";
             const li = document.createElement("li");
+            li.insertAdjacentHTML("beforeend", ICON_DOC);
             if (url) {
               const a = document.createElement("a");
               a.href = url;
@@ -207,7 +217,10 @@ async function ask(query) {
               a.textContent = title;
               li.appendChild(a);
             } else {
-              li.textContent = title;
+              const span = document.createElement("span");
+              span.textContent = title;
+              li.appendChild(span);
+              li.classList.add("no-link");
             }
             ul.appendChild(li);
           });
@@ -223,22 +236,29 @@ async function ask(query) {
 
 function escape(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 
+const ICON_PAPERCLIP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 1 1-8.49-8.49l8.57-8.57A4 4 0 1 1 17.93 8.8L9.41 17.32a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
+const ICON_DOC = '<svg width="14" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/></svg>';
+const ICON_THUMBS_UP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H7V10l4.66-9.32a.5.5 0 0 1 .66-.22l1.06.53a2 2 0 0 1 1.02 2.4L15 5.88Z"/></svg>';
+const ICON_THUMBS_DOWN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H17v12l-4.66 9.32a.5.5 0 0 1-.66.22l-1.06-.53a2 2 0 0 1-1.02-2.4L9 18.12Z"/></svg>';
+
 function renderFeedback(fb, turnId) {
   fb.innerHTML = "";
-  const label = document.createElement("span");
-  label.textContent = "이 응답이 도움이 되었습니까?";
-  label.style.fontSize = "13px";
-  label.style.color = "#57606a";
-  fb.appendChild(label);
+  const q = document.createElement("span");
+  q.className = "q";
+  q.textContent = "이 응답이 도움이 되었습니까?";
+  fb.appendChild(q);
   // "예"(긍정)를 먼저 배치
-  [["예", 3], ["아니오", 1]].forEach(([text, rating]) => {
+  [["예", 3, ICON_THUMBS_UP, "yes"], ["아니오", 1, ICON_THUMBS_DOWN, "no"]].forEach(([text, rating, icon, cls]) => {
     const b = document.createElement("button");
-    b.textContent = text;
+    b.className = cls;
+    b.innerHTML = icon + " <span>" + text + "</span>";
     b.onclick = () => fetch("/feedback", {
       method:"POST",
       headers:{"content-type":"application/json"},
       body: JSON.stringify({turn_id: turnId, rating}),
-    }).then(()=>{ fb.textContent = "피드백 감사합니다."; });
+    }).then(() => {
+      fb.innerHTML = '<span class="thanks">피드백 감사합니다.</span>';
+    });
     fb.appendChild(b);
   });
 }

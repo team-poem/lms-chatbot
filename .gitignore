@@ -12,3 +12,7 @@ __pycache__/
 # Notion export 파일은 data/raw/에만 두어야 함 (root에 떨어지는 사고 방지)
 /*.zip
 /ExportBlock-*.zip
+
+# 작업 참고용 스크린샷
+/KakaoTalk_Photo_*.png
+/*.heic
