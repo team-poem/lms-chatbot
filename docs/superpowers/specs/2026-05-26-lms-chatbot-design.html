@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LMS 챗봇 설계 문서</title>
+<style>
+:root {
+  --fg: #1f2328;
+  --muted: #57606a;
+  --bg: #ffffff;
+  --bg-soft: #f6f8fa;
+  --border: #d0d7de;
+  --accent: #0969da;
+  --code-bg: #f6f8fa;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo",
+               "Pretendard", "Noto Sans KR", "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.7;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 860px; margin: 0 auto; padding: 56px 32px 96px; }
+h1 { font-size: 28px; margin: 0 0 8px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+h2 { font-size: 22px; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+h3 { font-size: 18px; margin: 28px 0 8px; }
+h4 { font-size: 16px; margin: 20px 0 6px; color: var(--muted); }
+p { margin: 8px 0 12px; }
+ul, ol { padding-left: 1.5em; margin: 8px 0 12px; }
+li { margin: 4px 0; }
+li > ul, li > ol { margin: 4px 0; }
+hr { border: 0; border-top: 1px solid var(--border); margin: 32px 0; }
+code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background: var(--code-bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  line-height: 1.55;
+}
+pre code { background: transparent; padding: 0; font-size: 13px; }
+blockquote {
+  margin: 12px 0;
+  padding: 8px 16px;
+  border-left: 4px solid var(--border);
+  color: var(--muted);
+  background: var(--bg-soft);
+}
+table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+th { background: var(--bg-soft); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.meta { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1 id="lms">LMS 챗봇 설계 문서</h1>
+<ul>
+<li>작성일: 2026-05-26</li>
+<li>상태: 초안 → 사용자 리뷰 대기</li>
+<li>산출물 기한: 2026년 6월 초 (성과보고)</li>
+</ul>
+<h2 id="1">1. 프로젝트 목적과 범위</h2>
+<p>동서대학교 LearningX LMS 사용 매뉴얼을 학습한 챗봇이, 교수자가 "이 기능 어떻게 쓰나요?" 류의 질문을 했을 때 가이드북 내용을 근거로 답변한다. 응답에는 가이드의 본문 설명과 해당 단계의 캡처 이미지를 함께 제시한다.</p>
+<h3 id="11">1.1 대상 사용자</h3>
+<ul>
+<li>동서대학교 교수자 (LMS 사용에 익숙하지 않거나, 특정 기능 사용법을 빠르게 확인하고 싶은 사용자)</li>
+</ul>
+<h3 id="12">1.2 입력 문서</h3>
+<ol>
+<li><strong>LMS 상세 가이드 (교수자용)</strong>: 전체 메뉴 안내, 글로벌 탐색, 기본 메뉴, 주차학습, 출결현황, 시험·설문, 토론, 게시판, 과제, 팀 프로젝트, 성적 관리, 채점(SpeedGrader), 루브릭</li>
+<li><strong>LMS FAQ</strong>: 학기 초 / 학기 중 / 학기 말 3개 페이지</li>
+</ol>
+<h3 id="13-phase">1.3 범위 (Phase)</h3>
+<ul>
+<li><strong>Phase 1 — 아키텍처 + 보고용 MVP (6월 초까지)</strong></li>
+<li>AGENT.md 작성</li>
+<li>Notion export 수집·전처리 파이프라인</li>
+<li>하이브리드 검색 (BM25 + 임베딩) 동작</li>
+<li>persona-mine 기반 FastAPI <code>/chat</code> 엔드포인트에 RAG 결합</li>
+<li>응답에 이미지 경로 포함, 마크업·이모지 필터 적용</li>
+<li>대화 로깅 (SQLite) + 동의 절차 + 개인정보처리방침 초안</li>
+<li>시연 매체: 노트북/CLI에서 몇 가지 질의 결과 캡처</li>
+<li><strong>Phase 2 — 풀 데모 (보고 이후)</strong></li>
+<li>웹 UI 정비, 멀티 세션, 운영 환경 분리, 평가 데이터셋, semantic chunking 등 고도화</li>
+</ul>
+<h3 id="14-non-goals-phase-1">1.4 비목표 (Non-goals, Phase 1)</h3>
+<ul>
+<li>다중 사용자 동시 접속 처리 (직렬 큐 허용)</li>
+<li>답변 평가 자동화</li>
+<li>가이드북 외부 지식 (일반 LMS 지식, 일반 교육학 지식)</li>
+<li>학생용 챗봇</li>
+<li><strong>수집된 대화 기록을 모델 학습(파인튜닝, RLHF, 임베딩 추가 학습 등)에 활용하지 않음</strong> — 개보법상 별도 동의가 필요한 영역으로, 본 Phase 1 범위 밖. 본 사항은 처리방침과 동의 화면에서 명시적으로 약속함</li>
+</ul>
+<h2 id="2-agentmd">2. AGENT.md의 역할과 구성</h2>
+<p><code>AGENT.md</code>는 본 프로젝트 루트에 두는 메타 지시 문서로, 두 가지 독자를 동시에 가진다.</p>
+<ol>
+<li>이 코드베이스에서 작업하게 될 AI 에이전트 (Claude Code, Copilot 등)</li>
+<li>인간 개발자 (신규 합류자)</li>
+</ol>
+<h3 id="21-agentmd">2.1 AGENT.md 구성 (목차)</h3>
+<ol>
+<li>프로젝트 한 문단 요약 (목적, 대상, 비목표)</li>
+<li>문서 소스와 신뢰 경계: 가이드북 외 추론 금지 원칙</li>
+<li>응답 규칙 (RESPONSE_RULES): 다음 절 2.2 참조</li>
+<li>전처리 룰 (PREPROCESS_RULES): 다음 절 2.3 참조</li>
+<li>검색 정책: 청크 단위, 하이브리드 가중치, top-k 설정</li>
+<li>이미지 동반 정책: 어떤 이미지를 어느 순서로 포함할지</li>
+<li>로깅과 개인정보: 무엇을 저장하고 무엇은 저장하지 않는지</li>
+<li>개발 워크플로: 인덱싱 재실행 조건, 모델 교체 절차, 환경 변수</li>
+<li>디렉터리 맵</li>
+</ol>
+<h3 id="22-response_rules">2.2 응답 규칙 (RESPONSE_RULES)</h3>
+<ul>
+<li><strong>존대 + 격식</strong>: 교수자 대상이므로 "~합니다", "~하시면 됩니다" 체. "님" 호칭은 사용하지 않음 (이미 격식체이므로 중복)</li>
+<li><strong>마크업 금지</strong>: 굵게(<code>**</code>), 기울임(<code>*</code>), 헤딩(<code>#</code>) 사용하지 않음. 단, 단계 안내 시 숫자 리스트(<code>1.</code>, <code>2.</code>)는 허용 (가독성)</li>
+<li><strong>이모티콘 금지</strong>: 모든 이모지(emoji), 이모티콘(<code>:)</code>, <code>^^</code>) 출력 금지. 가이드 원문에 있는 장식 이모지(🟠 등)도 응답에 옮기지 않음</li>
+<li><strong>출처 표기</strong>: 답변 마지막에 참조한 가이드 페이지 제목을 한 줄로 표기 (예: "참고: 퀴즈 개요, 문제 유형")</li>
+<li><strong>불확실성 처리</strong>: 검색 결과 신뢰도가 낮으면 추측하지 않고 "해당 내용은 현재 가이드에서 확인이 어렵습니다. 관리자에게 문의 부탁드립니다." 류로 응답</li>
+<li><strong>가이드 범위 외 질문</strong>: 정중히 거절. 일반 LMS 지식이나 교육학 지식으로 추론하지 않음</li>
+</ul>
+<h3 id="23-preprocess_rules">2.3 전처리 룰 (PREPROCESS_RULES)</h3>
+<ol>
+<li><strong>장식 이모지 제거</strong>: 섹션 헤딩 장식용 이모지(🟠📁💯🔖💡📄🖥️🔎📌 등 광범위 유니코드 emoji 블록) 모두 제거. 한국어 본문에 의미 있는 이모지가 거의 없으므로 emoji 전 범위 제거를 기본 룰로 함.</li>
+<li><strong>Notion artifact 정리</strong>: <code>(📄)</code> 같은 헤딩 접미 마커, <code>---</code> 단독 행 (Notion의 시각적 구분선) 제거. <code>&lt;aside&gt;...&lt;/aside&gt;</code> callout은 일반 문단으로 변환</li>
+<li><strong>빈 링크 정리</strong>: Notion export의 외부 링크가 본 시스템에서는 의미 없으므로 링크 텍스트만 남기고 URL은 제거 (단, 이미지 링크 <code>![](...)</code>는 보존)</li>
+<li><strong>공백 정규화</strong>: 연속 공백·연속 줄바꿈 축약</li>
+<li><strong>이중 안전망</strong>: LLM 응답에서도 이모지 정규식 필터를 후처리로 적용. 모델이 페르소나를 어겨도 사용자에게는 노출되지 않음</li>
+</ol>
+<h2 id="3">3. 문서 수집·전처리 파이프라인</h2>
+<h3 id="31">3.1 입력 수집</h3>
+<ul>
+<li><strong>방식</strong>: Notion에서 두 가이드 페이지를 각각 "Export → Markdown &amp; CSV (Include subpages, Create folders for subpages)"로 ZIP 받아 <code>data/raw/</code> 하위에 압축 해제</li>
+<li><strong>결과 구조</strong>: 각 페이지가 .md 파일, 첨부 이미지는 같은 디렉터리에 png/jpg로 위치. 표는 .csv로 분리</li>
+<li><strong>재실행 시점</strong>: 가이드북이 업데이트될 때마다 새 ZIP을 받아 같은 위치에 덮어쓰고 인덱싱 재실행</li>
+</ul>
+<h3 id="32">3.2 청크 단위</h3>
+<ul>
+<li><strong>기본 청크 = 1개 .md 파일 (= 1개 Notion 페이지)</strong></li>
+<li>예외: 1개 파일이 토큰 기준 2,000을 넘으면 H2 헤딩 기준으로 분할</li>
+<li>각 청크는 다음 메타데이터를 가진다.
+  <code>{
+    "source": "LMS_상세가이드/주차학습/퀴즈_개요.md",
+    "doc_set": "guide" | "faq",
+    "title": "퀴즈 개요",
+    "section_path": ["시험 및 설문", "퀴즈 개요"],
+    "image_refs": ["images/abc123.png", "images/abc124.png"],
+    "csv_refs": ["tables/quiz_types.csv"]
+  }</code></li>
+</ul>
+<h3 id="33">3.3 임베딩</h3>
+<ul>
+<li><strong>모델</strong>: <code>BAAI/bge-m3</code> (한국어/영어 혼용 문서에서 강하고 8K 컨텍스트 지원). 로컬 추론 가능</li>
+<li><strong>벡터 저장소</strong>: ChromaDB (파일 기반, <code>data/chroma/</code> 디렉터리. 별도 서버 불필요)</li>
+</ul>
+<h3 id="34-bm25">3.4 BM25 인덱스</h3>
+<ul>
+<li><code>rank_bm25</code> 라이브러리 사용</li>
+<li>청크의 본문 + title + section_path를 토큰화 (한국어는 공백·구두점 분할로 시작, 향후 형태소 분석 도입 여지 남김)</li>
+<li>인덱스 객체는 <code>data/bm25.pkl</code>로 직렬화</li>
+</ul>
+<h3 id="35">3.5 인덱싱 스크립트</h3>
+<ul>
+<li><code>ingest/ingest.py</code> 단일 진입점. 다음 순서로 동작
+  1. <code>data/raw/</code> 스캔 → .md 파일 목록화
+  2. 전처리 룰 적용 → 청크 + 메타데이터 생성
+  3. 이미지/CSV는 <code>data/assets/</code>로 복사하고 메타데이터에 새 경로 기록
+  4. BGE-M3로 임베딩 → ChromaDB 저장
+  5. BM25 인덱스 빌드 → pickle 저장</li>
+<li>단계별 idempotent. 부분 실패해도 다음 실행에서 이어붙음</li>
+</ul>
+<h2 id="4">4. 응답 생성</h2>
+<h3 id="41">4.1 처리 순서</h3>
+<ol>
+<li>사용자 질의 수신 (FastAPI <code>/chat</code>, SSE 스트리밍)</li>
+<li><strong>하이브리드 검색</strong>: BM25 top-20 + 임베딩 top-20 → 점수 정규화 후 가중합 (BM25 0.4 + 임베딩 0.6) → 상위 5개 청크</li>
+<li>검색 결과의 청크 본문 + 메타데이터를 LLM 프롬프트에 컨텍스트로 주입</li>
+<li>Ollama gemma3:4b 호출 → 토큰 스트리밍</li>
+<li><strong>응답 후처리</strong>: 스트림을 받으면서 이모지·금지 마크업 정규식 필터를 적용 후 사용자에게 전달</li>
+<li>스트림 종료 후, 검색 결과에서 나온 <code>image_refs</code>를 중복 제거하여 응답 메타데이터로 동봉</li>
+</ol>
+<h3 id="42-llm">4.2 LLM 프롬프트 구조</h3>
+<ul>
+<li><strong>System prompt</strong>: 페르소나, RESPONSE_RULES, 가이드 외 추론 금지, 출처 표기 명령</li>
+<li><strong>Retrieved context</strong>: 청크 5개를 다음 형식으로 (각 청크 사이 명확한 구분자)
+  <code>[SOURCE: &lt;title&gt;]
+  &lt;청크 본문&gt;</code></li>
+<li><strong>User query</strong>: 그대로</li>
+</ul>
+<h3 id="43">4.3 이미지 매칭 정책</h3>
+<ul>
+<li>응답에는 검색 상위 5개 청크의 모든 <code>image_refs</code>를 모은 합집합 중, 최대 5장을 표시</li>
+<li>우선순위: 더 상위 청크에서 등장한 이미지 → 같은 청크 내에선 본문 등장 순서</li>
+<li>응답 페이로드 형식 (프런트가 렌더링):
+  <code>json
+  {
+    "text": "...",
+    "images": [{"path": "/assets/abc123.png", "caption": "퀴즈 생성 화면"}],
+    "sources": ["퀴즈 개요", "문제 유형"]
+  }</code></li>
+<li>캡션은 원문 .md에서 이미지 인접 텍스트(직전·직후 80자 이내)에서 추출. 없으면 생략</li>
+</ul>
+<h3 id="44">4.4 컨텍스트 토큰 예산</h3>
+<ul>
+<li>Ollama의 <code>num_ctx</code>는 기본 2048로 너무 작음. gemma3:4b는 더 큰 컨텍스트를 지원하므로 호출 옵션으로 <code>num_ctx=8192</code>를 명시</li>
+<li>검색 청크 + 시스템 프롬프트 + 사용자 질의 + 응답 여유분 합계가 <code>num_ctx</code> 80% (약 6500 토큰)를 넘으면 하위 청크부터 잘라냄</li>
+<li>단일 청크가 큰 경우(절 3.2의 H2 분할 후에도 큰 경우) 본문 앞쪽 일정 분량까지만 컨텍스트에 주입</li>
+</ul>
+<h3 id="45">4.5 한계 처리</h3>
+<ul>
+<li>검색 최고 점수가 임계값 미만이면 LLM 호출하지 않고 정형 메시지 반환 ("해당 내용은 현재 가이드에서 확인이 어렵습니다...")</li>
+<li>임계값은 초기 정성 평가 후 조정 (Phase 1 안에 수치 확정)</li>
+</ul>
+<h2 id="5">5. 대화 로깅 및 피드백</h2>
+<h3 id="51">5.1 목적 (좁게 한정)</h3>
+<p>다음 두 가지로 한정한다. 다른 목적으로 확장 시 사전 동의 절차를 다시 거친다.
+1. <strong>가이드북 업데이트 우선순위 도출</strong>: 자주 묻는 주제, 답변이 부족했던 질문 유형 식별
+2. <strong>챗봇 응답 품질 모니터링</strong>: 검색 실패·환각·페르소나 위반 사례 점검</p>
+<p>명시적 제외:
+- 모델 학습(파인튜닝/RLHF/임베딩 재학습)에 활용하지 않음
+- 외부 제3자 제공 없음, 외부 처리 위탁 없음 (Ollama 로컬 추론)
+- 마케팅·통계·연구 논문 등 본 목적 외 용도 사용 금지</p>
+<p>본 한정은 PIPC "생성형 AI 개발·활용을 위한 개인정보 처리 안내서"(2025.8) 의 목적 명확화 원칙과, 서비스 품질 개선 목적으로 수집한 대화를 모델 학습에 전용하는 행위가 목적 외 이용으로 판단된 행정처분 사례를 근거로 한다.</p>
+<h3 id="52">5.2 저장 매체</h3>
+<ul>
+<li>SQLite (<code>data/chat_logs.db</code>). 단순하고 보고 시연 시 다루기 쉬움</li>
+</ul>
+<h3 id="53">5.3 스키마</h3>
+<pre><code class="language-sql">CREATE TABLE sessions (
+  session_id TEXT PRIMARY KEY,
+  created_at TEXT,
+  consent_version TEXT,
+  consent_at TEXT,
+  user_label TEXT       -- 본인이 입력한 표시명 (선택). 실명·학번은 받지 않음
+);
+
+CREATE TABLE turns (
+  turn_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id TEXT REFERENCES sessions(session_id),
+  created_at TEXT,
+  query TEXT,
+  response TEXT,
+  retrieved_sources TEXT,   -- JSON 배열
+  retrieved_score REAL,     -- 1위 결과 점수
+  latency_ms INTEGER
+);
+
+CREATE TABLE feedback (
+  turn_id INTEGER REFERENCES turns(turn_id),
+  rating INTEGER,           -- 1 (도움 안 됨) / 2 (보통) / 3 (도움 됨)
+  comment TEXT,
+  created_at TEXT
+);
+</code></pre>
+<h3 id="54">5.4 저장하지 않는 것</h3>
+<ul>
+<li>실명, 학번, 교번, 학과, 이메일, IP 주소</li>
+<li>가이드 외 개인적 질문이 들어와도 그대로 저장하되 별도 가명화/마스킹은 Phase 1 범위 외 (Phase 2에서 검토)</li>
+</ul>
+<h3 id="55">5.5 보존 기간</h3>
+<ul>
+<li>기본 6개월 후 자동 삭제 (cron 또는 수동 스크립트). Phase 1은 수동 삭제 스크립트만 준비</li>
+</ul>
+<h2 id="6">6. 개인정보처리방침 (초안)</h2>
+<h3 id="61">6.1 준거 및 작성 방향</h3>
+<ul>
+<li>준거: 개인정보 보호법, 표준개인정보보호지침, <strong>PIPC 「개인정보처리방침 작성 가이드(2025)」</strong>, <strong>PIPC 「생성형 인공지능(AI) 개발·활용을 위한 개인정보 처리 안내서」(2025.8)</strong></li>
+<li><code>docs/privacy.md</code>에 본문 전문, 챗봇 첫 진입 시 동의 모달로 핵심 항목을 노출</li>
+<li>동의 버전(<code>consent_version</code>) 변경 시 재동의 요구</li>
+</ul>
+<h3 id="62">6.2 실질적 동의 원칙</h3>
+<p>형식적·포괄적 동의(예: "개인정보처리방침에 동의합니다" 단일 체크박스)는 개보법이 요구하는 실질적 동의로 인정받기 어렵다는 행정처분·판례 경향을 반영해, 동의 모달은 다음을 만족한다.</p>
+<ul>
+<li>항목별 분리 고지: ①수집 항목 ②수집 목적 ③보유 기간 ④동의 철회 방법을 <strong>각각 별도 항목으로 표시</strong></li>
+<li>핵심 약속을 별도 강조: "본 대화 내용은 모델 학습에 사용되지 않습니다", "외부 제3자에게 제공되지 않습니다" 2개 문구를 동의 화면에서 분리 표시</li>
+<li>미동의 시 챗봇 사용 차단. 단, 동의 모달 화면에서 "처리방침 전문 보기" 링크는 항상 접근 가능</li>
+</ul>
+<h3 id="63">6.3 처리방침 본문 항목 (목차)</h3>
+<p>PIPC 표준 항목 9개를 모두 포함한다.</p>
+<ol>
+<li><strong>수집 항목</strong>: 질의 본문, 응답 본문, 응답 시각, 표시명(선택), 피드백 점수와 코멘트, 검색 점수·지연시간 등 운영 메타데이터. <strong>실명·학번·교번·이메일·IP·기기 식별자 수집 없음</strong></li>
+<li><strong>수집 목적</strong> (좁게 한정): ①가이드북 업데이트 우선순위 도출 ②챗봇 응답 품질 모니터링. 이외 용도(특히 모델 학습) 사용 없음</li>
+<li><strong>보유 및 이용기간</strong>: 수집일로부터 6개월. 이후 자동 삭제. 동의 철회·삭제 요청 시 즉시 삭제. (참고: 일반 챗봇 사례는 30일~1년 범위)</li>
+<li><strong>제3자 제공</strong>: 없음</li>
+<li><strong>처리 위탁</strong>: 없음. LLM 추론은 로컬(Ollama)에서 수행하며 외부 API를 호출하지 않음</li>
+<li><strong>정보주체의 권리</strong>: 열람·정정·삭제·처리정지·동의철회 권리 행사 가능. 요청 채널 명시 (이메일)</li>
+<li><strong>안전성 확보 조치</strong>: 로컬 SQLite 파일 저장. 외부 네트워크 전송 없음. 파일 접근권한은 서비스 운영자에 한정</li>
+<li><strong>자동수집장치</strong>: 쿠키·웹로그·접속 IP 등 자동수집 장치 미사용</li>
+<li><strong>개인정보 보호책임자 및 문의처</strong>: 학과/팀 책임자명·이메일·전화 (Phase 1 종료 전 사용자가 채워야 함)</li>
+</ol>
+<h3 id="64">6.4 사용자 흐름</h3>
+<ol>
+<li>첫 진입 → 동의 모달 표시 (위 6.2 항목별 분리 고지)</li>
+<li>동의 → <code>sessions</code> 테이블에 <code>consent_version</code>, <code>consent_at</code> 기록 후 챗봇 진입</li>
+<li>거부 → 챗봇 사용 불가, 처리방침 전문 페이지로 안내</li>
+<li>처리방침 변경 시 다음 진입에서 재동의 (<code>consent_version</code> 비교)</li>
+<li>동의 철회: 챗봇 화면 내 "기록 삭제 및 동의 철회" 버튼 → 해당 세션의 turns·feedback·sessions 모두 즉시 삭제</li>
+</ol>
+<h2 id="7">7. 리포지토리 레이아웃 및 운영</h2>
+<pre><code>lms-chatbot/
+  AGENT.md                  # 본 spec의 핵심 룰을 코드 친화적 분량으로 압축한 메타 지시 문서
+  README.md                 # 빠른 시작
+  docs/
+    superpowers/specs/      # 설계 문서들 (본 파일 포함)
+    privacy.md              # 개인정보처리방침 본문
+  ingest/
+    ingest.py               # 진입점
+    preprocess.py           # 전처리 룰 구현
+    chunk.py                # 청크 분할 + 메타데이터
+    embed.py                # BGE-M3 임베딩 + Chroma 저장
+    bm25_index.py           # BM25 인덱스 빌드
+  retrieval/
+    hybrid.py               # BM25 + 임베딩 점수 정규화·가중합
+  generation/
+    persona.py              # 시스템 프롬프트
+    filters.py              # 응답 후처리 (이모지/마크업 정규식)
+    pipeline.py             # 검색 → 프롬프트 → LLM → 후처리 흐름
+  backend.py                # FastAPI: /chat, /feedback, /consent, /health
+  static/
+    index.html              # Phase 1은 단순 HTML 폼 + 응답 영역 (Phase 2에서 정비)
+  data/
+    raw/                    # Notion export (gitignore)
+    assets/                 # 이미지·CSV (gitignore 또는 git-lfs 결정 보류)
+    chroma/                 # 벡터 인덱스 (gitignore)
+    bm25.pkl                # BM25 인덱스 (gitignore)
+    chat_logs.db            # SQLite (gitignore)
+  scripts/
+    purge_old_logs.py       # 6개월 경과 로그 삭제
+  requirements.txt
+  run.sh
+  .env.example              # OLLAMA_HOST, OLLAMA_MODEL 등
+</code></pre>
+<h3 id="71">7.1 환경 변수</h3>
+<ul>
+<li><code>OLLAMA_HOST</code> (기본 <code>http://localhost:11434</code>): 추후 학교 GPU 서버로 옮길 때 이 변수만 변경</li>
+<li><code>OLLAMA_MODEL</code> (기본 <code>gemma3:4b</code>)</li>
+<li><code>CHROMA_DIR</code>, <code>BM25_PATH</code>, <code>LOGS_DB_PATH</code>: 모두 <code>data/</code> 하위 기본값</li>
+</ul>
+<h3 id="72">7.2 운영 노트</h3>
+<ul>
+<li>인덱싱 재실행은 가이드 업데이트 시 수동 (<code>python -m ingest.ingest</code>)</li>
+<li>Phase 1은 운영 자동화 없음. 노트북에서 <code>./run.sh</code> 실행해 시연</li>
+</ul>
+<h2 id="8-6">8. 6월 초 보고용 마일스톤</h2>
+<p><strong>시연 형식 확정: 라이브 시연.</strong> 따라서 최소 UI가 실제 동작해야 한다. 우선순위는 다음과 같다.</p>
+<ol>
+<li><strong>본 설계 문서 + AGENT.md</strong> (필수, 본 단계)</li>
+<li><strong>인덱싱 파이프라인 동작</strong>: 두 가이드북 Notion export를 받아 청크·임베딩·BM25 인덱스 빌드까지 1커맨드로</li>
+<li><strong>하이브리드 검색 단독 동작 확인</strong>: 몇 가지 질의를 CLI에서 던져 상위 5개 청크와 점수 확인 (LLM 호출 전)</li>
+<li><strong><code>/chat</code> 엔드포인트 + RAG 결합</strong>: persona-mine <code>backend.py</code>에 검색 단계 결합, 응답 페이로드에 이미지 경로 포함</li>
+<li><strong>응답 후처리 필터</strong>: 이모지·마크업 정규식 필터 적용 확인</li>
+<li><strong>시연용 최소 웹 UI</strong>: persona-mine의 <code>static/index.html</code>을 베이스로 — 질의 입력, 스트리밍 응답, 이미지 인라인 표시, 출처 표기, 피드백 1~3 버튼</li>
+<li><strong>개인정보처리방침 + 동의 모달</strong>: <code>docs/privacy.md</code> 전문 + 동의 모달 (항목별 분리 고지 6.2)</li>
+<li><strong>SQLite 로깅 동작</strong>: 질의·응답·점수 저장, 세션 동의 기록, 동의 철회/기록 삭제 동작 확인</li>
+</ol>
+<p>위 1~6번이 라이브 시연 최소선. 7~8은 처리방침을 화면에서 보여줘야 하므로 시연 흐름에 자연스럽게 포함됨 → 사실상 모두 필수.</p>
+<h2 id="9">9. 결정 사항 정리</h2>
+<ul>
+<li><strong><code>data/assets/</code> 이미지 관리</strong>: 로컬 export 직접 배치 방식으로 확정. <strong>git 추적 제외(<code>.gitignore</code>)</strong>. Notion 원본과 이미지는 별도 백업 채널 운영 (팀 공유 드라이브 등). 이유: 가이드 이미지 용량이 클 가능성 + 가이드 업데이트 시 잦은 재export로 git 히스토리가 비대해질 위험</li>
+<li><strong>시연 매체</strong>: 라이브 시연. 8절 마일스톤 6번(최소 웹 UI) 필수</li>
+<li><strong>개인정보 보호책임자/문의처</strong>: 미정 (Phase 1 종료 전 사용자 확보 필요 항목). 처리방침 본문에는 임시로 <code>[책임자명/이메일/연락처 — 입력 예정]</code> 자리 표시</li>
+</ul>
+</div>
+</body>
+</html>

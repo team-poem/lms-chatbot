@@ -1,0 +1,10 @@
+data/raw/
+data/assets/
+data/chroma/
+data/bm25.pkl
+data/chat_logs.db
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
