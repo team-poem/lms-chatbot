@@ -1,0 +1,39 @@
+# Git
+.git/
+.gitignore
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# 데이터 (호스트 볼륨 마운트로 주입)
+data/
+*.db
+*.pkl
+*.zip
+
+# 작업 산출물·문서 (이미지에 불필요)
+docs/
+tests/
+pytest.ini
+README.md
+AGENT.md
+run.sh
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+
+# 참고용 스크린샷
+KakaoTalk_Photo_*.png
+*.heic
+
+# 환경 파일 (값은 compose 의 environment 로)
+.env
+.env.local

@@ -45,9 +45,22 @@ open http://localhost:8080
 .venv/bin/pytest -q
 ```
 
+## 도커 배포 (맥미니 등)
+
+상세 절차: `docs/deploy-mini.md`
+
+```bash
+# 개발 머신에서 빌드 + ghcr 푸시
+./scripts/build-and-push.sh
+
+# 맥미니에서
+docker compose pull && docker compose up -d
+```
+
 ## 문서
 
 - `AGENT.md` — 메타 지시 (응답 규칙, 전처리 룰, 검색 정책, 디렉터리 맵)
 - `docs/superpowers/specs/` — 설계 문서
 - `docs/superpowers/plans/` — 구현 계획서
 - `docs/privacy.md` — 개인정보처리방침 전문 (`/privacy` 에서도 조회)
+- `docs/deploy-mini.md` — 맥미니 도커 배포 가이드

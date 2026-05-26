@@ -1,0 +1,31 @@
+services:
+  lms-chatbot:
+    image: ghcr.io/team-poem/lms-chatbot:latest
+    container_name: lms-chatbot
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+
+    # 맥미니 호스트의 native Ollama 에 접속 (Docker Desktop on Mac 가 자동으로 설정)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    environment:
+      OLLAMA_HOST: http://host.docker.internal:11434
+      OLLAMA_MODEL: gemma3:4b
+
+    # 가이드/이미지/인덱스/로그는 호스트에서 관리. 컨테이너 재시작해도 보존.
+    # 인덱싱은 호스트의 별도 작업으로 수행하거나 docker compose run 으로 진입.
+    volumes:
+      - ./data/raw:/app/data/raw:ro
+      - ./data/assets:/app/data/assets:ro
+      - ./data/chroma:/app/data/chroma:ro
+      - ./data/bm25.pkl:/app/data/bm25.pkl:ro
+      - ./data/chat_logs.db:/app/data/chat_logs.db
+
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 180s
+      retries: 3
