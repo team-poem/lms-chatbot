@@ -24,7 +24,6 @@ docker buildx build \
   --platform "$PLATFORM" \
   --tag "$IMAGE:$TAG" \
   --push \
-  --provenance=false \
   .
 
 echo "==> 완료. 맥미니에서:"
