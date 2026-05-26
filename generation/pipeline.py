@@ -13,11 +13,18 @@ from generation.persona import build_prompt
 from generation.filters import clean_response, streaming_clean
 
 
-SCORE_THRESHOLD = 0.25
-TOP_K = 5
+SCORE_THRESHOLD = 0.25       # 1위 점수가 이 미만이면 "가이드에 없음" 정형 응답
+TOP_K = 5                    # 하이브리드 검색 풀
+RELEVANCE_FLOOR = 0.30       # 출처/컨텍스트에 포함될 최소 절대 점수
+RELEVANCE_RATIO = 0.50       # 1위 점수의 이 비율 미만이면 노이즈로 간주 후 제외
 EMBED_K = 20
 BM25_K = 20
 COLLECTION = "lms_chunks"
+
+
+def _is_relevant(score: float, top_score: float) -> bool:
+    """1위 대비 비율 + 절대 점수 둘 다 통과해야 진짜 연관."""
+    return score >= RELEVANCE_FLOOR and score >= top_score * RELEVANCE_RATIO
 
 
 class RagEngine:
@@ -67,7 +74,10 @@ class RagEngine:
             yield {"type": "done", "images": [], "sources": [], "score": top_score}
             return
 
-        messages = build_prompt(query, [{"title": c["title"], "text": c["text"]} for c in contexts])
+        # 컨텍스트도 임계 통과한 것만 LLM 에 주입. 단 1위는 무조건 포함.
+        relevant_ctx = [contexts[0]] + [c for c in contexts[1:] if _is_relevant(c["score"], top_score)]
+
+        messages = build_prompt(query, [{"title": c["title"], "text": c["text"]} for c in relevant_ctx])
         url = f"{self.ollama_host}/api/chat"
         payload = {
             "model": self.model,
@@ -94,19 +104,18 @@ class RagEngine:
         # 스트림 종료: 누적 텍스트에 full 클린업 적용 후 프런트가 교체
         yield {"type": "text_final", "text": clean_response(raw_buf)}
 
+        # 이미지도 연관성 통과한 청크에서만 수집 (관련 없는 캡처가 따라 나오지 않게)
         seen_imgs: list[str] = []
-        for c in contexts:
+        for c in relevant_ctx:
             for img in c["image_refs"]:
                 if img and img not in seen_imgs:
                     seen_imgs.append(img)
             if len(seen_imgs) >= 5:
                 break
-        # 출처 표시: 사용자에게 유용한 것만. CSV 파생 chunk(제목이 "FAQ — ..."로 시작)는
-        # 매칭에는 기여하되 출처 클릭 대상으로는 부적합 (실제 같은 내용 .md 서브페이지가
-        # 따로 매칭됨). top-3 까지만.
+        # 출처 표시: 연관성 임계 통과 + CSV 파생(FAQ — ...) 제외 + 중복 제목 제거 + top-3.
         sources: list[dict] = []
         seen_titles: set[str] = set()
-        for c in contexts:
+        for c in relevant_ctx:
             t = c["title"]
             if not t or t in seen_titles:
                 continue
