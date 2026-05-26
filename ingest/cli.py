@@ -58,6 +58,7 @@ def _rewrite_image_refs(chunk: Chunk, mapping: dict[str, str], raw_dir: Path) ->
         section_path=chunk.section_path,
         image_refs=new_refs or chunk.image_refs,
         csv_refs=chunk.csv_refs,
+        notion_url=chunk.notion_url,
     )
 
 

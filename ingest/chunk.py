@@ -54,6 +54,7 @@ def _split_long(text: str) -> list[str]:
 
 
 _EMPTY_PARENS_RE = re.compile(r"\s*\(\s*\)\s*")
+_PAGE_ID_RE = re.compile(r"\s([0-9a-f]{32})$")
 
 
 def _derive_title(path: Path) -> str:
@@ -69,6 +70,16 @@ def _derive_title(path: Path) -> str:
     return name.strip()
 
 
+def _extract_notion_url(path: Path) -> str:
+    """Notion export 파일명은 '<title> <32-hex-page-id>.md' 형태. 페이지 ID 추출하여
+    notion.so URL 생성. 사용자가 본인 워크스페이스에 로그인되어 있으면 자동 리다이렉트됨.
+    하위 페이지 폴더로 떨어진 .csv 등은 stem 에 페이지 ID 없을 수 있어 빈 문자열 반환."""
+    m = _PAGE_ID_RE.search(path.stem)
+    if not m:
+        return ""
+    return f"https://www.notion.so/{m.group(1)}"
+
+
 def chunk_markdown_file(
     path: Path,
     *,
@@ -78,6 +89,7 @@ def chunk_markdown_file(
     text = path.read_text(encoding="utf-8")
     title = _derive_title(path)
     source = str(path)
+    notion_url = _extract_notion_url(path)
 
     def _emit(prefix: str, base_title: str, body: str) -> list[Chunk]:
         out: list[Chunk] = []
@@ -93,6 +105,7 @@ def chunk_markdown_file(
                     title=base_title + suffix,
                     section_path=list(section_path),
                     image_refs=extract_image_refs(part),
+                    notion_url=notion_url,
                 )
             )
         return out
@@ -118,6 +131,7 @@ def chunk_csv_file(path: Path, *, doc_set: DocSet) -> list[Chunk]:
     df = pd.read_csv(path)
     source = str(path)
     base_title = f"FAQ — {_derive_title(path)}"
+    notion_url = _extract_notion_url(path)
     chunks: list[Chunk] = []
     for i, row in df.iterrows():
         text_parts = []
@@ -135,6 +149,7 @@ def chunk_csv_file(path: Path, *, doc_set: DocSet) -> list[Chunk]:
                 title=base_title,
                 section_path=[],
                 csv_refs=[source],
+                notion_url=notion_url,
             )
         )
     return chunks

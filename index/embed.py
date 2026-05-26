@@ -48,6 +48,7 @@ def upsert_chunks(client, embedder: Embedder, chunks: list[Chunk]) -> None:
         "title": c.title,
         "section_path": " > ".join(c.section_path),
         "image_refs": ",".join(c.image_refs),
+        "notion_url": c.notion_url,
     } for c in chunks]
     vecs = embedder.encode(docs)
     coll.upsert(ids=ids, documents=docs, metadatas=metas, embeddings=vecs)

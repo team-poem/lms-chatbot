@@ -55,6 +55,7 @@ class RagEngine:
                 "text": c.get("text", ""),
                 "image_refs": [s for s in (c.get("image_refs") or "").split(",") if s],
                 "source": c.get("source", ""),
+                "notion_url": c.get("notion_url", "") or "",
             })
         top_score = merged[0][1]
         return contexts, top_score
@@ -100,9 +101,11 @@ class RagEngine:
                     seen_imgs.append(img)
             if len(seen_imgs) >= 5:
                 break
-        sources: list[str] = []
+        sources: list[dict] = []
+        seen_titles: set[str] = set()
         for c in contexts:
             t = c["title"]
-            if t and t not in sources:
-                sources.append(t)
+            if t and t not in seen_titles:
+                sources.append({"title": t, "url": c.get("notion_url", "") or ""})
+                seen_titles.add(t)
         yield {"type": "done", "images": seen_imgs[:5], "sources": sources, "score": top_score}

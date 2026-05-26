@@ -24,9 +24,54 @@
   .turn:last-child { border-bottom: none; }
   .q { color: #57606a; font-size: 13px; margin-bottom: 6px; }
   .a { white-space: pre-wrap; line-height: 1.7; }
-  .src { margin-top: 8px; font-size: 12px; color: #57606a; }
-  .imgs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-  .imgs img { max-width: 200px; border: 1px solid #d0d7de; border-radius: 4px; }
+  .src { margin-top: 10px; font-size: 12px; color: #57606a; }
+  .src a { color: #0969da; text-decoration: none; }
+  .src a:hover { text-decoration: underline; }
+  .imgs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .imgs img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: auto;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    cursor: zoom-in;
+    display: block;
+    background: #f6f8fa;
+    transition: transform 0.12s ease;
+  }
+  .imgs img:hover { transform: scale(1.01); }
+  #lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    cursor: zoom-out;
+    padding: 24px;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox img {
+    max-width: 95vw;
+    max-height: 95vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+  #lightbox .hint {
+    position: fixed;
+    bottom: 16px;
+    color: #fff;
+    font-size: 12px;
+    opacity: 0.7;
+  }
   .fb { margin-top: 8px; display: flex; gap: 6px; align-items: center; }
   .fb button { padding: 4px 8px; font-size: 12px; }
   .input { display: flex; gap: 8px; margin-top: 16px; }
@@ -53,6 +98,8 @@
     <a href="/privacy" target="_blank">개인정보처리방침</a>
   </p>
 </div>
+
+<div id="lightbox"><img id="lightbox-img" alt=""><span class="hint">아무 곳이나 클릭하거나 ESC 키를 눌러 닫기</span></div>
 
 <div class="modal-bg" id="modal">
   <div class="modal">
@@ -128,8 +175,34 @@ async function ask(query) {
         div.querySelector(".a").textContent = evt.text;
       } else if (evt.type === "done") {
         const imgs = div.querySelector(".imgs");
-        evt.images.forEach(src => { const i = document.createElement("img"); i.src = src; imgs.appendChild(i); });
-        if (evt.sources?.length) div.querySelector(".src").textContent = "참고: " + evt.sources.join(", ");
+        evt.images.forEach(src => {
+          const i = document.createElement("img");
+          i.src = src;
+          i.loading = "lazy";
+          i.alt = "가이드 캡처";
+          i.onclick = () => openLightbox(src);
+          imgs.appendChild(i);
+        });
+        if (evt.sources?.length) {
+          const srcEl = div.querySelector(".src");
+          srcEl.innerHTML = "";
+          srcEl.appendChild(document.createTextNode("참고: "));
+          evt.sources.forEach((s, i) => {
+            if (i > 0) srcEl.appendChild(document.createTextNode(", "));
+            const title = typeof s === "string" ? s : (s.title || "");
+            const url = typeof s === "object" ? (s.url || "") : "";
+            if (url) {
+              const a = document.createElement("a");
+              a.href = url;
+              a.target = "_blank";
+              a.rel = "noopener noreferrer";
+              a.textContent = title;
+              srcEl.appendChild(a);
+            } else {
+              srcEl.appendChild(document.createTextNode(title));
+            }
+          });
+        }
       } else if (evt.type === "turn_id") {
         turnId = evt.turn_id;
         const fb = div.querySelector(".fb");
@@ -150,6 +223,20 @@ async function ask(query) {
 }
 
 function escape(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
+
+function openLightbox(src) {
+  const lb = document.getElementById("lightbox");
+  document.getElementById("lightbox-img").src = src;
+  lb.classList.add("open");
+}
+function closeLightbox() {
+  document.getElementById("lightbox").classList.remove("open");
+  document.getElementById("lightbox-img").src = "";
+}
+document.getElementById("lightbox").addEventListener("click", closeLightbox);
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") closeLightbox();
+});
 
 $("#form").addEventListener("submit", e => {
   e.preventDefault();

@@ -16,6 +16,7 @@ class Chunk:
     section_path: list[str] = field(default_factory=list)
     image_refs: list[str] = field(default_factory=list)
     csv_refs: list[str] = field(default_factory=list)
+    notion_url: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)

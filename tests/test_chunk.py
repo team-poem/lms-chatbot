@@ -50,6 +50,21 @@ def test_chunk_markdown_enforces_char_limit(tmp_path: Path):
         assert len(c.text) <= 3500  # _MAX_CHARS + 약간 마진
 
 
+def test_chunk_extracts_notion_url_from_filename(tmp_path: Path):
+    p = tmp_path / "퀴즈 개요 34f0163ecf1481e38badf5eef5c69038.md"
+    p.write_text("# 퀴즈 개요\n\n본문\n", encoding="utf-8")
+    chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
+    assert chunks[0].notion_url == "https://www.notion.so/34f0163ecf1481e38badf5eef5c69038"
+    assert chunks[0].title == "퀴즈 개요"
+
+
+def test_chunk_no_notion_url_when_filename_has_no_page_id(tmp_path: Path):
+    p = tmp_path / "그냥파일.md"
+    p.write_text("# 그냥\n\n본문\n", encoding="utf-8")
+    chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
+    assert chunks[0].notion_url == ""
+
+
 def test_chunk_csv_each_row_becomes_chunk(tmp_path: Path):
     p = tmp_path / "FAQ.csv"
     pd.DataFrame({
