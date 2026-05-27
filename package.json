@@ -1,7 +1,9 @@
 {
   "scripts": {
     "qa:chatbot": "node qa/lms-chatbot-qa/cli.mjs",
-    "qa:chatbot:devtools": "node qa/lms-chatbot-devtools-qa/cli.mjs"
+    "qa:chatbot:devtools": "node qa/lms-chatbot-devtools-qa/cli.mjs",
+    "qa:devtools-runner": "node qa/devtools-qa-runner/src/cli.mjs",
+    "qa:chatbot:devtools-profile": "node qa/devtools-qa-runner/src/cli.mjs --profile qa/devtools-qa-runner/profiles/lms-chatbot.json"
   },
   "devDependencies": {
     "chrome-devtools-mcp": "^1.1.0",
