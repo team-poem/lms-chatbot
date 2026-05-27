@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from retrieval.types import Chunk, DocSet
+from app_types import Chunk, DocSet
 
 
 _IMG_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
@@ -103,8 +103,8 @@ def chunk_markdown_file(
                     source=source,
                     doc_set=doc_set,
                     title=base_title + suffix,
-                    section_path=list(section_path),
-                    image_refs=extract_image_refs(part),
+                    section_path=tuple(section_path),
+                    image_refs=tuple(extract_image_refs(part)),
                     notion_url=notion_url,
                 )
             )
@@ -147,8 +147,8 @@ def chunk_csv_file(path: Path, *, doc_set: DocSet) -> list[Chunk]:
                 source=source,
                 doc_set=doc_set,
                 title=base_title,
-                section_path=[],
-                csv_refs=[source],
+                section_path=(),
+                csv_refs=(source,),
                 notion_url=notion_url,
             )
         )

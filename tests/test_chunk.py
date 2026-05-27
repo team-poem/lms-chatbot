@@ -20,8 +20,8 @@ def test_chunk_markdown_small_returns_single(tmp_path: Path):
     assert len(chunks) == 1
     c = chunks[0]
     assert c.title == "퀴즈 개요"
-    assert c.image_refs == ["img/q.png"]
-    assert c.section_path == ["시험 및 설문"]
+    assert c.image_refs == ("img/q.png",)
+    assert c.section_path == ("시험 및 설문",)
     assert c.doc_set == "guide"
     assert c.source.endswith("퀴즈 개요 abcdef1234567890.md")
 
