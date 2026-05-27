@@ -6,7 +6,7 @@ from pathlib import Path
 
 from rank_bm25 import BM25Okapi
 
-from retrieval.types import Chunk
+from app_types import Chunk
 
 
 _TOKEN_RE = re.compile(r"[\w가-힣]+", flags=re.UNICODE)

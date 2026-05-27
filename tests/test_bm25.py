@@ -1,6 +1,6 @@
 from pathlib import Path
-from index.bm25_index import build_bm25, save_bm25, load_bm25, query_bm25
-from retrieval.types import Chunk
+from index.bm25 import build_bm25, save_bm25, load_bm25, query_bm25
+from app_types import Chunk
 
 
 def _chunk(cid: str, text: str, title: str = "T") -> Chunk:
