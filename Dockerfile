@@ -1,29 +1,67 @@
-# LMS 챗봇 — 단일 스테이지 이미지
-# 베이스: Python 3.11 (3.14는 Linux ARM 휠이 아직 미흡), Debian slim
+# LMS 챗봇 — multi-stage 빌드로 슬림화 (5.7GB → 약 2.2GB)
+#
+# 1) builder 스테이지: 빌드 도구 + torch CPU-only + 의존성 + BGE-M3 baked
+#    (불필요한 모델 변형 onnx/pytorch_model.bin 등 제거)
+# 2) runtime 스테이지: 베이스 + venv 사본 + 모델 캐시 + 앱 코드
+#    (gcc/build-essential 미포함, curl 만 healthcheck 용)
+
+# ============= builder =============
+FROM python:3.11-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    HF_HOME=/opt/hf
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# 격리된 venv 에 설치 → 그대로 runtime 스테이지로 복사 가능
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# 1) torch 를 CPU 전용 휠로 먼저 (이후 sentence-transformers 가 이미 설치된 torch 재사용)
+#    공식 torch 휠은 CUDA 라이브러리 ~2GB 동봉 — Mac mini 에선 쓸모 없음
+RUN pip install --upgrade pip && \
+    pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# 2) 나머지 의존성
+COPY requirements.txt ./
+RUN pip install -r requirements.txt
+
+# 3) BGE-M3 모델 baked + 안 쓰는 변형 제거
+#    .safetensors 만 유지, onnx/pytorch_model.bin/colbert/sparse 가중치 삭제
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-m3')" \
+ && find /opt/hf -name "*.onnx" -delete 2>/dev/null || true \
+ && find /opt/hf -name "*.onnx_data" -delete 2>/dev/null || true \
+ && find /opt/hf -name "pytorch_model.bin" -delete 2>/dev/null || true \
+ && find /opt/hf -name "colbert_linear.pt" -delete 2>/dev/null || true \
+ && find /opt/hf -name "sparse_linear.pt" -delete 2>/dev/null || true \
+ && find /opt/hf -type d -name "onnx" -exec rm -rf {} + 2>/dev/null || true \
+ && find /opt/hf -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true \
+ && du -sh /opt/hf /opt/venv
+
+# ============= runtime =============
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    HF_HOME=/app/.cache/huggingface
+    PYTHONDONTWRITEBYTECODE=1 \
+    HF_HOME=/opt/hf \
+    PATH="/opt/venv/bin:$PATH"
 
-WORKDIR /app
-
-# chromadb/sentence-transformers 빌드 시 필요한 최소 시스템 패키지
+# healthcheck 용 curl 만 (build-essential 미포함)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
-# 의존성 레이어 캐시 (코드 변경 때마다 재설치 안 되게 분리)
-COPY requirements.txt ./
-RUN pip install --upgrade pip && pip install -r requirements.txt
+WORKDIR /app
 
-# BGE-M3 임베딩 모델을 이미지에 굽기 — 부팅 시 다운로드 대기 없음.
-# (대신 이미지 크기 ~2GB 증가. 의도된 트레이드오프.)
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-m3')"
+# 빌더에서 venv + 모델 캐시 그대로 복사 (절대 경로 동일하게)
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /opt/hf /opt/hf
 
-# 애플리케이션 코드 (data/, .venv/ 등은 .dockerignore 로 제외)
+# 애플리케이션 코드
 COPY backend.py ./
 COPY ingest ./ingest
 COPY index ./index
@@ -32,10 +70,8 @@ COPY generation ./generation
 COPY db ./db
 COPY static ./static
 
-# 데이터 디렉터리 (실제 데이터는 docker-compose 의 volume 마운트로 주입)
 RUN mkdir -p data/raw data/assets data/chroma
 
-# 컨테이너 기본 환경. docker-compose 의 environment 로 덮어쓸 수 있음.
 ENV OLLAMA_HOST=http://host.docker.internal:11434 \
     OLLAMA_MODEL=gemma3:4b \
     EMBED_MODEL=BAAI/bge-m3 \
@@ -48,7 +84,6 @@ ENV OLLAMA_HOST=http://host.docker.internal:11434 \
 
 EXPOSE 8080
 
-# 콜드 스타트(BGE-M3 로드)에 최대 2분 허용
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
     CMD curl -fsS http://localhost:8080/health || exit 1
 
