@@ -199,6 +199,25 @@ async function runChromeDevToolsAudit(targetUrl, targetOutDir, timeout) {
   try {
     await execFileAsync('npx', ['chrome-devtools', 'stop'], { timeout: 10000 }).catch(() => {});
     await run('new_page', ['new_page', targetUrl, '--timeout', String(timeout)]);
+    result.consentState = await run('accept_consent', [
+      'evaluate_script',
+      `async () => {
+        const modal = document.querySelector('#modal');
+        if (modal && getComputedStyle(modal).display !== 'none') {
+          const label = document.querySelector('#ulabel');
+          if (label) label.value = 'qa-devtools';
+          document.querySelector('#agree')?.click();
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+        const input = document.querySelector('#q');
+        const modalAfter = document.querySelector('#modal');
+        return {
+          inputEnabled: Boolean(input && !input.disabled),
+          modalDisplay: modalAfter ? getComputedStyle(modalAfter).display : null,
+          turnCount: document.querySelectorAll('.turn').length,
+        };
+      }`,
+    ]);
     result.consoleMessages = await run('list_console_messages', ['list_console_messages', '--includePreservedMessages']);
     result.networkRequests = await run('list_network_requests', ['list_network_requests', '--includePreservedRequests']);
     await run('take_snapshot', ['take_snapshot', '--filePath', path.join(devtoolsDir, 'snapshot.txt')]);
@@ -212,12 +231,63 @@ async function runChromeDevToolsAudit(targetUrl, targetOutDir, timeout) {
       '--outputDirPath',
       path.join(devtoolsDir, 'lighthouse'),
     ]);
+    result.quality = analyzeChromeDevToolsQuality(result);
   } catch (err) {
     result.error = err?.stack || err?.message || String(err);
+    result.quality = analyzeChromeDevToolsQuality(result);
   } finally {
     await execFileAsync('npx', ['chrome-devtools', 'stop'], { timeout: 10000 }).catch(() => {});
   }
   return result;
+}
+
+function analyzeChromeDevToolsQuality(result) {
+  const consoleMessages = result.consoleMessages?.consoleMessages || [];
+  const networkRequests = result.networkRequests?.networkRequests || [];
+  const scores = result.lighthouse?.lighthouseResult?.summary?.scores || [];
+  const warnings = [];
+  const failures = [];
+
+  const nonFaviconClientErrors = networkRequests.filter((request) => {
+    const status = Number(request.status);
+    return status >= 400 && status < 500 && !String(request.url).endsWith('/favicon.ico');
+  });
+  const serverErrors = networkRequests.filter((request) => Number(request.status) >= 500);
+
+  for (const message of consoleMessages) {
+    const text = message.text || '';
+    if (message.type !== 'error') continue;
+    if (text.includes('Failed to load resource') && serverErrors.length + nonFaviconClientErrors.length === 0) {
+      warnings.push(`Console warning, likely favicon/noisy resource: ${text}`);
+    } else {
+      failures.push(`Console error: ${text}`);
+    }
+  }
+
+  for (const request of networkRequests) {
+    const status = Number(request.status);
+    if (!status || status < 400) continue;
+    const label = `${request.method || 'GET'} ${request.url} -> ${request.status}`;
+    if (status >= 500) failures.push(`Server error response: ${label}`);
+    else if (!String(request.url).endsWith('/favicon.ico')) failures.push(`Client error response: ${label}`);
+    else warnings.push(`Ignored favicon response: ${label}`);
+  }
+
+  for (const score of scores) {
+    if (typeof score.score !== 'number') continue;
+    if (score.id === 'seo') {
+      if (score.score < 0.9) warnings.push(`SEO Lighthouse finding: ${score.score}`);
+      continue;
+    }
+    if (score.score < 0.8) failures.push(`Low Lighthouse ${score.title}: ${score.score}`);
+    else if (score.score < 0.9) warnings.push(`Borderline Lighthouse ${score.title}: ${score.score}`);
+  }
+
+  return {
+    status: failures.length ? 'fail' : warnings.length ? 'warning' : 'pass',
+    warnings,
+    failures,
+  };
 }
 
 function parseJsonOutput(stdout) {
@@ -340,8 +410,8 @@ function renderMarkdown(r) {
 - URL: ${r.url}
 - Started: ${r.startedAt}
 - Mock chat: ${r.mockChat ? 'yes' : 'no'}
-- Chrome DevTools audit: ${r.devtools ? (r.chromeDevTools?.status || 'requested') : 'no'}
-- Result: ${failed.length || r.chromeDevTools?.status === 'fail' ? 'FAIL' : 'PASS'}
+- Chrome DevTools audit: ${r.devtools ? `${r.chromeDevTools?.status || 'requested'}${r.chromeDevTools?.quality ? ` / quality ${r.chromeDevTools.quality.status}` : ''}` : 'no'}
+- Result: ${failed.length || r.chromeDevTools?.status === 'fail' || r.chromeDevTools?.quality?.status === 'fail' ? 'FAIL' : 'PASS'}
 - Scenarios: ${passed.length} passed / ${failed.length} failed / ${r.scenarios.length} total
 - Console/Page errors: ${r.console.length + r.pageErrors.length}
 - Request failures: ${r.requestFailures.length}
@@ -381,15 +451,27 @@ function renderChromeDevTools(devtoolsResult) {
   return `## Chrome DevTools for Agents Audit
 
 - Status: ${devtoolsResult.status.toUpperCase()}
+- Quality status: ${(devtoolsResult.quality?.status || 'unknown').toUpperCase()}
 - Console messages: ${consoleCount}
 - Network requests: ${networkCount}
 - Snapshot: \`${devtoolsResult.files.snapshot}\`
 - Screenshot: \`${devtoolsResult.files.screenshot}\`
 - Lighthouse reports: \`${devtoolsResult.files.lighthouseDir}/report.html\`, \`${devtoolsResult.files.lighthouseDir}/report.json\`
 
+### Consent State
+
+${codeBlock(JSON.stringify(devtoolsResult.consentState || null, null, 2))}
+
 ### Lighthouse Scores
 
 ${scores.length ? scores.map((s) => `- ${s.title}: ${s.score}`).join('\n') : '(not available)'}
+
+### Quality Findings
+
+- Failures: ${devtoolsResult.quality?.failures?.length || 0}
+- Warnings: ${devtoolsResult.quality?.warnings?.length || 0}
+
+${codeBlock(JSON.stringify(devtoolsResult.quality || null, null, 2))}
 
 ### DevTools CLI Commands
 

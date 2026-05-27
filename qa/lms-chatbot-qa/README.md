@@ -31,11 +31,13 @@ npm run qa:chatbot -- --url http://localhost:8080 --timeout 120000 --devtools
 
 `--devtools`는 `chrome-devtools-mcp` 패키지의 `chrome-devtools` CLI를 사용해서 별도 Chrome 세션에서 다음 증거를 수집합니다.
 
+- 개인정보 동의 모달 통과 상태 만들기
 - accessibility snapshot
 - DevTools screenshot
 - DevTools console messages
 - DevTools network requests
 - Lighthouse snapshot audit(accessibility, best practices, SEO, agentic browsing)
+- DevTools 증거 기반 quality finding 분류
 
 ## 산출물
 
