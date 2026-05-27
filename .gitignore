@@ -8,6 +8,8 @@ __pycache__/
 *.pyc
 .DS_Store
 .env
+node_modules/
+reports/
 
 # Notion export 파일은 data/raw/에만 두어야 함 (root에 떨어지는 사고 방지)
 /*.zip

@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "qa:chatbot": "node qa/lms-chatbot-qa/cli.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.52.0"
+  }
+}
