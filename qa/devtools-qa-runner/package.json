@@ -1,0 +1,16 @@
+{
+  "name": "devtools-qa-runner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Profile-driven QA runner powered by Chrome DevTools for Agents CLI",
+  "bin": {
+    "devtools-qa-runner": "src/cli.mjs"
+  },
+  "scripts": {
+    "check": "node --check src/cli.mjs && find src -name '*.mjs' -print0 | xargs -0 -n1 node --check"
+  },
+  "peerDependencies": {
+    "chrome-devtools-mcp": ">=1.1.0"
+  }
+}

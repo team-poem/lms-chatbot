@@ -1,8 +1,8 @@
 # devtools-qa-runner
 
-Reusable Chrome DevTools for Agents based QA runner prototype.
+Profile-driven QA runner powered by Chrome DevTools for Agents CLI.
 
-This package shape is intended to be extracted into a standalone GitHub repository named `devtools-qa-runner` after it stabilizes inside this project.
+This directory is structured so it can later be extracted into a standalone GitHub repository named `devtools-qa-runner`.
 
 ## What it does
 
@@ -10,9 +10,9 @@ This package shape is intended to be extracted into a standalone GitHub reposito
 - Uses accessibility snapshots to find elements by role/name.
 - Runs profile-defined QA scenarios.
 - Collects screenshots, snapshots, console messages, network requests, and Lighthouse snapshot audit.
-- Emits a Markdown report.
+- Emits a Markdown report and a JSON evidence bundle.
 
-## Run
+## Run inside this repository
 
 ```bash
 npm run qa:devtools-runner -- \
@@ -21,13 +21,33 @@ npm run qa:devtools-runner -- \
   --timeout 120000
 ```
 
+Convenience alias for the bundled LMS chatbot profile:
+
+```bash
+npm run qa:chatbot:devtools-profile -- \
+  --url https://121.145.133.68.sslip.io \
+  --timeout 120000
+```
+
+## Future standalone usage
+
+After extraction to its own repo/package:
+
+```bash
+npm install
+npx devtools-qa-runner \
+  --url https://example.com \
+  --profile examples/simple-chat.profile.json \
+  --timeout 120000
+```
+
 ## Profile
 
 Profiles define selectors, quality rules, and scenarios. See:
 
-```txt
-qa/devtools-qa-runner/profiles/lms-chatbot.json
-```
+- `profiles/lms-chatbot.json`
+- `examples/simple-chat.profile.json`
+- `docs/profile-schema.md`
 
 Supported scenario types in this prototype:
 
@@ -46,10 +66,29 @@ reports/devtools-qa-runner/<profile-name>/latest/
 └── lighthouse/
 ```
 
+## Source layout
+
+```txt
+src/
+├── cli.mjs
+├── core/
+│   ├── args.mjs
+│   ├── artifacts.mjs
+│   ├── devtools-client.mjs
+│   ├── profile.mjs
+│   ├── quality.mjs
+│   ├── reporter.mjs
+│   ├── runner.mjs
+│   ├── snapshot.mjs
+│   └── utils.mjs
+└── scenarios/
+    └── chatbot.mjs
+```
+
 ## Extraction plan
 
 1. Keep this package under `qa/devtools-qa-runner` until stable.
-2. Add more profile examples.
-3. Split runner/reporter/devtools client into modules.
-4. Add npm `bin` entry.
+2. Add more profile examples and scenario types.
+3. Add tests for profile validation and snapshot matching.
+4. Add npm `bin` entry in the standalone package.
 5. Move to standalone repo `devtools-qa-runner`.

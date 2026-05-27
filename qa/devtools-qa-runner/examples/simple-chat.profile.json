@@ -1,0 +1,27 @@
+{
+  "name": "simple-chat",
+  "description": "Minimal example for a chatbot with a textbox and submit-on-enter behavior.",
+  "selectors": {
+    "chatInput": {
+      "role": "textbox",
+      "nameIncludes": "Ask"
+    },
+    "answerDoneText": "Helpful?"
+  },
+  "quality": {
+    "ignoreSeo": true,
+    "ignoreFavicon404": true
+  },
+  "scenarios": [
+    {
+      "type": "question",
+      "name": "basic-question",
+      "text": "How do I get started?"
+    },
+    {
+      "type": "empty-input",
+      "name": "empty-input-guard",
+      "text": "   "
+    }
+  ]
+}
