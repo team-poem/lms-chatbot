@@ -35,6 +35,17 @@ After extraction to its own repo/package:
 
 ```bash
 npm install
+npm run check
+npm test
+node src/cli.mjs \
+  --url https://example.com \
+  --profile examples/simple-chat.profile.json \
+  --timeout 120000
+```
+
+If published later, the bin name is planned as:
+
+```bash
 npx devtools-qa-runner \
   --url https://example.com \
   --profile examples/simple-chat.profile.json \
@@ -58,9 +69,20 @@ Supported scenario types in this prototype:
 
 ## Development checks
 
+Inside this monorepo:
+
 ```bash
 npm --prefix qa/devtools-qa-runner run check
 npm --prefix qa/devtools-qa-runner test
+npm --prefix qa/devtools-qa-runner run pack:dry
+```
+
+After extraction into a standalone repo:
+
+```bash
+npm run check
+npm test
+npm run pack:dry
 ```
 
 ## Output

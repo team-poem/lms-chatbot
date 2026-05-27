@@ -1,0 +1,36 @@
+name: smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Target URL to test
+        required: true
+        type: string
+      profile:
+        description: Profile path
+        required: false
+        default: examples/simple-chat.profile.json
+        type: string
+
+jobs:
+  devtools-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run DevTools QA
+        run: |
+          node src/cli.mjs \
+            --url "${{ inputs.url }}" \
+            --profile "${{ inputs.profile }}" \
+            --timeout 120000
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: devtools-qa-report
+          path: reports/
