@@ -167,7 +167,14 @@ function sse(obj) {
 async function acceptConsent(page) {
   if (await page.locator('#modal').isVisible().catch(() => false)) {
     await page.locator('#ulabel').fill('qa');
-    await page.locator('#agree').click();
+    await Promise.all([
+      page.waitForFunction(() => {
+        const input = document.querySelector('#q');
+        const modal = document.querySelector('#modal');
+        return input && !input.disabled && modal && getComputedStyle(modal).display === 'none';
+      }),
+      page.locator('#agree').click(),
+    ]);
   }
 }
 
