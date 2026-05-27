@@ -29,7 +29,7 @@ Chrome DevTools for Agents CLI 증거 수집까지 같이 실행하려면 `--dev
 npm run qa:chatbot -- --url http://localhost:8080 --timeout 120000 --devtools
 ```
 
-`--devtools`는 `chrome-devtools-mcp` 패키지의 `chrome-devtools` CLI를 사용해서 별도 Chrome 세션에서 다음 증거를 수집합니다.
+`--devtools`는 `chrome-devtools-mcp` 패키지의 `chrome-devtools` CLI를 사용합니다. QA 러너가 Playwright Chromium을 remote-debugging 포트로 띄운 뒤, DevTools CLI가 같은 Chrome 인스턴스에 붙어서 다음 증거를 수집합니다.
 
 - accessibility snapshot
 - DevTools screenshot
@@ -38,7 +38,7 @@ npm run qa:chatbot -- --url http://localhost:8080 --timeout 120000 --devtools
 - Lighthouse snapshot audit(accessibility, best practices, SEO, agentic browsing)
 - DevTools 증거 기반 quality finding 분류
 
-원칙: 사용자 행동(동의, 입력, 전송, 모바일 확인)은 Playwright가 실제 사용자 액션에 가깝게 수행하고, Chrome DevTools CLI는 조작이 아니라 관찰/증거 수집에만 사용합니다.
+원칙: 사용자 행동(동의, 입력, 전송, 모바일 확인)은 Playwright가 실제 사용자 액션에 가깝게 수행하고, Chrome DevTools CLI는 조작이 아니라 관찰/증거 수집에만 사용합니다. 현재 `--devtools` 모드는 Playwright와 DevTools가 같은 remote-debuggable Chrome 인스턴스를 공유합니다.
 
 ## 산출물
 

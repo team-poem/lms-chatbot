@@ -3,6 +3,7 @@ import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
+import net from 'node:net';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
@@ -28,11 +29,27 @@ const evidence = {
   chromeDevTools: null,
 };
 
+async function getFreePort() {
+  return await new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.on('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address();
+      server.close(() => resolve(address.port));
+    });
+  });
+}
+
 async function main() {
   await resetDir(outDir);
   await fs.mkdir(path.join(outDir, 'screenshots'), { recursive: true });
 
-  const browser = await chromium.launch({ headless: !headed });
+  const devtoolsPort = devtools ? await getFreePort() : null;
+  const browser = await chromium.launch({
+    headless: !headed,
+    args: devtoolsPort ? [`--remote-debugging-port=${devtoolsPort}`] : [],
+  });
   try {
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await context.newPage();
@@ -40,6 +57,11 @@ async function main() {
     page.setDefaultNavigationTimeout(timeoutMs);
     attachObservers(page, evidence);
     if (mockChat) await installMockRoutes(page);
+
+    let devtoolsPreCommands = [];
+    if (devtools) {
+      devtoolsPreCommands = await startChromeDevToolsSharedObserver(`http://127.0.0.1:${devtoolsPort}`, timeoutMs);
+    }
 
     await step(evidence, 'desktop-consent', async (s) => {
       await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
@@ -107,7 +129,12 @@ async function main() {
     });
 
     if (devtools) {
-      evidence.chromeDevTools = await runChromeDevToolsAudit(url, outDir, timeoutMs);
+      evidence.chromeDevTools = await runChromeDevToolsAudit(url, outDir, timeoutMs, {
+        browserUrl: `http://127.0.0.1:${devtoolsPort}`,
+        sharedSession: true,
+        preStarted: true,
+        preCommands: devtoolsPreCommands,
+      });
     }
 
     await writeArtifacts(evidence);
@@ -148,7 +175,41 @@ function attachObservers(page, target) {
   });
 }
 
-async function runChromeDevToolsAudit(targetUrl, targetOutDir, timeout) {
+async function runChromeDevToolsCli(cliArgs, timeout) {
+  const { stdout, stderr } = await execFileAsync('npx', ['chrome-devtools', ...cliArgs], {
+    cwd: process.cwd(),
+    timeout: Math.max(timeout, 60000),
+    env: {
+      ...process.env,
+      CI: '1',
+      CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: '1',
+      CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS: '1',
+    },
+  });
+  return { stdout, stderr };
+}
+
+async function startChromeDevToolsSharedObserver(browserUrl, timeout) {
+  const commands = [];
+  await execFileAsync('npx', ['chrome-devtools', 'stop'], { timeout: 10000 }).catch(() => {});
+  let started = Date.now();
+  await runChromeDevToolsCli(['start', '--browserUrl', browserUrl], timeout);
+  commands.push({ name: 'start_shared_daemon_before_scenarios', status: 'pass', durationMs: Date.now() - started, browserUrl });
+
+  started = Date.now();
+  const pagesOut = await runChromeDevToolsCli(['list_pages', '--output-format=json'], timeout);
+  const pages = parseJsonOutput(pagesOut.stdout);
+  commands.push({ name: 'pre_list_pages', status: 'pass', durationMs: Date.now() - started, stderr: pagesOut.stderr.trim() || null });
+  const page = findTargetPage(pages, 'about:blank');
+  if (page) {
+    started = Date.now();
+    const selectOut = await runChromeDevToolsCli(['select_page', String(page.id), '--output-format=json'], timeout);
+    commands.push({ name: 'pre_select_page', status: 'pass', durationMs: Date.now() - started, stderr: selectOut.stderr.trim() || null });
+  }
+  return commands;
+}
+
+async function runChromeDevToolsAudit(targetUrl, targetOutDir, timeout, options = {}) {
   const devtoolsDir = path.join(targetOutDir, 'chrome-devtools');
   await fs.mkdir(devtoolsDir, { recursive: true });
   const result = {
@@ -164,21 +225,16 @@ async function runChromeDevToolsAudit(targetUrl, targetOutDir, timeout) {
     networkRequests: null,
     lighthouse: null,
     error: null,
+    sharedSession: Boolean(options.sharedSession),
+    browserUrl: options.browserUrl || null,
   };
+
+  result.commands.push(...(options.preCommands || []));
 
   const run = async (name, cliArgs) => {
     const started = Date.now();
     try {
-      const { stdout, stderr } = await execFileAsync('npx', ['chrome-devtools', ...cliArgs, '--output-format=json'], {
-        cwd: process.cwd(),
-        timeout: Math.max(timeout, 60000),
-        env: {
-          ...process.env,
-          CI: '1',
-          CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: '1',
-          CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS: '1',
-        },
-      });
+      const { stdout, stderr } = await runChromeDevToolsCli([...cliArgs, '--output-format=json'], timeout);
       const parsed = parseJsonOutput(stdout);
       result.commands.push({ name, status: 'pass', durationMs: Date.now() - started, stderr: stderr.trim() || null });
       return parsed;
@@ -197,8 +253,28 @@ async function runChromeDevToolsAudit(targetUrl, targetOutDir, timeout) {
   };
 
   try {
-    await execFileAsync('npx', ['chrome-devtools', 'stop'], { timeout: 10000 }).catch(() => {});
-    await run('new_page', ['new_page', targetUrl, '--timeout', String(timeout)]);
+    if (!options.preStarted) await execFileAsync('npx', ['chrome-devtools', 'stop'], { timeout: 10000 }).catch(() => {});
+    if (options.browserUrl) {
+      if (!options.preStarted) {
+        const started = Date.now();
+        await execFileAsync('npx', ['chrome-devtools', 'start', '--browserUrl', options.browserUrl], {
+          cwd: process.cwd(),
+          timeout: 30000,
+          env: {
+            ...process.env,
+            CI: '1',
+            CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: '1',
+            CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS: '1',
+          },
+        });
+        result.commands.push({ name: 'start_shared_daemon', status: 'pass', durationMs: Date.now() - started, browserUrl: options.browserUrl });
+      }
+      result.pages = await run('list_pages', ['list_pages']);
+      const page = findTargetPage(result.pages, targetUrl);
+      if (page) await run('select_page', ['select_page', String(page.id)]);
+    } else {
+      await run('new_page', ['new_page', targetUrl, '--timeout', String(timeout)]);
+    }
     result.consoleMessages = await run('list_console_messages', ['list_console_messages', '--includePreservedMessages']);
     result.networkRequests = await run('list_network_requests', ['list_network_requests', '--includePreservedRequests']);
     await run('take_snapshot', ['take_snapshot', '--filePath', path.join(devtoolsDir, 'snapshot.txt')]);
@@ -220,6 +296,24 @@ async function runChromeDevToolsAudit(targetUrl, targetOutDir, timeout) {
     await execFileAsync('npx', ['chrome-devtools', 'stop'], { timeout: 10000 }).catch(() => {});
   }
   return result;
+}
+
+function findTargetPage(pagesResult, targetUrl) {
+  const pages = pagesResult?.pages || [];
+  const normalizedTarget = normalizeUrl(targetUrl);
+  return [...pages].reverse().find((page) => normalizeUrl(page.url) === normalizedTarget)
+    || [...pages].reverse().find((page) => page.url && page.url !== 'about:blank')
+    || pages[0];
+}
+
+function normalizeUrl(value) {
+  try {
+    const url = new URL(value);
+    url.hash = '';
+    return url.toString().replace(/\/$/, '');
+  } catch {
+    return String(value || '').replace(/\/$/, '');
+  }
 }
 
 function analyzeChromeDevToolsQuality(result) {
@@ -392,6 +486,7 @@ function renderMarkdown(r) {
 - Started: ${r.startedAt}
 - Mock chat: ${r.mockChat ? 'yes' : 'no'}
 - Chrome DevTools audit: ${r.devtools ? `${r.chromeDevTools?.status || 'requested'}${r.chromeDevTools?.quality ? ` / quality ${r.chromeDevTools.quality.status}` : ''}` : 'no'}
+- Chrome DevTools shared session: ${r.chromeDevTools?.sharedSession ? 'yes' : 'no'}
 - Result: ${failed.length || r.chromeDevTools?.status === 'fail' || r.chromeDevTools?.quality?.status === 'fail' ? 'FAIL' : 'PASS'}
 - Scenarios: ${passed.length} passed / ${failed.length} failed / ${r.scenarios.length} total
 - Console/Page errors: ${r.console.length + r.pageErrors.length}
@@ -433,6 +528,7 @@ function renderChromeDevTools(devtoolsResult) {
 
 - Status: ${devtoolsResult.status.toUpperCase()}
 - Quality status: ${(devtoolsResult.quality?.status || 'unknown').toUpperCase()}
+- Shared Playwright browser session: ${devtoolsResult.sharedSession ? 'yes' : 'no'}
 - Console messages: ${consoleCount}
 - Network requests: ${networkCount}
 - Snapshot: \`${devtoolsResult.files.snapshot}\`
@@ -441,7 +537,7 @@ function renderChromeDevTools(devtoolsResult) {
 
 ### Scope Note
 
-Chrome DevTools collector does not manipulate app state. User-flow actions such as consent, input, submit, rapid typing, and mobile checks are performed by Playwright scenarios above. DevTools is used here for observation/evidence only.
+Chrome DevTools collector does not manipulate app state. User-flow actions such as consent, input, submit, rapid typing, and mobile checks are performed by Playwright scenarios above. DevTools is used here for observation/evidence only. When Shared Playwright browser session is yes, DevTools attaches to the same remote-debuggable Chrome instance after the Playwright scenarios finish.
 
 ### Lighthouse Scores
 
