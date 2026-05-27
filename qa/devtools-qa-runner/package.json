@@ -8,7 +8,8 @@
     "devtools-qa-runner": "src/cli.mjs"
   },
   "scripts": {
-    "check": "node --check src/cli.mjs && find src -name '*.mjs' -print0 | xargs -0 -n1 node --check"
+    "check": "find src test -name '*.mjs' -print0 | xargs -0 -n1 node --check",
+    "test": "node --test test/*.test.mjs"
   },
   "peerDependencies": {
     "chrome-devtools-mcp": ">=1.1.0"

@@ -48,12 +48,20 @@ Profiles define selectors, quality rules, and scenarios. See:
 - `profiles/lms-chatbot.json`
 - `examples/simple-chat.profile.json`
 - `docs/profile-schema.md`
+- `docs/github-actions.md`
 
 Supported scenario types in this prototype:
 
 - `consent`
 - `question`
 - `empty-input`
+
+## Development checks
+
+```bash
+npm --prefix qa/devtools-qa-runner run check
+npm --prefix qa/devtools-qa-runner test
+```
 
 ## Output
 
