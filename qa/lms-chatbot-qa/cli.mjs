@@ -199,25 +199,6 @@ async function runChromeDevToolsAudit(targetUrl, targetOutDir, timeout) {
   try {
     await execFileAsync('npx', ['chrome-devtools', 'stop'], { timeout: 10000 }).catch(() => {});
     await run('new_page', ['new_page', targetUrl, '--timeout', String(timeout)]);
-    result.consentState = await run('accept_consent', [
-      'evaluate_script',
-      `async () => {
-        const modal = document.querySelector('#modal');
-        if (modal && getComputedStyle(modal).display !== 'none') {
-          const label = document.querySelector('#ulabel');
-          if (label) label.value = 'qa-devtools';
-          document.querySelector('#agree')?.click();
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-        const input = document.querySelector('#q');
-        const modalAfter = document.querySelector('#modal');
-        return {
-          inputEnabled: Boolean(input && !input.disabled),
-          modalDisplay: modalAfter ? getComputedStyle(modalAfter).display : null,
-          turnCount: document.querySelectorAll('.turn').length,
-        };
-      }`,
-    ]);
     result.consoleMessages = await run('list_console_messages', ['list_console_messages', '--includePreservedMessages']);
     result.networkRequests = await run('list_network_requests', ['list_network_requests', '--includePreservedRequests']);
     await run('take_snapshot', ['take_snapshot', '--filePath', path.join(devtoolsDir, 'snapshot.txt')]);
@@ -446,8 +427,8 @@ npm run qa:chatbot -- --url ${r.url}${r.mockChat ? ' --mock-chat' : ''}${r.devto
 function renderChromeDevTools(devtoolsResult) {
   if (!devtoolsResult) return '## Chrome DevTools for Agents Audit\n\n(Not run. Add `--devtools` to run the Chrome DevTools CLI evidence collector.)';
   const scores = devtoolsResult.lighthouse?.lighthouseResult?.summary?.scores || [];
-  const consoleCount = devtoolsResult.consoleMessages?.consoleMessages?.length ?? 'n/a';
-  const networkCount = devtoolsResult.networkRequests?.networkRequests?.length ?? 'n/a';
+  const consoleCount = devtoolsResult.consoleMessages?.consoleMessages?.length ?? 0;
+  const networkCount = devtoolsResult.networkRequests?.networkRequests?.length ?? 0;
   return `## Chrome DevTools for Agents Audit
 
 - Status: ${devtoolsResult.status.toUpperCase()}
@@ -458,9 +439,9 @@ function renderChromeDevTools(devtoolsResult) {
 - Screenshot: \`${devtoolsResult.files.screenshot}\`
 - Lighthouse reports: \`${devtoolsResult.files.lighthouseDir}/report.html\`, \`${devtoolsResult.files.lighthouseDir}/report.json\`
 
-### Consent State
+### Scope Note
 
-${codeBlock(JSON.stringify(devtoolsResult.consentState || null, null, 2))}
+Chrome DevTools collector does not manipulate app state. User-flow actions such as consent, input, submit, rapid typing, and mobile checks are performed by Playwright scenarios above. DevTools is used here for observation/evidence only.
 
 ### Lighthouse Scores
 
