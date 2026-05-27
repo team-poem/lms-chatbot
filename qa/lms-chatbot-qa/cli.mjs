@@ -2,6 +2,10 @@
 import { chromium } from 'playwright';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 const args = parseArgs(process.argv.slice(2));
 const url = args.url || 'http://localhost:8080';
@@ -9,16 +13,19 @@ const outDir = path.resolve(args.out || 'reports/lms-chatbot-qa/latest');
 const mockChat = Boolean(args['mock-chat']);
 const headed = Boolean(args.headed);
 const timeoutMs = Number(args.timeout || 30000);
+const devtools = Boolean(args.devtools);
 
 const evidence = {
   startedAt: new Date().toISOString(),
   url,
   mockChat,
+  devtools,
   console: [],
   pageErrors: [],
   requestFailures: [],
   badResponses: [],
   scenarios: [],
+  chromeDevTools: null,
 };
 
 async function main() {
@@ -99,6 +106,10 @@ async function main() {
       await assertLastAnswerNonEmpty(page);
     });
 
+    if (devtools) {
+      evidence.chromeDevTools = await runChromeDevToolsAudit(url, outDir, timeoutMs);
+    }
+
     await writeArtifacts(evidence);
     const failed = evidence.scenarios.filter((s) => s.status === 'fail').length;
     console.log(`QA report: ${path.join(outDir, 'qa-report.md')}`);
@@ -135,6 +146,91 @@ function attachObservers(page, target) {
   page.on('response', (res) => {
     if (res.status() >= 400) target.badResponses.push({ url: res.url(), status: res.status(), statusText: res.statusText() });
   });
+}
+
+async function runChromeDevToolsAudit(targetUrl, targetOutDir, timeout) {
+  const devtoolsDir = path.join(targetOutDir, 'chrome-devtools');
+  await fs.mkdir(devtoolsDir, { recursive: true });
+  const result = {
+    status: 'pass',
+    startedAt: new Date().toISOString(),
+    commands: [],
+    files: {
+      snapshot: 'chrome-devtools/snapshot.txt',
+      screenshot: 'chrome-devtools/screenshot.png',
+      lighthouseDir: 'chrome-devtools/lighthouse',
+    },
+    consoleMessages: null,
+    networkRequests: null,
+    lighthouse: null,
+    error: null,
+  };
+
+  const run = async (name, cliArgs) => {
+    const started = Date.now();
+    try {
+      const { stdout, stderr } = await execFileAsync('npx', ['chrome-devtools', ...cliArgs, '--output-format=json'], {
+        cwd: process.cwd(),
+        timeout: Math.max(timeout, 60000),
+        env: {
+          ...process.env,
+          CI: '1',
+          CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS: '1',
+          CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS: '1',
+        },
+      });
+      const parsed = parseJsonOutput(stdout);
+      result.commands.push({ name, status: 'pass', durationMs: Date.now() - started, stderr: stderr.trim() || null });
+      return parsed;
+    } catch (err) {
+      result.status = 'fail';
+      result.commands.push({
+        name,
+        status: 'fail',
+        durationMs: Date.now() - started,
+        error: err?.message || String(err),
+        stdout: err?.stdout || '',
+        stderr: err?.stderr || '',
+      });
+      throw err;
+    }
+  };
+
+  try {
+    await execFileAsync('npx', ['chrome-devtools', 'stop'], { timeout: 10000 }).catch(() => {});
+    await run('new_page', ['new_page', targetUrl, '--timeout', String(timeout)]);
+    result.consoleMessages = await run('list_console_messages', ['list_console_messages', '--includePreservedMessages']);
+    result.networkRequests = await run('list_network_requests', ['list_network_requests', '--includePreservedRequests']);
+    await run('take_snapshot', ['take_snapshot', '--filePath', path.join(devtoolsDir, 'snapshot.txt')]);
+    await run('take_screenshot', ['take_screenshot', '--filePath', path.join(devtoolsDir, 'screenshot.png'), '--fullPage']);
+    result.lighthouse = await run('lighthouse_audit', [
+      'lighthouse_audit',
+      '--mode',
+      'snapshot',
+      '--device',
+      'desktop',
+      '--outputDirPath',
+      path.join(devtoolsDir, 'lighthouse'),
+    ]);
+  } catch (err) {
+    result.error = err?.stack || err?.message || String(err);
+  } finally {
+    await execFileAsync('npx', ['chrome-devtools', 'stop'], { timeout: 10000 }).catch(() => {});
+  }
+  return result;
+}
+
+function parseJsonOutput(stdout) {
+  const lines = stdout.split('\n').map((line) => line.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (!lines[i].startsWith('{') && !lines[i].startsWith('[')) continue;
+    try {
+      return JSON.parse(lines.slice(i).join('\n'));
+    } catch {
+      // Try earlier lines; CLI startup disclaimers can precede JSON.
+    }
+  }
+  return { raw: stdout };
 }
 
 async function installMockRoutes(page) {
@@ -228,6 +324,9 @@ async function writeArtifacts(target) {
   await fs.writeFile(path.join(outDir, 'console.json'), JSON.stringify(target.console.concat(target.pageErrors), null, 2));
   await fs.writeFile(path.join(outDir, 'network-failures.json'), JSON.stringify(target.requestFailures, null, 2));
   await fs.writeFile(path.join(outDir, 'responses-4xx-5xx.json'), JSON.stringify(target.badResponses, null, 2));
+  if (target.chromeDevTools) {
+    await fs.writeFile(path.join(outDir, 'chrome-devtools.json'), JSON.stringify(target.chromeDevTools, null, 2));
+  }
   await fs.writeFile(path.join(outDir, 'qa-report.md'), renderMarkdown(target));
 }
 
@@ -241,7 +340,8 @@ function renderMarkdown(r) {
 - URL: ${r.url}
 - Started: ${r.startedAt}
 - Mock chat: ${r.mockChat ? 'yes' : 'no'}
-- Result: ${failed.length ? 'FAIL' : 'PASS'}
+- Chrome DevTools audit: ${r.devtools ? (r.chromeDevTools?.status || 'requested') : 'no'}
+- Result: ${failed.length || r.chromeDevTools?.status === 'fail' ? 'FAIL' : 'PASS'}
 - Scenarios: ${passed.length} passed / ${failed.length} failed / ${r.scenarios.length} total
 - Console/Page errors: ${r.console.length + r.pageErrors.length}
 - Request failures: ${r.requestFailures.length}
@@ -263,12 +363,38 @@ ${codeBlock(JSON.stringify(r.requestFailures, null, 2))}
 
 ${codeBlock(JSON.stringify(r.badResponses, null, 2))}
 
+${renderChromeDevTools(r.chromeDevTools)}
+
 ## Reproduction
 
 \`\`\`bash
-npm run qa:chatbot -- --url ${r.url}${r.mockChat ? ' --mock-chat' : ''}
+npm run qa:chatbot -- --url ${r.url}${r.mockChat ? ' --mock-chat' : ''}${r.devtools ? ' --devtools' : ''}
 \`\`\`
 `;
+}
+
+function renderChromeDevTools(devtoolsResult) {
+  if (!devtoolsResult) return '## Chrome DevTools for Agents Audit\n\n(Not run. Add `--devtools` to run the Chrome DevTools CLI evidence collector.)';
+  const scores = devtoolsResult.lighthouse?.lighthouseResult?.summary?.scores || [];
+  const consoleCount = devtoolsResult.consoleMessages?.consoleMessages?.length ?? 'n/a';
+  const networkCount = devtoolsResult.networkRequests?.networkRequests?.length ?? 'n/a';
+  return `## Chrome DevTools for Agents Audit
+
+- Status: ${devtoolsResult.status.toUpperCase()}
+- Console messages: ${consoleCount}
+- Network requests: ${networkCount}
+- Snapshot: \`${devtoolsResult.files.snapshot}\`
+- Screenshot: \`${devtoolsResult.files.screenshot}\`
+- Lighthouse reports: \`${devtoolsResult.files.lighthouseDir}/report.html\`, \`${devtoolsResult.files.lighthouseDir}/report.json\`
+
+### Lighthouse Scores
+
+${scores.length ? scores.map((s) => `- ${s.title}: ${s.score}`).join('\n') : '(not available)'}
+
+### DevTools CLI Commands
+
+${codeBlock(JSON.stringify(devtoolsResult.commands, null, 2))}
+${devtoolsResult.error ? `\n### DevTools Error\n\n${codeBlock(devtoolsResult.error)}` : ''}`;
 }
 
 function renderScenario(s) {

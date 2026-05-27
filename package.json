@@ -3,6 +3,7 @@
     "qa:chatbot": "node qa/lms-chatbot-qa/cli.mjs"
   },
   "devDependencies": {
+    "chrome-devtools-mcp": "^1.1.0",
     "playwright": "^1.52.0"
   }
 }

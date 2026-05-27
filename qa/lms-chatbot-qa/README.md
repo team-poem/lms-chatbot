@@ -23,6 +23,20 @@ npm run qa:chatbot -- --url http://localhost:8080 --mock-chat
 npm run qa:chatbot -- --url http://localhost:8080
 ```
 
+Chrome DevTools for Agents CLI 증거 수집까지 같이 실행하려면 `--devtools`를 추가하세요.
+
+```bash
+npm run qa:chatbot -- --url http://localhost:8080 --timeout 120000 --devtools
+```
+
+`--devtools`는 `chrome-devtools-mcp` 패키지의 `chrome-devtools` CLI를 사용해서 별도 Chrome 세션에서 다음 증거를 수집합니다.
+
+- accessibility snapshot
+- DevTools screenshot
+- DevTools console messages
+- DevTools network requests
+- Lighthouse snapshot audit(accessibility, best practices, SEO, agentic browsing)
+
 ## 산출물
 
 기본 출력 디렉토리:
