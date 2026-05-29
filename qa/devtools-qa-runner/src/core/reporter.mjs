@@ -14,5 +14,5 @@ function renderMarkdown({ report: r, profilePath, timeoutMs }) {
 }
 
 function renderScenario(s) {
-  return `### ${s.name}\n\n- Status: ${s.status.toUpperCase()}\n- Duration: ${s.durationMs}ms\n- Screenshots: ${s.screenshots.length ? s.screenshots.map((p) => `\`${p}\``).join(', ') : '(none)'}\n- Snapshots: ${s.snapshots.length ? s.snapshots.map((p) => `\`${p}\``).join(', ') : '(none)'}\n${s.error ? `- Error:\n\n${codeBlock(s.error)}` : ''}`;
+  return `### ${s.name}\n\n- Status: ${s.status.toUpperCase()}\n- Duration: ${s.durationMs}ms\n- Screenshots: ${s.screenshots.length ? s.screenshots.map((p) => `\`${p}\``).join(', ') : '(none)'}\n- Snapshots: ${s.snapshots.length ? s.snapshots.map((p) => `\`${p}\``).join(', ') : '(none)'}${s.evidence ? `\n- Evidence:\n\n${codeBlock(JSON.stringify(s.evidence, null, 2))}` : ''}\n${s.error ? `- Error:\n\n${codeBlock(s.error)}` : ''}`;
 }

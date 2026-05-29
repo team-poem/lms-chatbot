@@ -26,6 +26,15 @@
     {
       "type": "screenshot",
       "name": "results-screenshot"
+    },
+    {
+      "type": "assert-no-console-errors",
+      "name": "no-console-errors"
+    },
+    {
+      "type": "assert-no-http-errors",
+      "name": "no-http-errors",
+      "ignoreFavicon404": true
     }
   ]
 }

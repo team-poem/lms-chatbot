@@ -39,6 +39,8 @@ test('validateProfile accepts generic scenarios without chatInput selector', () 
       { type: 'press-key', key: 'Enter' },
       { type: 'wait-for-text', text: 'Results' },
       { type: 'screenshot' },
+      { type: 'assert-no-console-errors' },
+      { type: 'assert-no-http-errors' },
     ],
   }));
 });

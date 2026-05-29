@@ -65,7 +65,7 @@ Profiles define selectors, quality rules, and scenarios. See:
 Supported scenario types in this prototype:
 
 - Chatbot-oriented: `consent`, `question`, `empty-input`
-- Generic primitives: `click`, `fill`, `press-key`, `wait-for-text`, `screenshot`
+- Generic primitives: `click`, `fill`, `press-key`, `wait-for-text`, `screenshot`, `assert-no-console-errors`, `assert-no-http-errors`
 
 ## Development checks
 

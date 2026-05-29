@@ -152,6 +152,32 @@ Captures a screenshot artifact.
 }
 ```
 
+### `assert-no-console-errors`
+
+Fails the scenario if DevTools reports console messages of type `error`. Use `ignoreTextIncludes` for known noisy messages.
+
+```json
+{
+  "type": "assert-no-console-errors",
+  "name": "no-console-errors",
+  "ignoreTextIncludes": ["Failed to load resource"]
+}
+```
+
+### `assert-no-http-errors`
+
+Fails the scenario if DevTools reports HTTP 4xx/5xx responses. Use `ignoreFavicon404`, `ignoreUrlIncludes`, or `failOn4xx: false` to tune strictness.
+
+```json
+{
+  "type": "assert-no-http-errors",
+  "name": "no-http-errors",
+  "ignoreFavicon404": true,
+  "ignoreUrlIncludes": ["/analytics"],
+  "failOn4xx": true
+}
+```
+
 ## Quality rules
 
 ```json

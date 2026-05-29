@@ -1,7 +1,18 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const supportedScenarioTypes = ['consent', 'question', 'empty-input', 'click', 'fill', 'press-key', 'wait-for-text', 'screenshot'];
+const supportedScenarioTypes = [
+  'consent',
+  'question',
+  'empty-input',
+  'click',
+  'fill',
+  'press-key',
+  'wait-for-text',
+  'screenshot',
+  'assert-no-console-errors',
+  'assert-no-http-errors',
+];
 
 export async function loadProfile(profilePath) {
   const resolved = path.resolve(profilePath);
