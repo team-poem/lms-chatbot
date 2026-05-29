@@ -26,7 +26,7 @@
   "scripts": {
     "check": "find src test -name '*.mjs' -print0 | xargs -0 -n1 node --check",
     "test": "node --test test/*.test.mjs",
-    "smoke:lms": "node src/cli.mjs --url https://121.145.133.68.sslip.io --profile profiles/lms-chatbot.json --timeout 120000",
+    "smoke:lms": "node src/cli.mjs --url ${TARGET_URL:-https://example.com} --profile profiles/lms-chatbot.json --timeout 120000",
     "pack:dry": "npm pack --dry-run"
   },
   "engines": {

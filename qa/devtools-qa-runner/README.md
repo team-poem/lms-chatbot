@@ -16,7 +16,7 @@ This directory is structured so it can later be extracted into a standalone GitH
 
 ```bash
 npm run qa:devtools-runner -- \
-  --url https://121.145.133.68.sslip.io \
+  --url https://example.com \
   --profile qa/devtools-qa-runner/profiles/lms-chatbot.json \
   --timeout 120000
 ```
@@ -25,7 +25,7 @@ Convenience alias for the bundled LMS chatbot profile:
 
 ```bash
 npm run qa:chatbot:devtools-profile -- \
-  --url https://121.145.133.68.sslip.io \
+  --url https://example.com \
   --timeout 120000
 ```
 
