@@ -25,10 +25,16 @@ async function runConsentScenario({ spec, item, profile, client, artifacts }) {
 
 async function runQuestionScenario({ spec, item, profile, client, artifacts, timeoutMs }) {
   const before = await artifacts.snapshot(`${item.name}-before`, item);
-  const beforeCount = countTextOccurrences(before, profile.selectors?.answerDoneText || '');
+  const answerDoneText = profile.selectors?.answerDoneText || '';
+  const beforeCount = countTextOccurrences(before, answerDoneText);
   await askFromSnapshot({ snap: before, text: spec.text || '', profile, client });
   const done = await artifacts.waitForSnapshot((snap) => {
-    return hasText(snap, spec.text || '') && countTextOccurrences(snap, profile.selectors?.answerDoneText || '') >= beforeCount + 1;
+    if (!hasText(snap, spec.text || '')) return false;
+    // When no answerDoneText marker is configured, degrade to waiting only for
+    // the submitted text. countTextOccurrences('') is always 0, so requiring the
+    // marker here would otherwise guarantee a timeout.
+    if (!answerDoneText) return true;
+    return countTextOccurrences(snap, answerDoneText) >= beforeCount + 1;
   }, spec.timeoutMs || timeoutMs);
   assert(hasText(done, spec.text || ''), 'submitted text should appear in snapshot');
   await artifacts.snapshot(`${item.name}-after`, item);
@@ -41,7 +47,13 @@ async function runEmptyInputScenario({ spec, item, profile, client, artifacts })
   await askFromSnapshot({ snap: before, text: spec.text || '   ', profile, client });
   await sleep(spec.waitMs || 500);
   const after = await artifacts.snapshot(`${item.name}-after`, item);
-  assert(flatten(after).length <= beforeTextCount + 2, 'empty input should not materially change the accessibility tree');
+  // Empty input should not produce a new answer. A few extra nodes (e.g. an
+  // aria-live validation hint) are tolerated; tune via spec.maxNodeDelta.
+  const maxNodeDelta = Number.isInteger(spec.maxNodeDelta) ? spec.maxNodeDelta : 2;
+  assert(
+    flatten(after).length <= beforeTextCount + maxNodeDelta,
+    `empty input should not materially change the accessibility tree (added ${flatten(after).length - beforeTextCount} nodes, allowed ${maxNodeDelta})`,
+  );
   await artifacts.screenshot(`${item.name}-after`, item);
 }
 

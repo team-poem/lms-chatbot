@@ -36,10 +36,11 @@ Required selectors for chatbot-style profiles:
 
 ```json
 {
-  "chatInput": { "role": "textbox", "nameIncludes": "..." },
-  "answerDoneText": "..."
+  "chatInput": { "role": "textbox", "nameIncludes": "..." }
 }
 ```
+
+`answerDoneText` is optional. When set, `question` scenarios wait for an extra occurrence of this text to confirm the answer finished; when omitted, they wait only for the submitted text to appear.
 
 Optional consent selectors:
 
@@ -66,7 +67,7 @@ Finds the consent button, optionally fills a label input, clicks agree, then wai
 
 ### `question`
 
-Fills `selectors.chatInput`, presses Enter, waits for submitted text and an additional `selectors.answerDoneText` occurrence.
+Fills `selectors.chatInput`, presses Enter, then waits for the submitted text to appear. If `selectors.answerDoneText` is set, it additionally waits for one more occurrence of that marker (used to detect that the answer finished streaming). When `answerDoneText` is omitted, the scenario waits only for the submitted text — it does not hang.
 
 ```json
 {
@@ -79,14 +80,17 @@ Fills `selectors.chatInput`, presses Enter, waits for submitted text and an addi
 
 ### `empty-input`
 
-Attempts to submit empty/blank input and asserts the accessibility tree does not materially change.
+Attempts to submit empty/blank input and asserts the accessibility tree does not materially change (i.e. no new answer was produced).
+
+`maxNodeDelta` (default `2`) is the number of additional accessibility nodes tolerated after submitting blank input — raise it if the UI legitimately shows an aria-live validation hint on empty submit.
 
 ```json
 {
   "type": "empty-input",
   "name": "empty-input-guard",
   "text": "   ",
-  "waitMs": 500
+  "waitMs": 500,
+  "maxNodeDelta": 2
 }
 ```
 

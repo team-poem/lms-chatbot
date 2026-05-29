@@ -3,7 +3,7 @@ export function analyzeQuality(r, quality = {}) {
   const warnings = [];
 
   for (const msg of r.consoleMessages?.consoleMessages || []) {
-    if (msg.type === 'error') warnings.push(`Console error/warning: ${msg.text}`);
+    if (msg.type === 'error') warnings.push(`Console error: ${msg.text}`);
   }
 
   for (const req of r.networkRequests?.networkRequests || []) {

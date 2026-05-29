@@ -27,5 +27,7 @@ export function parseJsonOutput(stdout) {
       // CLI startup notices can precede JSON; keep scanning.
     }
   }
-  return { raw: stdout };
+  // Surface the real CLI failure instead of letting an unparseable response flow
+  // downstream as missing `.snapshot`, which masquerades as "element not found".
+  throw new Error(`chrome-devtools did not return parseable JSON output:\n${stdout.slice(0, 500)}`);
 }

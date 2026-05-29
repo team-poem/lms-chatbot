@@ -31,11 +31,19 @@ export class ArtifactStore {
     if (item) item.screenshots.push(rel);
   }
 
+  // In-memory snapshot for polling. Unlike snapshot(), it does not write a file
+  // or advance the artifact counter, so poll iterations don't flood the output
+  // directory or scramble the numbering of persisted artifacts.
+  async pollSnapshot() {
+    const result = await this.client.run('snapshot-poll', ['take_snapshot']);
+    return result.snapshot || result;
+  }
+
   async waitForSnapshot(predicate, timeout) {
     const deadline = Date.now() + timeout;
     let last;
     while (Date.now() < deadline) {
-      last = await this.snapshot(`poll-${Date.now()}`);
+      last = await this.pollSnapshot();
       if (predicate(last)) return last;
       await sleep(1000);
     }
