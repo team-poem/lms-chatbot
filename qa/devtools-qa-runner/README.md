@@ -58,14 +58,14 @@ Profiles define selectors, quality rules, and scenarios. See:
 
 - `profiles/lms-chatbot.json`
 - `examples/simple-chat.profile.json`
+- `examples/generic-page.profile.json`
 - `docs/profile-schema.md`
 - `docs/github-actions.md`
 
 Supported scenario types in this prototype:
 
-- `consent`
-- `question`
-- `empty-input`
+- Chatbot-oriented: `consent`, `question`, `empty-input`
+- Generic primitives: `click`, `fill`, `press-key`, `wait-for-text`, `screenshot`
 
 ## Development checks
 

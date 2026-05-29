@@ -22,12 +22,33 @@ test('validateProfile requires profile name', () => {
   }), /profile\.name is required/);
 });
 
-test('validateProfile requires chatInput selector', () => {
+test('validateProfile requires chatInput selector for chatbot scenarios', () => {
   assert.throws(() => validateProfile({
     name: 'missing-chat-input',
     selectors: {},
     scenarios: [{ type: 'question' }],
-  }), /selectors\.chatInput is required/);
+  }), /selectors\.chatInput is required for chatbot scenarios/);
+});
+
+
+test('validateProfile accepts generic scenarios without chatInput selector', () => {
+  assert.doesNotThrow(() => validateProfile({
+    name: 'generic',
+    scenarios: [
+      { type: 'fill', target: { role: 'textbox', nameIncludes: 'Search' }, value: 'hello' },
+      { type: 'press-key', key: 'Enter' },
+      { type: 'wait-for-text', text: 'Results' },
+      { type: 'screenshot' },
+    ],
+  }));
+});
+
+
+test('validateProfile validates required generic scenario fields', () => {
+  assert.throws(() => validateProfile({ name: 'bad-fill', scenarios: [{ type: 'fill' }] }), /fill requires target/);
+  assert.throws(() => validateProfile({ name: 'bad-click', scenarios: [{ type: 'click' }] }), /click requires target/);
+  assert.throws(() => validateProfile({ name: 'bad-key', scenarios: [{ type: 'press-key' }] }), /press-key requires key/);
+  assert.throws(() => validateProfile({ name: 'bad-wait', scenarios: [{ type: 'wait-for-text' }] }), /wait-for-text requires text/);
 });
 
 test('validateProfile rejects unsupported scenario types', () => {

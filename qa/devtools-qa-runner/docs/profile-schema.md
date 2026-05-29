@@ -90,6 +90,68 @@ Attempts to submit empty/blank input and asserts the accessibility tree does not
 }
 ```
 
+### `fill`
+
+Takes a snapshot, finds `target`, fills it with `value`, and optionally presses `submitKey`.
+
+```json
+{
+  "type": "fill",
+  "name": "fill-search",
+  "target": { "role": "textbox", "nameIncludes": "Search" },
+  "value": "hello world",
+  "submitKey": "Enter"
+}
+```
+
+### `click`
+
+Takes a snapshot, finds `target`, and clicks it.
+
+```json
+{
+  "type": "click",
+  "name": "open-menu",
+  "target": { "role": "button", "nameIncludes": "Menu" }
+}
+```
+
+### `press-key`
+
+Presses a key or key combination.
+
+```json
+{
+  "type": "press-key",
+  "name": "submit",
+  "key": "Enter"
+}
+```
+
+### `wait-for-text`
+
+Polls snapshots until text appears.
+
+```json
+{
+  "type": "wait-for-text",
+  "name": "wait-results",
+  "text": "Results",
+  "timeoutMs": 10000
+}
+```
+
+### `screenshot`
+
+Captures a screenshot artifact.
+
+```json
+{
+  "type": "screenshot",
+  "name": "after-submit"
+}
+```
+
 ## Quality rules
 
 ```json

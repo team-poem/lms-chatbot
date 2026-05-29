@@ -4,6 +4,7 @@ import { DevToolsClient } from './devtools-client.mjs';
 import { analyzeQuality } from './quality.mjs';
 import { writeReport } from './reporter.mjs';
 import { runScenarioSpec } from '../scenarios/chatbot.mjs';
+import { genericScenarioTypes, runGenericScenarioSpec } from '../scenarios/generic.mjs';
 
 export async function runQa({ url, profile, profilePath, outDir, timeoutMs }) {
   const report = {
@@ -27,7 +28,12 @@ export async function runQa({ url, profile, profilePath, outDir, timeoutMs }) {
   try {
     await client.run('new_page', ['new_page', url, '--timeout', String(timeoutMs)]);
     for (const spec of profile.scenarios || []) {
-      await scenario(report, spec.name || spec.type, async (item) => runScenarioSpec({ spec, item, profile, client, artifacts, timeoutMs }));
+      await scenario(report, spec.name || spec.type, async (item) => {
+        if (genericScenarioTypes.includes(spec.type)) {
+          return runGenericScenarioSpec({ spec, item, profile, client, artifacts, timeoutMs });
+        }
+        return runScenarioSpec({ spec, item, profile, client, artifacts, timeoutMs });
+      });
     }
     report.consoleMessages = await client.run('list_console_messages', ['list_console_messages', '--includePreservedMessages']);
     report.networkRequests = await client.run('list_network_requests', ['list_network_requests', '--includePreservedRequests']);

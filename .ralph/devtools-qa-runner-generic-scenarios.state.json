@@ -1,14 +1,13 @@
 {
-  "name": "devtools-qa-runner-extraction",
-  "taskFile": ".ralph/devtools-qa-runner-extraction.md",
+  "name": "devtools-qa-runner-generic-scenarios",
+  "taskFile": ".ralph/devtools-qa-runner-generic-scenarios.md",
   "iteration": 1,
   "maxIterations": 10,
   "itemsPerIteration": 3,
   "reflectEvery": 3,
   "reflectInstructions": "REFLECTION CHECKPOINT\n\nPause and reflect on your progress:\n1. What has been accomplished so far?\n2. What's working well?\n3. What's not working or blocking progress?\n4. Should the approach be adjusted?\n5. What are the next priorities?\n\nUpdate the task file with your reflection, then continue working.",
-  "active": false,
-  "status": "completed",
-  "startedAt": "2026-05-27T18:13:01.504Z",
-  "lastReflectionAt": 0,
-  "completedAt": "2026-05-27T18:15:11.589Z"
+  "active": true,
+  "status": "active",
+  "startedAt": "2026-05-29T01:10:05.446Z",
+  "lastReflectionAt": 0
 }
