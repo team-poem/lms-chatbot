@@ -84,3 +84,21 @@ def test_clean_markdown_metaheader_idempotent_for_guides():
     assert "퀴즈 출제" in out
     assert "시험 메뉴로 이동합니다" in out
     assert "문제를 추가합니다" in out
+
+
+def test_clean_markdown_drops_empty_text_links():
+    """빈 텍스트 링크 '[](url)'는 표시 텍스트가 없으므로 통째로 제거한다.
+    (Notion이 첨부 이미지를 [](media-cdn...) 형태로 내보내 본문에 URL이 남는 문제)"""
+    src = "원인 설명\n\n[](https://media-cdn.atlassian.com/file/abc/image/cdn?x=1)\n\n조치 방법"
+    out = clean_markdown(src)
+    assert "media-cdn" not in out
+    assert "https://" not in out
+    assert "원인 설명" in out
+    assert "조치 방법" in out
+
+
+def test_clean_markdown_keeps_real_image_links():
+    """실제 이미지 마크다운 '![](path)'는 빈 텍스트 링크 제거에 영향받지 않는다."""
+    src = "본문\n\n![](/assets/screen.png)\n\n다음"
+    out = clean_markdown(src)
+    assert "![](/assets/screen.png)" in out

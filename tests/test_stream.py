@@ -4,7 +4,9 @@ from generation.stream import (
     MAX_CONTEXT_CHUNKS,
     RELEVANCE_FLOOR,
     RELEVANCE_RATIO,
+    SOURCE_RATIO,
     _is_relevant,
+    _is_source_worthy,
 )
 
 
@@ -40,3 +42,20 @@ def test_max_context_chunks_is_bounded():
     # #39 완화: 컨텍스트 청크 수에 상한이 있어야 무관 이웃 청크가 잘려나감
     assert isinstance(MAX_CONTEXT_CHUNKS, int)
     assert 1 <= MAX_CONTEXT_CHUNKS <= 5
+
+
+def test_source_ratio_stricter_than_relevance_ratio():
+    # 출처 표시는 컨텍스트 포함보다 엄격해야 약하게 관련된 청크가 출처에 노출되지 않음
+    assert SOURCE_RATIO > RELEVANCE_RATIO
+
+
+def test_is_source_worthy_excludes_weak_neighbor():
+    # #39 출처 오염: 1위=1.0, 무관 이웃=0.601 (RELEVANCE_RATIO=0.6은 간신히 통과하나
+    # SOURCE_RATIO 기준으로는 출처에서 제외돼야 함)
+    assert _is_source_worthy(1.0, 1.0) is True
+    assert _is_source_worthy(0.601, 1.0) is False
+
+
+def test_is_source_worthy_keeps_strong_neighbor():
+    # 1위에 충분히 근접한 청크는 출처로 유지
+    assert _is_source_worthy(0.95, 1.0) is True
