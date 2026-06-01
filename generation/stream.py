@@ -6,7 +6,12 @@ import httpx
 
 from app_types import ChatEvent, Source
 from generation.filters import clean_response, streaming_clean
-from generation.guardrail import META_REPLY, is_meta_question
+from generation.guardrail import (
+    META_REPLY,
+    UNSAFE_REPLY,
+    is_meta_question,
+    is_unsafe_request,
+)
 from generation.persona import build_prompt
 from rag.state import RagState
 from retrieval.search import hybrid_search
@@ -42,6 +47,14 @@ async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEven
     if is_meta_question(query):
         yield ChatEvent(type="text", delta=META_REPLY)
         yield ChatEvent(type="text_final", text=META_REPLY)
+        yield ChatEvent(type="done")
+        return
+
+    # 민감·악의 요청은 검색 전에 결정적으로 차단. 민감 키워드가 LMS 가이드 어휘와
+    # 겹쳐 검색 점수가 높게 나와도(SCORE_THRESHOLD 통과) LLM에 도달하지 못하게 한다.
+    if is_unsafe_request(query):
+        yield ChatEvent(type="text", delta=UNSAFE_REPLY)
+        yield ChatEvent(type="text_final", text=UNSAFE_REPLY)
         yield ChatEvent(type="done")
         return
 
