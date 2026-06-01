@@ -42,6 +42,35 @@ def _strip_preamble(text: str) -> str:
     return out
 
 
+# 글머리 기호(규칙 3): 줄 시작의 "- ", "• ", "* " 마커 제거 (숫자 리스트는 보존).
+_BULLET = re.compile(r"^(\s*)[-•*]\s+", flags=re.MULTILINE)
+# 호칭(규칙 1): 본문 중간의 "교수님" + 뒤따르는 조사 제거.
+_KYOSUNIM = re.compile(r"교수님(?:께서|께|이|은|는|의|을|를|도)?\s*")
+
+
+def _normalize_tone(text: str) -> str:
+    """페르소나 규칙 1·2·3 위반을 결정적으로 후처리한다. LLM이 가이드 원문의
+    부탁조·호칭·글머리 기호를 따라가도 사용자에게 노출되지 않게 한다."""
+    # 규칙 3: 글머리 기호 제거
+    text = _BULLET.sub(r"\1", text)
+    # 규칙 1: "교수님" 호칭 제거
+    text = _KYOSUNIM.sub("", text)
+    # 규칙 2: 부탁·청유 종결 → 평서형.
+    #   (a) "~해/하여 + 보조용언" : 평서 종결 "~합니다"로
+    text = re.sub(r"하여\s*주시기\s*바랍니다", "합니다", text)
+    text = re.sub(r"해\s*주시기\s*바랍니다", "합니다", text)
+    text = re.sub(r"해\s*주십시오", "합니다", text)
+    text = re.sub(r"해\s*주세요", "합니다", text)
+    text = re.sub(r"해주시기\s*바랍니다", "합니다", text)
+    text = re.sub(r"해주십시오", "합니다", text)
+    text = re.sub(r"해주세요", "합니다", text)
+    #   (b) 그 외 "<동사어간> + 보조용언" : 어간 변형을 피해 "~주면 됩니다"로
+    text = re.sub(r"([가-힣])\s*주시기\s*바랍니다", r"\1 주면 됩니다", text)
+    text = re.sub(r"([가-힣])\s*주십시오", r"\1 주면 됩니다", text)
+    text = re.sub(r"([가-힣])\s*주세요", r"\1 주면 됩니다", text)
+    return text
+
+
 def clean_response(text: str) -> str:
     """완성된 텍스트에 대한 풀 클린업. 마크업 매칭은 양쪽 끝 마커가 모두
     있어야 가능하므로, 스트리밍 토큰에 바로 적용하면 누수가 발생함.
@@ -51,6 +80,7 @@ def clean_response(text: str) -> str:
     text = _ITALIC.sub(lambda m: m.group(1), text)
     text = _HEADING.sub("", text)
     text = _strip_preamble(text)
+    text = _normalize_tone(text)
     return text
 
 
