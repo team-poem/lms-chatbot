@@ -14,7 +14,10 @@ from retrieval.search import hybrid_search
 
 SCORE_THRESHOLD = 0.25
 RELEVANCE_FLOOR = 0.30
-RELEVANCE_RATIO = 0.50
+RELEVANCE_RATIO = 0.60
+# 컨텍스트로 LLM에 넘기는 청크 수 상한. 1위(정답) 외에 의미적으로 유사하지만
+# 다른 주제의 청크가 섞여 답변을 오염시키는 것을 막는다(#39). 1위는 항상 포함.
+MAX_CONTEXT_CHUNKS = 3
 NO_GUIDE_MSG = (
     "해당 내용은 현재 가이드에서 확인이 어렵습니다. "
     "교육혁신처 교수학습개발센터로 문의 부탁드립니다."
@@ -41,11 +44,12 @@ async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEven
         yield ChatEvent(type="done", score=top_score)
         return
 
-    # 컨텍스트: 1위는 무조건, 2위부터 임계 통과만
+    # 컨텍스트: 1위는 무조건, 2위부터 임계 통과만, 그리고 상한 적용
     items = retrieval.items
     relevant = (items[0],) + tuple(
         it for it in items[1:] if _is_relevant(it.score, top_score)
     )
+    relevant = relevant[:MAX_CONTEXT_CHUNKS]
 
     messages = build_prompt(
         query,

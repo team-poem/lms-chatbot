@@ -20,6 +20,17 @@ def get_collection(client):
     return client.get_or_create_collection(_COLLECTION)
 
 
+def reset_collection(client):
+    """컬렉션을 비우고 새로 만든다. 재인덱싱 시 더 이상 생성되지 않는 stale 청크
+    (제거된 CSV 행, 본문이 바뀐 md 등)가 upsert만으로는 남기 때문에, 전체 재빌드
+    전에 호출해 인덱스를 입력 데이터와 정확히 일치시킨다."""
+    try:
+        client.delete_collection(_COLLECTION)
+    except Exception:
+        pass
+    return client.get_or_create_collection(_COLLECTION)
+
+
 def upsert_chunks(client, model: SentenceTransformer, chunks: list[Chunk]) -> None:
     if not chunks:
         return
