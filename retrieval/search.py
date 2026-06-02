@@ -15,9 +15,10 @@ BM25_K = 20
 def hybrid_search(state: RagState, query: str, *, k: int = TOP_K) -> Retrieval:
     bm = dict(query_bm25(state.bm25, query, k=BM25_K))
     emb = dict(query_embed(state.chroma, state.embedder, query, k=EMBED_K))
+    max_embed_sim = max(emb.values(), default=0.0)
     merged = combine_scores(bm, emb, k=k)
     if not merged:
-        return Retrieval(items=(), top_score=0.0)
+        return Retrieval(items=(), top_score=0.0, max_embed_sim=max_embed_sim)
 
     coll = get_collection(state.chroma)
     ids = [cid for cid, _ in merged]
@@ -42,4 +43,4 @@ def hybrid_search(state: RagState, query: str, *, k: int = TOP_K) -> Retrieval:
             notion_url=meta.get("notion_url", "") or "",
         )
         items.append(ScoredChunk(chunk=chunk, score=score))
-    return Retrieval(items=tuple(items), top_score=merged[0][1])
+    return Retrieval(items=tuple(items), top_score=merged[0][1], max_embed_sim=max_embed_sim)

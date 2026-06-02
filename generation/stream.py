@@ -13,6 +13,12 @@ from retrieval.search import hybrid_search
 
 
 SCORE_THRESHOLD = 0.25
+# 절대 임베딩 유사도 바닥. top_score 는 후보 집합 내 정규화값이라 off-topic·거짓
+# 전제 질문에도 높게 나와(거의 항상 ≥0.6) 폴백 게이트로 무력하다. 원시 임베딩
+# 유사도(정규화 전)는 절대 연관도를 재므로, 가이드에 실제로 다뤄지지 않는 질문에
+# 절차를 지어내는 환각을 막는다. 실측 분리 지점: 실제 FAQ 최저 0.634, 폴백 대상
+# (off-topic·거짓 전제) 최고 0.592 → 그 사이 0.60.
+ABS_EMBED_FLOOR = 0.60
 RELEVANCE_FLOOR = 0.30
 RELEVANCE_RATIO = 0.60
 # 컨텍스트로 LLM에 넘기는 청크 수 상한. 1위(정답) 외에 의미적으로 유사하지만
@@ -26,6 +32,11 @@ NO_GUIDE_MSG = (
     "해당 내용은 현재 가이드에서 확인이 어렵습니다. "
     "교육혁신처 교수학습개발센터로 문의 부탁드립니다."
 )
+
+
+def _has_grounding(max_embed_sim: float) -> bool:
+    """질문이 가이드에서 실제로 다뤄지는가(절대 임베딩 유사도 기준)."""
+    return max_embed_sim >= ABS_EMBED_FLOOR
 
 
 def _is_relevant(score: float, top_score: float) -> bool:
@@ -53,7 +64,9 @@ async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEven
 
     retrieval = hybrid_search(state, query)
     top_score = retrieval.top_score
-    if top_score < SCORE_THRESHOLD:
+    # 가이드에 실제로 다뤄지지 않는 질문(off-topic·거짓 전제)은 절차를 지어내지 말고
+    # 폴백한다. 절대 임베딩 유사도 + (정규화)점수 둘 중 하나라도 바닥 미달이면 폴백.
+    if retrieval.max_embed_sim < ABS_EMBED_FLOOR or top_score < SCORE_THRESHOLD:
         yield ChatEvent(type="text", delta=NO_GUIDE_MSG)
         yield ChatEvent(type="text_final", text=NO_GUIDE_MSG)
         yield ChatEvent(type="done", score=top_score)

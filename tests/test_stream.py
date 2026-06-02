@@ -1,13 +1,28 @@
 from __future__ import annotations
 
 from generation.stream import (
+    ABS_EMBED_FLOOR,
     MAX_CONTEXT_CHUNKS,
     RELEVANCE_FLOOR,
     RELEVANCE_RATIO,
     SOURCE_RATIO,
+    _has_grounding,
     _is_relevant,
     _is_source_worthy,
 )
+
+
+def test_abs_embed_floor_separates_faq_from_false_premise():
+    # 실측(80 FAQ vs false-premise/off-topic): 실제 질문 최저 raw 임베딩 유사도 0.634,
+    # 폴백 대상 최고 0.592. 그 사이에 임계가 놓여 회귀 0 + 환각 차단을 동시에 만족.
+    assert 0.592 < ABS_EMBED_FLOOR < 0.634
+    assert _has_grounding(0.634) is True   # 실제 FAQ 최저 -> 답변
+    assert _has_grounding(0.592) is False  # 폴백 대상 최고 -> 폴백
+
+
+def test_has_grounding_is_inclusive_at_floor():
+    assert _has_grounding(ABS_EMBED_FLOOR) is True
+    assert _has_grounding(ABS_EMBED_FLOOR - 0.001) is False
 
 
 def test_is_relevant_requires_absolute_floor():

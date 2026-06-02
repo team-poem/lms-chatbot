@@ -45,6 +45,10 @@ class ScoredChunk:
 class Retrieval:
     items: tuple[ScoredChunk, ...]
     top_score: Score
+    # 후보 중 최대 원시 임베딩 유사도(정규화 전, 0~1). top_score 는 후보 집합 내
+    # 정규화값이라 절대 연관도를 못 재므로, "질문이 가이드에 실제로 다뤄지는가"
+    # 판단에는 이 절대 유사도를 쓴다.
+    max_embed_sim: Score = 0.0
 
 
 @dataclass(frozen=True)
