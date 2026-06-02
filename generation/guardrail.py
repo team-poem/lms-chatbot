@@ -46,3 +46,47 @@ def is_meta_question(query: str) -> bool:
         if r.search(q):
             return True
     return False
+
+
+# 인사·감사·작별·역량 문의 같은 선의의 소셜 입력. 딱딱한 거절 대신 따뜻하게 받아
+# 본 질문을 유도한다. 정체("넌 누구야") 질문은 기존 정책(is_meta_question)에 맡긴다.
+SOCIAL_REPLY = (
+    "안녕하세요. 동서대학교 LearningX LMS 사용법을 안내하는 챗봇입니다. "
+    "강의 운영, 과제, 출석, 성적 등 LMS 사용 중 궁금한 점을 입력하시면 안내해 드립니다."
+)
+
+# 인사·작별은 문장 첫머리에서, 감사는 어디서든. 짧은 입력에만 적용해
+# "안녕하세요 + 실제 질문" 같은 혼합 입력을 가로채지 않는다.
+_SOCIAL_SHORT = [
+    r"^\s*(?:안녕|안뇽|하이|하잉|하요|헬로|hello|hi|hey|ㅎㅇ|반가|방가|좋은\s*아침)",
+    r"(?:고맙|고마워|감사합?니|감사해|땡큐|thank|thx)",
+    r"^\s*(?:잘\s*있|잘\s*가|들어가세요|bye|바이|이만)",
+    r"수고(?:하|했|많)",
+]
+# 역량 문의("뭐 할 수 있어")는 길이와 무관하게 소셜로 처리.
+_SOCIAL_CAPABILITY = (
+    r"(?:뭐|무엇을?|뭘|어떤\s*걸?|무슨)\s*(?:할\s*수\s*있|도와|해\s*줄|도움)|"
+    r"(?:무슨|어떤)\s*기능|기능이?\s*뭐|할\s*줄\s*아"
+)
+_SOCIAL_SHORT_RES = [re.compile(p, flags=re.IGNORECASE) for p in _SOCIAL_SHORT]
+_SOCIAL_CAP_RE = re.compile(_SOCIAL_CAPABILITY, flags=re.IGNORECASE)
+
+# 인사·감사 뒤에 실제 LMS 질문이 붙은 혼합 입력을 소셜로 오인하지 않도록,
+# 실질 질문 신호가 있으면 소셜에서 제외한다.
+_QUESTION_HINT = re.compile(
+    r"어떻게|어떡|방법|하나요|할까요|되나요|있나요|입니까|어디|언제|왜|얼마|몇|"
+    r"가능한가|알려|설정|제출|등록|채점|출제|다운로드"
+)
+_SOCIAL_MAX_LEN = 22
+
+
+def is_social_chitchat(query: str) -> bool:
+    """선의의 소셜(인사/감사/작별/역량 문의)인지. 메타 질문은 제외한다."""
+    q = query.strip()
+    if not q or is_meta_question(q):
+        return False
+    if _SOCIAL_CAP_RE.search(q):  # 역량 문의는 길이/질문신호와 무관하게 소셜
+        return True
+    if len(q) > _SOCIAL_MAX_LEN or _QUESTION_HINT.search(q):
+        return False  # 길거나 실제 질문이 섞이면 일반 답변 경로로
+    return any(r.search(q) for r in _SOCIAL_SHORT_RES)
