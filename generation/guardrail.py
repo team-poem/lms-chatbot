@@ -63,13 +63,7 @@ _SOCIAL_SHORT = [
     r"^\s*(?:잘\s*있|잘\s*가|들어가세요|bye|바이|이만)",
     r"수고(?:하|했|많)",
 ]
-# 역량 문의("뭐 할 수 있어")는 길이와 무관하게 소셜로 처리.
-_SOCIAL_CAPABILITY = (
-    r"(?:뭐|무엇을?|뭘|어떤\s*걸?|무슨)\s*(?:할\s*수\s*있|도와|해\s*줄|도움)|"
-    r"(?:무슨|어떤)\s*기능|기능이?\s*뭐|할\s*줄\s*아"
-)
 _SOCIAL_SHORT_RES = [re.compile(p, flags=re.IGNORECASE) for p in _SOCIAL_SHORT]
-_SOCIAL_CAP_RE = re.compile(_SOCIAL_CAPABILITY, flags=re.IGNORECASE)
 
 # 인사·감사 뒤에 실제 LMS 질문이 붙은 혼합 입력을 소셜로 오인하지 않도록,
 # 실질 질문 신호가 있으면 소셜에서 제외한다.
@@ -81,12 +75,37 @@ _SOCIAL_MAX_LEN = 22
 
 
 def is_social_chitchat(query: str) -> bool:
-    """선의의 소셜(인사/감사/작별/역량 문의)인지. 메타 질문은 제외한다."""
+    """선의의 소셜(인사/감사/작별)인지. 메타 질문은 제외한다."""
     q = query.strip()
     if not q or is_meta_question(q):
         return False
-    if _SOCIAL_CAP_RE.search(q):  # 역량 문의는 길이/질문신호와 무관하게 소셜
-        return True
     if len(q) > _SOCIAL_MAX_LEN or _QUESTION_HINT.search(q):
         return False  # 길거나 실제 질문이 섞이면 일반 답변 경로로
     return any(r.search(q) for r in _SOCIAL_SHORT_RES)
+
+
+# 역량/가이드/도움 문의. social(짧은 인사)에서 분리해 리치 리스트업으로 안내한다.
+# (이전 _SOCIAL_CAPABILITY 패턴을 흡수하고 "가이드 받을 수 있나"류를 확장.)
+_HELP_PATTERNS = [
+    # "뭐/뭘/무엇을/어떤 걸/무슨 ... 도와/할 수 있/해 줄/해 주/알려 줄"
+    r"(?:뭐|뭘|무엇을?|어떤\s*걸?|무슨|어떠한)\s*.{0,5}?(?:도와|도움|할\s*수\s*있|해\s*줄|해\s*주|알려\s*줄|알려\s*주)",
+    # "가이드/안내/도움말/도움 ... 받을/보고 싶/볼 수/뭐 있/무엇/있을까/가능"
+    # (보여/알려/있나/있어/있죠는 '안내문/도움말'이 도메인 명사로 쓰인 진짜 질문을 오발화시켜 제거,
+    #  gap 도 .{0,4}로 좁힘. bare '도움'을 키워드에 추가해 "도움받을 수 있는 주제" 류를 회복.)
+    r"(?:가이드|안내|도움말|도움)\s*.{0,4}?(?:받을|보고\s*싶|볼\s*수|뭐\s*있|무엇|있을까|가능)",
+    # "어떤/무슨/뭐 ... 가이드/안내/도움말"
+    r"(?:어떤|무슨|뭐|뭘|무엇)\s*.{0,6}?(?:가이드|안내|도움말)",
+    # 기능 묻기 / 할 줄 아
+    r"(?:무슨|어떤)\s*기능|기능이?\s*뭐|할\s*줄\s*아",
+    # "뭐/뭘/무엇/어떤 걸 ... 물어보면/여쭤"
+    r"(?:뭐|뭘|무엇을?|어떤\s*걸?)\s*.{0,6}?(?:물어|여쭤)",
+]
+_HELP_RES = [re.compile(p, flags=re.IGNORECASE) for p in _HELP_PATTERNS]
+
+
+def is_help_request(query: str) -> bool:
+    """역량/가이드/도움 문의인지. 메타 질문은 제외한다."""
+    q = query.strip()
+    if not q or is_meta_question(q):
+        return False
+    return any(r.search(q) for r in _HELP_RES)
