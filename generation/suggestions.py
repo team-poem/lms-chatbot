@@ -52,3 +52,16 @@ def build_help_reply() -> str:
         f"{body}\n\n"
         "원하는 주제나 비슷한 질문을 입력해 주세요."
     )
+
+
+def build_topic_reply(topic_name: str) -> str:
+    """범위 내 주제 선언 응답: 해당 주제 예시 + 구체 질문 유도."""
+    t = next((t for t in _TOPICS if t.name == topic_name), None)
+    if t is None:                      # 방어적: 알 수 없는 토픽이면 전체 도움말로 폴백
+        return build_help_reply()
+    examples = "\n".join(f'  · "{ex}"' for ex in t.examples)
+    return (
+        f"{t.emoji} {t.name} 관련해서 이런 점들을 도와드릴 수 있어요:\n\n"
+        f"{examples}\n\n"
+        "구체적으로 어떤 점이 궁금하신가요? 위 예시처럼 질문해 주세요."
+    )

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from generation.suggestions import build_help_reply
+from generation.suggestions import build_help_reply, build_topic_reply
 
 
 def test_help_reply_lists_all_categories():
@@ -18,3 +18,15 @@ def test_help_reply_contains_example_questions_in_quotes():
 def test_help_reply_has_invitation_footer():
     reply = build_help_reply()
     assert "원하는 주제나 비슷한 질문을 입력해 주세요" in reply
+
+
+def test_topic_reply_scopes_to_topic():
+    reply = build_topic_reply("강의 운영")
+    assert "강의 운영" in reply
+    assert "과목을 복사" in reply     # 강의 운영 예시 포함
+    assert "출석" not in reply        # 다른 토픽 예시는 미포함
+    assert "궁금" in reply            # 구체 질문 유도 문구
+
+
+def test_topic_reply_unknown_falls_back_to_help():
+    assert build_topic_reply("없는토픽") == build_help_reply()
