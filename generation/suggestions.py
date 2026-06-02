@@ -5,6 +5,7 @@ retrieval 게이트 *이전*의 결정적 사전 분기에서 사용한다. 토�
 같은 데이터에서 렌더한다. FAQ 가 바뀌면 이 파일의 _TOPICS 만 고치면 된다.
 """
 from __future__ import annotations
+import re
 from dataclasses import dataclass
 
 
@@ -65,3 +66,26 @@ def build_topic_reply(topic_name: str) -> str:
         f"{examples}\n\n"
         "구체적으로 어떤 점이 궁금하신가요? 위 예시처럼 질문해 주세요."
     )
+
+
+# 주제 선언 감지: 토픽 키워드 + 의도 표현이 있고, 구체 질문 신호가 없을 때만 발화.
+_INTENT_RE = re.compile(r"문의|질문|여쭤|물어보|관련(?:해서|해|이)?|대해|궁금")
+# 구체 질문/문제 신호가 있으면 '선언'이 아니라 '진짜 질문' → 게이트로 보낸다.
+# '인데'(문의인데 <문제>)와 '안 <동사>' 부정형을 포함해 버그 보고가 토픽으로 가로채이지 않게 한다.
+_CONCRETE_RE = re.compile(
+    r"어떻게|어떡|방법|하나요|할까요|되나요|있나요|입니까|어디|언제|왜|얼마|몇|"
+    r"가능한가|안\s*돼|안\s*되|안\s*보|안\s+[가-힣]|인데|오류|에러|실패|처리|떴|뜨는|뜨면"
+)
+
+
+def match_topic(query: str) -> str | None:
+    """범위 내 주제 선언이면 토픽명을 반환, 아니면 None (보수적 발화)."""
+    q = query.strip()
+    if not q or _CONCRETE_RE.search(q):
+        return None
+    if not _INTENT_RE.search(q):
+        return None
+    for t in _TOPICS:
+        if any(kw in q for kw in t.keywords):
+            return t.name
+    return None
