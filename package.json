@@ -5,7 +5,9 @@
     "qa:devtools-runner": "node qa/devtools-qa-runner/src/cli.mjs",
     "qa:chatbot:devtools-profile": "node qa/devtools-qa-runner/src/cli.mjs --profile qa/devtools-qa-runner/profiles/lms-chatbot.json",
     "qa:devtools-runner:test": "npm --prefix qa/devtools-qa-runner test",
-    "qa:devtools-runner:check": "npm --prefix qa/devtools-qa-runner run check"
+    "qa:devtools-runner:check": "npm --prefix qa/devtools-qa-runner run check",
+    "qa:adversarial": "node qa/devtools-qa-runner/src/cli.mjs --profile qa/devtools-qa-runner/profiles/lms-faq-adversarial.json --out reports/faq-adversarial --timeout 180000",
+    "qa:adversarial:judge": "node qa/devtools-qa-runner/judge/cli.mjs --report reports/faq-adversarial"
   },
   "devDependencies": {
     "chrome-devtools-mcp": "^1.1.0",
