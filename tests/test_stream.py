@@ -74,3 +74,43 @@ def test_is_source_worthy_excludes_weak_neighbor():
 def test_is_source_worthy_keeps_strong_neighbor():
     # 1위에 충분히 근접한 청크는 출처로 유지
     assert _is_source_worthy(0.95, 1.0) is True
+
+
+import asyncio
+
+from app_types import Retrieval
+from generation import stream as stream_mod
+
+
+def _finals(query):
+    async def run():
+        out = []
+        async for ev in stream_mod.stream_response(None, query):
+            if ev.type == "text_final":
+                out.append(ev.text)
+        return out
+    return asyncio.run(run())
+
+
+def test_help_request_short_circuits_before_retrieval(monkeypatch):
+    def boom(state, q):
+        raise AssertionError("retrieval must not run for help requests")
+    monkeypatch.setattr(stream_mod, "hybrid_search", boom)
+    finals = _finals("어떤걸 가이드 받을수잇죠?")
+    assert finals and "도와드릴 수 있어요" in finals[0]
+
+
+def test_topic_declaration_short_circuits_before_retrieval(monkeypatch):
+    def boom(state, q):
+        raise AssertionError("retrieval must not run for topic declarations")
+    monkeypatch.setattr(stream_mod, "hybrid_search", boom)
+    finals = _finals("강의 운영 관련해서 문의하고 싶어요")
+    assert finals and "강의 운영" in finals[0]
+
+
+def test_real_question_falls_through_to_gate(monkeypatch):
+    # 임베딩이 낮으면 게이트가 거절(NO_GUIDE_MSG) → 라우팅이 게이트까지 도달했음을 증명.
+    low = Retrieval(items=(), top_score=0.0, max_embed_sim=0.0)
+    monkeypatch.setattr(stream_mod, "hybrid_search", lambda state, q: low)
+    finals = _finals("오늘 점심 뭐 먹지?")
+    assert finals and "확인이 어렵습니다" in finals[0]

@@ -6,7 +6,14 @@ import httpx
 
 from app_types import ChatEvent, Source
 from generation.filters import clean_response, streaming_clean
-from generation.guardrail import META_REPLY, SOCIAL_REPLY, is_meta_question, is_social_chitchat
+from generation.guardrail import (
+    META_REPLY,
+    SOCIAL_REPLY,
+    is_help_request,
+    is_meta_question,
+    is_social_chitchat,
+)
+from generation.suggestions import build_help_reply, build_topic_reply, match_topic
 from generation.persona import build_prompt
 from rag.state import RagState
 from retrieval.search import hybrid_search
@@ -56,9 +63,24 @@ async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEven
         yield ChatEvent(type="done")
         return
 
+    if is_help_request(query):
+        reply = build_help_reply()
+        yield ChatEvent(type="text", delta=reply)
+        yield ChatEvent(type="text_final", text=reply)
+        yield ChatEvent(type="done")
+        return
+
     if is_social_chitchat(query):
         yield ChatEvent(type="text", delta=SOCIAL_REPLY)
         yield ChatEvent(type="text_final", text=SOCIAL_REPLY)
+        yield ChatEvent(type="done")
+        return
+
+    topic = match_topic(query)
+    if topic:
+        reply = build_topic_reply(topic)
+        yield ChatEvent(type="text", delta=reply)
+        yield ChatEvent(type="text_final", text=reply)
         yield ChatEvent(type="done")
         return
 
