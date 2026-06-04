@@ -188,6 +188,25 @@ async function ask(query) {
   };
 
   const resp = await fetch("/chat", {method:"POST", headers: {"content-type":"application/json"}, body: JSON.stringify({session_id: session, query})});
+  // 세션이 서버에 없으면(컨테이너 재시작·DB 리셋으로 캐시 세션이 만료) 403.
+  // 옛 세션을 비우고 동의 모달을 다시 띄워 재동의 → 새 세션을 받게 한다.
+  // (이 처리가 없으면 재방문자가 조용히 403만 받고 기록도 전혀 안 남았다.)
+  if (resp.status === 403) {
+    removeLoading();
+    div.querySelector(".a").textContent = "세션이 만료되었습니다. 다시 동의해 주시면 이어서 도와드릴게요.";
+    localStorage.removeItem("lms_session");
+    localStorage.removeItem("lms_consent");
+    session = null;
+    $("#modal").style.display = "flex";
+    $("#q").disabled = true;
+    $("#form button[type=submit]").disabled = true;
+    return;
+  }
+  if (!resp.ok || !resp.body) {
+    removeLoading();
+    div.querySelector(".a").textContent = "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+    return;
+  }
   const reader = resp.body.getReader();
   const dec = new TextDecoder();
   let buf = "";
