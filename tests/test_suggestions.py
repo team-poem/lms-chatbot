@@ -1,6 +1,25 @@
 from __future__ import annotations
 
-from generation.suggestions import build_help_reply, build_topic_reply, match_topic
+from generation.suggestions import (
+    build_help_reply,
+    build_topic_reply,
+    match_topic,
+    topic_for_fallback,
+)
+
+
+def test_topic_for_fallback_catches_broad_topic_questions():
+    # 게이트가 거절할 포괄 질문이라도 범위 내 주제어가 있으면 토픽명을 돌려준다
+    # (의도·구체 신호와 무관 — 막다른 거절 대신 주제 안내로 폴백시키기 위함).
+    assert topic_for_fallback("강의 운영은 어떻게 하나요?") == "강의 운영"
+    assert topic_for_fallback("강의 운영은 어떻게 하나여?") == "강의 운영"  # 오타·구어체
+    assert topic_for_fallback("과제 점수가 안 보여요") == "과제·평가"
+
+
+def test_topic_for_fallback_silent_when_out_of_scope():
+    assert topic_for_fallback("오늘 점심 뭐 먹지?") is None
+    assert topic_for_fallback("주식 추천해줘") is None
+    assert topic_for_fallback("") is None
 
 
 def test_help_reply_lists_all_categories():

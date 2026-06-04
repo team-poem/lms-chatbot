@@ -14,7 +14,12 @@ from generation.guardrail import (
     is_scope_question,
     is_social_chitchat,
 )
-from generation.suggestions import build_help_reply, build_topic_reply, match_topic
+from generation.suggestions import (
+    build_help_reply,
+    build_topic_reply,
+    match_topic,
+    topic_for_fallback,
+)
 from generation.persona import build_prompt
 from rag.state import RagState
 from retrieval.search import hybrid_search
@@ -90,6 +95,16 @@ async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEven
     # 가이드에 실제로 다뤄지지 않는 질문(off-topic·거짓 전제)은 절차를 지어내지 말고
     # 폴백한다. 절대 임베딩 유사도 + (정규화)점수 둘 중 하나라도 바닥 미달이면 폴백.
     if retrieval.max_embed_sim < ABS_EMBED_FLOOR or top_score < SCORE_THRESHOLD:
+        # 매칭 문서가 없어 거절해야 하지만, 범위 내 주제어가 있으면("강의 운영은 어떻게
+        # 하나요" 같은 포괄 질문) 하드 거절 대신 그 주제의 세부 안내로 폴백한다. 같은
+        # 의도를 표현만 달리해도 막다른 거절이 나오지 않게 한다(범위 밖은 그대로 거절).
+        topic = topic_for_fallback(query)
+        if topic:
+            reply = build_topic_reply(topic)
+            yield ChatEvent(type="text", delta=reply)
+            yield ChatEvent(type="text_final", text=reply)
+            yield ChatEvent(type="done", score=top_score)
+            return
         yield ChatEvent(type="text", delta=NO_GUIDE_MSG)
         yield ChatEvent(type="text_final", text=NO_GUIDE_MSG)
         yield ChatEvent(type="done", score=top_score)

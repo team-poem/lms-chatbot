@@ -89,3 +89,20 @@ def match_topic(query: str) -> str | None:
         if any(kw in q for kw in t.keywords):
             return t.name
     return None
+
+
+def topic_for_fallback(query: str) -> str | None:
+    """게이트 거절 직전, 범위 내 주제어가 있으면 해당 토픽명을 반환.
+
+    match_topic 보다 관대하다(의도·구체 신호와 무관, 주제어 존재만 본다). "강의 운영은
+    어떻게 하나요"처럼 포괄적이라 매칭 문서가 없어 거절될 질문을, 하드 거절 대신 주제별
+    안내로 돌려보내기 위한 용도다. 같은 의도를 표현만 달리해도 막다른 거절이 나오지
+    않게 한다. 범위 밖(주제어 없음) 질문은 None → 기존 거절 유지.
+    """
+    q = query.strip()
+    if not q:
+        return None
+    for t in _TOPICS:
+        if any(kw in q for kw in t.keywords):
+            return t.name
+    return None

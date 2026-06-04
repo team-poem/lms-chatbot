@@ -118,7 +118,19 @@ def test_scope_question_short_circuits_to_social(monkeypatch):
 
 def test_real_question_falls_through_to_gate(monkeypatch):
     # 임베딩이 낮으면 게이트가 거절(NO_GUIDE_MSG) → 라우팅이 게이트까지 도달했음을 증명.
+    # 범위 밖 질문(주제어 없음)은 그대로 하드 거절.
     low = Retrieval(items=(), top_score=0.0, max_embed_sim=0.0)
     monkeypatch.setattr(stream_mod, "hybrid_search", lambda state, q: low)
     finals = _finals("오늘 점심 뭐 먹지?")
     assert finals and "확인이 어렵습니다" in finals[0]
+
+
+def test_low_grounding_in_scope_topic_falls_back_to_topic_guide(monkeypatch):
+    # 게이트가 거절할 만큼 매칭이 약해도, 범위 내 주제어("강의 운영")가 있으면
+    # 하드 거절 대신 주제 안내로 폴백한다(같은 의도를 표현만 달리해도 막다른 거절 X).
+    low = Retrieval(items=(), top_score=0.0, max_embed_sim=0.0)
+    monkeypatch.setattr(stream_mod, "hybrid_search", lambda state, q: low)
+    finals = _finals("강의 운영은 어떻게 하나요?")
+    assert finals
+    assert "강의 운영" in finals[0]
+    assert "확인이 어렵습니다" not in finals[0]
