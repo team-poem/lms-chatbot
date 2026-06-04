@@ -13,15 +13,20 @@ services:
     environment:
       OLLAMA_HOST: http://host.docker.internal:11434
       OLLAMA_MODEL: gemma3:4b
+      # 관리자 로그 조회 토큰(/admin/logs). 비우면 비활성(404). 운영 시 강한 값으로 설정.
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
 
     # 가이드/이미지/인덱스/로그는 호스트에서 관리. 컨테이너 재시작해도 보존.
     # 인덱싱은 호스트의 별도 작업으로 수행하거나 docker compose run 으로 진입.
+    # 로그 DB 는 *디렉터리* 로 마운트한다. SQLite 는 트랜잭션 중 사이드카(-journal/-wal/-shm)
+    # 를 같은 폴더에 만들고, 단일 파일 바인드 마운트는 inode 고정·사이드카 미영속으로
+    # 데이터가 호스트에 안 닿아 유실됐다. 폴더 마운트면 db+사이드카가 함께 호스트에 보존된다.
     volumes:
       - ./data/raw:/app/data/raw:ro
       - ./data/assets:/app/data/assets:ro
       - ./data/chroma:/app/data/chroma:ro
       - ./data/bm25.pkl:/app/data/bm25.pkl:ro
-      - ./data/chat_logs.db:/app/data/chat_logs.db
+      - ./data/logs:/app/data/logs
 
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/health || exit 1"]

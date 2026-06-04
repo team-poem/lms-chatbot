@@ -73,14 +73,14 @@ COPY rag ./rag
 COPY db ./db
 COPY static ./static
 
-RUN mkdir -p data/raw data/assets data/chroma
+RUN mkdir -p data/raw data/assets data/chroma data/logs
 
 ENV OLLAMA_HOST=http://host.docker.internal:11434 \
     OLLAMA_MODEL=gemma3:4b \
     EMBED_MODEL=BAAI/bge-m3 \
     CHROMA_DIR=/app/data/chroma \
     BM25_PATH=/app/data/bm25.pkl \
-    LOGS_DB_PATH=/app/data/chat_logs.db \
+    LOGS_DB_PATH=/app/data/logs/chat_logs.db \
     ASSETS_DIR=/app/data/assets \
     RAW_DIR=/app/data/raw \
     PORT=8080

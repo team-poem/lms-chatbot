@@ -5,8 +5,8 @@ import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict, is_dataclass
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -151,6 +151,40 @@ def feedback(body: FeedbackBody):
         comment=body.comment,
     )
     return {"ok": True}
+
+
+def _require_admin(provided: str | None) -> None:
+    """관리자 토큰 검증. 토큰 미설정 시 엔드포인트 자체를 숨긴다(404)."""
+    expected = config.admin_token
+    if not expected:
+        raise HTTPException(status_code=404, detail="Not Found")
+    if not provided or provided != expected:
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+
+@app.get("/admin/logs")
+def admin_logs(
+    limit: int = Query(100, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
+    format: str = Query("json"),
+    x_admin_token: str | None = Header(default=None),
+    token: str | None = Query(default=None),
+):
+    """대화 기록 조회/내보내기. X-Admin-Token 헤더 또는 ?token= 으로 인증."""
+    _require_admin(x_admin_token or token)
+    turns = store.list_turns(config.logs_db_path, limit=limit, offset=offset)
+    if format == "csv":
+        return Response(
+            content=store.turns_to_csv(turns),
+            media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": "attachment; filename=chat_logs.csv"},
+        )
+    return {
+        "total": store.count_turns(config.logs_db_path),
+        "limit": limit,
+        "offset": offset,
+        "turns": turns,
+    }
 
 
 class PurgeBody(BaseModel):

@@ -2,6 +2,7 @@ data/raw/
 data/assets/
 data/chroma/
 data/bm25.pkl
+data/logs/
 data/chat_logs.db
 .venv/
 __pycache__/

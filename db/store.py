@@ -1,4 +1,6 @@
 from __future__ import annotations
+import csv
+import io
 import json
 import sqlite3
 import uuid
@@ -6,6 +8,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from db.schema import SCHEMA
+
+
+_CSV_FIELDS = (
+    "turn_id", "session_id", "created_at", "query", "response",
+    "retrieved_sources", "retrieved_score", "latency_ms",
+)
 
 
 def _now() -> str:
@@ -62,6 +70,34 @@ def add_turn(db_path: Path, *, session_id: str, query: str, response: str,
              retrieved_score, latency_ms),
         )
         return int(cur.lastrowid)
+
+
+def list_turns(db_path: Path, *, limit: int = 100, offset: int = 0) -> list[dict]:
+    """기록된 턴을 최신순으로 반환(관리자 조회/내보내기용)."""
+    with _conn(db_path) as c:
+        rs = c.execute(
+            "SELECT turn_id, session_id, created_at, query, response, "
+            "retrieved_sources, retrieved_score, latency_ms "
+            "FROM turns ORDER BY turn_id DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        ).fetchall()
+        return [dict(r) for r in rs]
+
+
+def count_turns(db_path: Path) -> int:
+    """기록된 전체 턴 수."""
+    with _conn(db_path) as c:
+        return int(c.execute("SELECT COUNT(*) FROM turns").fetchone()[0])
+
+
+def turns_to_csv(turns: list[dict]) -> str:
+    """list_turns 결과를 CSV 문자열로 직렬화(관리자 내보내기용)."""
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=list(_CSV_FIELDS), extrasaction="ignore")
+    w.writeheader()
+    for t in turns:
+        w.writerow(t)
+    return buf.getvalue()
 
 
 def add_feedback(db_path: Path, *, turn_id: int, rating: int, comment: str | None) -> None:
