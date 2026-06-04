@@ -22,6 +22,15 @@ def test_topic_for_fallback_silent_when_out_of_scope():
     assert topic_for_fallback("") is None
 
 
+def test_topic_for_fallback_catches_login():
+    # "로그인 안됨"은 임베딩 바닥(0.593<0.60)에 걸려 게이트가 거절하지만,
+    # 로그인 토픽 폴백으로 실제 로그인 FAQ를 안내해야 한다(하드 거절 X).
+    assert topic_for_fallback("로그인 안됨") == "로그인·접속"
+    assert topic_for_fallback("접속이 안돼요") == "로그인·접속"
+    reply = build_topic_reply("로그인·접속")
+    assert "로그인" in reply
+
+
 def test_help_reply_lists_all_categories():
     reply = build_help_reply()
     for name in ("강의 운영", "과제·평가", "퀴즈·시험", "출결", "성적", "수강생·알림"):
