@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from generation.guardrail import is_help_request, is_meta_question, is_social_chitchat
+from generation.guardrail import (
+    is_help_request,
+    is_meta_question,
+    is_scope_question,
+    is_social_chitchat,
+)
 
 
 def test_detects_greetings():
@@ -63,3 +68,26 @@ def test_help_request_ignores_domain_noun_questions():
 def test_help_request_detects_more_capability_phrasings():
     assert is_help_request("도움받을 수 있는 주제가 뭐가 있나요?")
     assert is_help_request("어떤 걸 안내받을 수 있나요?")
+
+
+def test_scope_question_detects_lms_orientation():
+    # 막연한 LMS 전반·소개 질문은 SOCIAL 소개로 안내해야 한다(거절 X).
+    assert is_scope_question("lms에 대해서?")
+    assert is_scope_question("lms가 뭐야?")
+    assert is_scope_question("LMS에 대해 알려줘")
+    assert is_scope_question("엘엠에스가 뭐예요?")
+    assert is_scope_question("learningx 소개해줘")
+
+
+def test_scope_question_ignores_concrete_lms_questions():
+    # LMS를 언급해도 구체 기능/문제 신호가 있으면 RAG로 보낸다(스코프 X).
+    assert not is_scope_question("lms에서 과제 제출은 어떻게 하나요?")
+    assert not is_scope_question("lms 출석이 결석으로 처리됐어요")
+    assert not is_scope_question("lms 성적 입력 방법")
+
+
+def test_scope_question_requires_lms_subject():
+    # 주제(LMS) 없이 막연한 표현만으로는 발화하지 않는다.
+    assert not is_scope_question("뭐야?")
+    assert not is_scope_question("소개해줘")
+    assert not is_scope_question("")

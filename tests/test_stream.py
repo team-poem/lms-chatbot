@@ -108,6 +108,14 @@ def test_topic_declaration_short_circuits_before_retrieval(monkeypatch):
     assert finals and "강의 운영" in finals[0]
 
 
+def test_scope_question_short_circuits_to_social(monkeypatch):
+    def boom(state, q):
+        raise AssertionError("retrieval must not run for scope questions")
+    monkeypatch.setattr(stream_mod, "hybrid_search", boom)
+    finals = _finals("lms에 대해서?")
+    assert finals and "LMS 사용법을 안내" in finals[0]
+
+
 def test_real_question_falls_through_to_gate(monkeypatch):
     # 임베딩이 낮으면 게이트가 거절(NO_GUIDE_MSG) → 라우팅이 게이트까지 도달했음을 증명.
     low = Retrieval(items=(), top_score=0.0, max_embed_sim=0.0)

@@ -109,3 +109,27 @@ def is_help_request(query: str) -> bool:
     if not q or is_meta_question(q):
         return False
     return any(r.search(q) for r in _HELP_RES)
+
+
+# LMS 전반에 대한 막연한 소개·범위 질문("LMS가 뭐야", "LMS에 대해서").
+# 특정 기능/문제 신호 없이 전반을 물을 때만 SOCIAL_REPLY(챗봇 소개)로 안내한다.
+# 구체 질문("LMS에서 과제 제출 어떻게")·특정 주제 언급은 제외해 RAG/TOPIC 으로 보낸다.
+_SCOPE_SUBJECT = re.compile(
+    r"lms|엘\s*엠\s*에\s*스|learning\s*x|러닝\s*엑스", flags=re.IGNORECASE
+)
+_SCOPE_ABOUT = re.compile(r"에?\s*대(?:해|한)|뭐(?:야|에요|예요|니|냐|지)|뭔가|무엇|소개|설명")
+_SCOPE_CONCRETE = re.compile(
+    r"어떻게|어떡|방법|하나요|할까요|되나요|있나요|있어요|어디|언제|왜|얼마|몇|"
+    r"안\s*돼|안\s*되|안\s*보|오류|에러|실패|등록|제출|채점|복사|재응시|출제|다운로드|설정|입력|"
+    r"과제|출석|출결|성적|퀴즈|시험|수강|점수|공지|알림|강의"
+)
+
+
+def is_scope_question(query: str) -> bool:
+    """LMS 전반에 대한 막연한 소개·범위 질문인지. 메타·구체 질문은 제외한다."""
+    q = query.strip()
+    if not q or is_meta_question(q):
+        return False
+    if _SCOPE_CONCRETE.search(q):
+        return False  # 특정 기능/문제 신호가 있으면 진짜 질문 → RAG/TOPIC
+    return bool(_SCOPE_SUBJECT.search(q) and _SCOPE_ABOUT.search(q))

@@ -11,6 +11,7 @@ from generation.guardrail import (
     SOCIAL_REPLY,
     is_help_request,
     is_meta_question,
+    is_scope_question,
     is_social_chitchat,
 )
 from generation.suggestions import build_help_reply, build_topic_reply, match_topic
@@ -70,7 +71,7 @@ async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEven
         yield ChatEvent(type="done")
         return
 
-    if is_social_chitchat(query):
+    if is_social_chitchat(query) or is_scope_question(query):
         yield ChatEvent(type="text", delta=SOCIAL_REPLY)
         yield ChatEvent(type="text_final", text=SOCIAL_REPLY)
         yield ChatEvent(type="done")
