@@ -90,6 +90,7 @@ def test_is_source_worthy_keeps_strong_neighbor():
 
 
 import asyncio
+from types import SimpleNamespace
 
 from app_types import Retrieval
 from generation import stream as stream_mod
@@ -107,7 +108,6 @@ def _finals(query, state=None):
 
 def test_low_grounding_routes_to_qna(monkeypatch):
     # 근거 미달(매뉴얼에 없음)이면 답을 만들지 않고 QnA 게시판으로 안내한다.
-    from types import SimpleNamespace
     low = Retrieval(items=(), top_score=0.0, max_embed_sim=0.0)
     monkeypatch.setattr(stream_mod, "hybrid_search", lambda state, q: low)
     state = SimpleNamespace(qna_board_url="https://qna.test/board")
@@ -121,8 +121,48 @@ def test_meta_question_still_refused(monkeypatch):
     def boom(state, q):
         raise AssertionError("retrieval must not run for meta questions")
     monkeypatch.setattr(stream_mod, "hybrid_search", boom)
-    finals = _finals("어떤 모델을 사용하나요?")
+    finals = _finals("어떤 모델을 사용하나요?", SimpleNamespace(qna_board_url=""))
     assert finals and "LMS 사용법 안내만 제공" in finals[0]
+
+
+def test_high_grounding_reaches_generation(monkeypatch):
+    # 근거 충분하면 게이트를 통과해 생성으로 간다(QnA 폴백이 아님).
+    from app_types import Chunk, ScoredChunk
+    chunk = Chunk(
+        chunk_id="c", text="문서 본문", source="s", doc_set="guide",
+        title="제목", section_id="sec", image_refs=(),
+    )
+    hi = Retrieval(items=(ScoredChunk(chunk=chunk, score=1.0),), top_score=1.0, max_embed_sim=0.9)
+    monkeypatch.setattr(stream_mod, "hybrid_search", lambda state, q: hi)
+
+    class _Resp:
+        async def aiter_lines(self):
+            yield '{"message":{"content":"생성된 답변"},"done":true}'
+
+    class _Stream:
+        async def __aenter__(self):
+            return _Resp()
+        async def __aexit__(self, *a):
+            return False
+
+    class _Client:
+        def __init__(self, *a, **k):
+            pass
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *a):
+            return False
+        def stream(self, *a, **k):
+            return _Stream()
+
+    monkeypatch.setattr(stream_mod.httpx, "AsyncClient", _Client)
+    state = SimpleNamespace(
+        qna_board_url="https://qna.test/board",
+        ollama_host="http://x", ollama_model="m",
+    )
+    finals = _finals("문서에 있는 질문", state)
+    assert finals and "생성된 답변" in finals[0]
+    assert "QnA 게시판" not in finals[0]
 
 
 from app_types import Chunk, ScoredChunk
