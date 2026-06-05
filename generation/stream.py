@@ -4,7 +4,7 @@ from typing import AsyncIterator
 
 import httpx
 
-from app_types import ChatEvent, Source
+from app_types import ChatEvent, ScoredChunk, Source
 from generation.filters import clean_response, streaming_clean
 from generation.guardrail import (
     META_REPLY,
@@ -62,7 +62,7 @@ def _is_source_worthy(score: float, top_score: float) -> bool:
     return score >= top_score * SOURCE_RATIO
 
 
-def _section_images(relevant: tuple, limit: int = 5) -> tuple[str, ...]:
+def _section_images(relevant: tuple[ScoredChunk, ...], limit: int = 5) -> tuple[str, ...]:
     """이미지는 1위 청크가 속한 섹션(같은 section_id)에서만 모은다. 다른 섹션이
     텍스트 컨텍스트로 끌려와도 이미지엔 기여하지 못하게 해, 형제 섹션 이미지가
     답변에 새는 것을 구조적으로 차단한다(수치 임계값 비의존). section_id 가 비어
@@ -73,6 +73,7 @@ def _section_images(relevant: tuple, limit: int = 5) -> tuple[str, ...]:
     top_sid = top.chunk.section_id
     seen: list[str] = []
     for it in relevant:
+        # 빈 section_id(구 인덱스·CSV)면 동등(==)이 아니라 1위 객체 자체(is)로만 한정.
         same = (it.chunk.section_id == top_sid) if top_sid else (it is top)
         if not same:
             continue
@@ -189,7 +190,7 @@ async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEven
 
     yield ChatEvent(
         type="done",
-        images=tuple(seen_imgs[:5]),
+        images=tuple(seen_imgs),
         sources=tuple(sources),
         score=top_score,
     )
