@@ -12,6 +12,22 @@ EMBED_K = 20
 BM25_K = 20
 
 
+def _chunk_from_meta(cid: str, doc: str, meta: dict) -> Chunk:
+    section_path = tuple(p for p in (meta.get("section_path") or "").split(" > ") if p)
+    image_refs = tuple(s for s in (meta.get("image_refs") or "").split(",") if s)
+    return Chunk(
+        chunk_id=cid,
+        text=doc,
+        source=meta.get("source", ""),
+        doc_set=meta.get("doc_set", "guide"),
+        title=meta.get("title", ""),
+        section_id=meta.get("section_id", "") or "",
+        section_path=section_path,
+        image_refs=image_refs,
+        notion_url=meta.get("notion_url", "") or "",
+    )
+
+
 def hybrid_search(state: RagState, query: str, *, k: int = TOP_K) -> Retrieval:
     bm = dict(query_bm25(state.bm25, query, k=BM25_K))
     emb = dict(query_embed(state.chroma, state.embedder, query, k=EMBED_K))
@@ -30,17 +46,5 @@ def hybrid_search(state: RagState, query: str, *, k: int = TOP_K) -> Retrieval:
         if cid not in meta_by_id:
             continue
         doc, meta = meta_by_id[cid]
-        section_path = tuple(p for p in (meta.get("section_path") or "").split(" > ") if p)
-        image_refs = tuple(s for s in (meta.get("image_refs") or "").split(",") if s)
-        chunk = Chunk(
-            chunk_id=cid,
-            text=doc,
-            source=meta.get("source", ""),
-            doc_set=meta.get("doc_set", "guide"),
-            title=meta.get("title", ""),
-            section_path=section_path,
-            image_refs=image_refs,
-            notion_url=meta.get("notion_url", "") or "",
-        )
-        items.append(ScoredChunk(chunk=chunk, score=score))
+        items.append(ScoredChunk(chunk=_chunk_from_meta(cid, doc, meta), score=score))
     return Retrieval(items=tuple(items), top_score=merged[0][1], max_embed_sim=max_embed_sim)
