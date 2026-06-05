@@ -62,6 +62,28 @@ def _is_source_worthy(score: float, top_score: float) -> bool:
     return score >= top_score * SOURCE_RATIO
 
 
+def _section_images(relevant: tuple, limit: int = 5) -> tuple[str, ...]:
+    """이미지는 1위 청크가 속한 섹션(같은 section_id)에서만 모은다. 다른 섹션이
+    텍스트 컨텍스트로 끌려와도 이미지엔 기여하지 못하게 해, 형제 섹션 이미지가
+    답변에 새는 것을 구조적으로 차단한다(수치 임계값 비의존). section_id 가 비어
+    있으면(구 인덱스·CSV 등) 1위 청크 하나로만 제한한다."""
+    if not relevant:
+        return ()
+    top = relevant[0]
+    top_sid = top.chunk.section_id
+    seen: list[str] = []
+    for it in relevant:
+        same = (it.chunk.section_id == top_sid) if top_sid else (it is top)
+        if not same:
+            continue
+        for img in it.chunk.image_refs:
+            if img and img not in seen:
+                seen.append(img)
+        if len(seen) >= limit:
+            break
+    return tuple(seen[:limit])
+
+
 async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEvent]:
     if is_meta_question(query):
         yield ChatEvent(type="text", delta=META_REPLY)
@@ -145,14 +167,8 @@ async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEven
 
     yield ChatEvent(type="text_final", text=clean_response(raw_buf))
 
-    # 이미지 (상위 5장, 중복 제거, 등장 순서 보존)
-    seen_imgs: list[str] = []
-    for it in relevant:
-        for img in it.chunk.image_refs:
-            if img and img not in seen_imgs:
-                seen_imgs.append(img)
-        if len(seen_imgs) >= 5:
-            break
+    # 이미지 (상위 5장): 1위 섹션에서만 수집해 형제 섹션 이미지 누수를 차단.
+    seen_imgs = list(_section_images(relevant))
 
     # 출처 (top-3, 'FAQ —' 접두 제외). 컨텍스트보다 엄격한 기준으로, 1위에
     # 충분히 근접한 청크만 출처로 노출한다(약하게 관련된 이웃 문서 배제).

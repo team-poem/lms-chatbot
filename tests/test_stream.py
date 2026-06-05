@@ -134,3 +134,40 @@ def test_low_grounding_in_scope_topic_falls_back_to_topic_guide(monkeypatch):
     assert finals
     assert "강의 운영" in finals[0]
     assert "확인이 어렵습니다" not in finals[0]
+
+
+from app_types import Chunk, ScoredChunk
+from generation.stream import _section_images
+
+
+def _sc(section_id, imgs, cid):
+    return ScoredChunk(
+        chunk=Chunk(
+            chunk_id=cid, text="", source="s", doc_set="guide", title="t",
+            section_id=section_id, image_refs=tuple(imgs),
+        ),
+        score=1.0,
+    )
+
+
+def test_section_images_excludes_other_section():
+    top = _sc("A", [], "a0")              # 1위 섹션, 이미지 없음
+    neighbor = _sc("B", ["b.png"], "b0")  # 다른 섹션이 이미지 보유
+    assert _section_images((top, neighbor)) == ()
+
+
+def test_section_images_includes_same_section_continuation():
+    top = _sc("A", ["a1.png"], "a0")
+    cont = _sc("A", ["a2.png"], "a1")     # 같은 섹션 연속분
+    other = _sc("B", ["b.png"], "b0")
+    assert _section_images((top, cont, other)) == ("a1.png", "a2.png")
+
+
+def test_section_images_empty_section_id_uses_top_only():
+    top = _sc("", ["a.png"], "a0")
+    other = _sc("", ["b.png"], "b0")
+    assert _section_images((top, other)) == ("a.png",)
+
+
+def test_section_images_empty_input():
+    assert _section_images(()) == ()
