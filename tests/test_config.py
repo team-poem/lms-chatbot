@@ -9,8 +9,9 @@ def test_qna_board_url_from_env(monkeypatch):
 
 def test_qna_board_url_defaults_empty(monkeypatch):
     monkeypatch.delenv("QNA_BOARD_URL", raising=False)
-    # .env 에 QNA_BOARD_URL 이 없다는 전제(현재 레포 상태). load_dotenv 는 기존 env 를
-    # 덮어쓰지 않으므로 미설정이면 빈 문자열.
+    # load_config 내부의 load_dotenv 가 .env 를 읽어 값을 채우지 않도록 차단해
+    # 테스트를 환경 독립적으로 만든다.
+    monkeypatch.setattr("config.load_dotenv", lambda *a, **k: None)
     assert load_config().qna_board_url == ""
 
 
