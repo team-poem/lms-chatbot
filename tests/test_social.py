@@ -42,6 +42,17 @@ def test_help_request_ignores_real_questions_and_topic_declarations():
     assert not is_help_request("강의 운영 관련 문의하고 싶어요")
 
 
+def test_help_request_ignores_specific_feature_questions():
+    # "[특정 기능]은 어떤 기능인가요?"는 그 기능의 '정체'를 묻는 정식 FAQ다(→ RAG).
+    # 챗봇 역량을 묻는 "어떤 기능이 있나요?"(존재/제공)와 구분해야 한다.
+    # (회귀: 'X는 어떤 기능인가요'가 일반 도움말로 가로채여 문서 답변을 잃던 버그)
+    assert not is_help_request("토론 생성 시 스레드로 답변 허용 옵션은 어떤 기능인가요?")
+    assert not is_help_request("비활성화는 어떤 기능인가요?")
+    # 존재/제공을 묻는 역량 문의는 여전히 help 로 잡혀야 한다.
+    assert is_help_request("어떤 기능이 있나요")
+    assert is_help_request("어떤 기능들을 제공하나요?")
+
+
 def test_does_not_catch_real_questions_with_a_greeting_prefix():
     # 인사 + 실제 질문이 섞이면 일반 답변 경로로 가야 한다(소셜로 가로채지 않음).
     assert not is_social_chitchat("안녕하세요 과제 제출은 어떻게 하나요?")
