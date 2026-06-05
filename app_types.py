@@ -15,6 +15,7 @@ class Chunk:
     source: str
     doc_set: DocSet
     title: str
+    section_id: str = ""
     section_path: tuple[str, ...] = ()
     image_refs: tuple[str, ...] = ()
     csv_refs: tuple[str, ...] = ()

@@ -143,6 +143,7 @@ def chunk_csv_file(path: Path, *, doc_set: DocSet) -> list[Chunk]:
         chunks.append(
             Chunk(
                 chunk_id=_hash_id(source, str(i)),
+                section_id=_hash_id(source, str(i)),
                 text=text,
                 source=source,
                 doc_set=doc_set,

@@ -80,3 +80,14 @@ def test_chunk_csv_each_row_becomes_chunk(tmp_path: Path):
     assert "기본" in chunks[0].text
     assert chunks[0].doc_set == "faq"
     assert chunks[0].title.startswith("FAQ")
+
+
+def test_csv_chunk_has_unique_section_id(tmp_path: Path):
+    p = tmp_path / "FAQ.csv"
+    pd.DataFrame({
+        "FAQ": ["로그인이 안 됩니다", "수업계획서 입력 방법"],
+        "메뉴명": ["기본", "수업계획서"],
+    }).to_csv(p, index=False)
+    chunks = chunk_csv_file(p, doc_set="faq")
+    assert chunks[0].section_id  # 비어있지 않음
+    assert chunks[0].section_id != chunks[1].section_id  # 행마다 고유
