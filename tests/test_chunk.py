@@ -26,7 +26,7 @@ def test_chunk_markdown_small_returns_single(tmp_path: Path):
     assert c.source.endswith("퀴즈 개요 abcdef1234567890.md")
 
 
-def test_chunk_markdown_large_splits_on_h2(tmp_path: Path):
+def test_chunk_markdown_two_h2_sections_split(tmp_path: Path):
     body_a = "단어 " * 1200
     body_b = "단어 " * 1200
     text = f"# 큰 페이지\n\n## 섹션 A\n\n{body_a}\n\n## 섹션 B\n\n{body_b}\n"
@@ -34,7 +34,7 @@ def test_chunk_markdown_large_splits_on_h2(tmp_path: Path):
     p.write_text(text, encoding="utf-8")
     chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
     titles = [c.title for c in chunks]
-    # H2 분할이 일어났고, 각 섹션이 (필요 시 추가 분할되어) 등장해야 함
+    # 헤딩 2개이므로 섹션 분할이 일어나고, 각 섹션이 (필요 시 추가 분할되어) 등장해야 함
     assert any("섹션 A" in t for t in titles)
     assert any("섹션 B" in t for t in titles)
 
@@ -148,3 +148,13 @@ def test_single_heading_page_stays_one_chunk(tmp_path: Path):
     p.write_text(text, encoding="utf-8")
     chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
     assert len(chunks) == 1  # 헤딩 1개면 분할하지 않음(과편화 방지)
+
+
+def test_empty_heading_text_gets_fallback_title(tmp_path: Path):
+    # 헤딩 텍스트가 장식(**)뿐이면 _clean_heading 후 빈 문자열 → 폴백 제목으로 대체.
+    text = "# 페이지\n\n## **\n\n본문 A\n\n## 섹션 B\n\n본문 B\n"
+    p = tmp_path / "페이지 abcdef1234567890.md"
+    p.write_text(text, encoding="utf-8")
+    chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
+    assert not any(c.title.endswith("— ") for c in chunks)  # 깨진 제목 없음
+    assert any(c.title.endswith("섹션 1") for c in chunks)   # 폴백 적용

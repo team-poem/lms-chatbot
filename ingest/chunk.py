@@ -133,7 +133,7 @@ def chunk_markdown_file(
     if _has_meaningful_preamble(preamble):
         chunks.extend(_emit("pre", title, preamble))
     for i, m in enumerate(matches):
-        section_title = _clean_heading(m.group(2))
+        section_title = _clean_heading(m.group(2)) or f"섹션 {i + 1}"
         start = m.start()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         body = text[start:end]
