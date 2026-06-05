@@ -18,6 +18,7 @@ class AppConfig:
     raw_dir: Path
     port: int
     admin_token: str | None = None
+    qna_board_url: str = ""
 
 
 def load_config() -> AppConfig:
@@ -34,4 +35,6 @@ def load_config() -> AppConfig:
         port=int(os.environ.get("PORT", "8080")),
         # 관리자 로그 조회 토큰. 미설정이면 /admin/logs 는 비활성(404).
         admin_token=os.environ.get("ADMIN_TOKEN") or None,
+        # 매뉴얼에 근거 없는 질문을 안내할 QnA 게시판 URL. 비우면 링크 없이 안내.
+        qna_board_url=os.environ.get("QNA_BOARD_URL", ""),
     )

@@ -15,6 +15,8 @@ services:
       OLLAMA_MODEL: gemma3:4b
       # 관리자 로그 조회 토큰(/admin/logs). 비우면 비활성(404). 운영 시 강한 값으로 설정.
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      # 매뉴얼에 근거 없는 질문 안내용 QnA 게시판 URL
+      QNA_BOARD_URL: ${QNA_BOARD_URL:-}
 
     # 가이드/이미지/인덱스/로그는 호스트에서 관리. 컨테이너 재시작해도 보존.
     # 인덱싱은 호스트의 별도 작업으로 수행하거나 docker compose run 으로 진입.
