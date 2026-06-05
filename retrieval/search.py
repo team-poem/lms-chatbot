@@ -18,13 +18,13 @@ def _chunk_from_meta(cid: str, doc: str, meta: dict) -> Chunk:
     return Chunk(
         chunk_id=cid,
         text=doc,
-        source=meta.get("source", ""),
-        doc_set=meta.get("doc_set", "guide"),
-        title=meta.get("title", ""),
-        section_id=meta.get("section_id", "") or "",
+        source=meta.get("source") or "",
+        doc_set=meta.get("doc_set") or "guide",
+        title=meta.get("title") or "",
+        section_id=meta.get("section_id") or "",
         section_path=section_path,
         image_refs=image_refs,
-        notion_url=meta.get("notion_url", "") or "",
+        notion_url=meta.get("notion_url") or "",
     )
 
 

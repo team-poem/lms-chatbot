@@ -32,6 +32,8 @@ def reset_collection(client):
 
 
 def _chunk_meta(c: Chunk) -> dict:
+    # csv_refs 는 Chroma 에 저장하지 않는다(검색 후 사용처 없음 → 복원 시 ()).
+    # 필드 추가 시 _chunk_from_meta 와 대칭으로 맞춰 section_id 같은 누락을 막을 것.
     return {
         "source": c.source,
         "doc_set": c.doc_set,

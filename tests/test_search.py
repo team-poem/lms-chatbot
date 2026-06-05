@@ -17,3 +17,20 @@ def test_chunk_from_meta_restores_section_id():
 def test_chunk_from_meta_defaults_section_id_empty():
     c = _chunk_from_meta("c1", "d", {})
     assert c.section_id == ""
+
+
+from app_types import Chunk
+from index.vector_store import _chunk_meta
+
+
+def test_meta_roundtrip_preserves_section_fields():
+    c = Chunk(
+        chunk_id="c1", text="본문", source="s", doc_set="faq", title="T",
+        section_id="sec9", section_path=("A", "B"), image_refs=("x.png", "y.png"),
+    )
+    r = _chunk_from_meta("c1", c.text, _chunk_meta(c))
+    assert r.section_id == c.section_id
+    assert r.image_refs == c.image_refs
+    assert r.section_path == c.section_path
+    assert r.doc_set == c.doc_set
+    assert r.title == c.title
