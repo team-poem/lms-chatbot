@@ -9,8 +9,9 @@ from app_types import Chunk, DocSet
 
 
 _IMG_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
-_H2_RE = re.compile(r"^##\s+(.+)$", flags=re.MULTILINE)
-_TOKEN_LIMIT = 2000
+# H2·H3 헤딩으로 섹션 분할. H1(#)은 페이지 제목이라 분할 대상이 아니다.
+_HEADING_RE = re.compile(r"^(#{2,3})\s+(.+)$", flags=re.MULTILINE)
+_H1_LINE_RE = re.compile(r"^#\s+.*$", flags=re.MULTILINE)
 _MAX_CHARS = 3000  # 임베더(BGE-M3, max_seq=1024)에 안전하게 들어가는 한국어 청크 상한
 _OVERLAP = 200    # 분할 시 청크간 겹침
 
@@ -20,10 +21,6 @@ def _hash_id(*parts: str) -> str:
     return h[:16]
 
 
-def _approx_tokens(text: str) -> int:
-    return len(text.split())
-
-
 def extract_image_refs(text: str) -> list[str]:
     seen: list[str] = []
     for match in _IMG_RE.finditer(text):
@@ -31,6 +28,19 @@ def extract_image_refs(text: str) -> list[str]:
         if path not in seen:
             seen.append(path)
     return seen
+
+
+def _clean_heading(s: str) -> str:
+    return s.strip().strip("*").strip()
+
+
+def _has_meaningful_preamble(preamble: str) -> bool:
+    """첫 헤딩 앞 본문이 의미 있는가. 이미지가 있거나, H1 제목 줄을 뺀 텍스트가
+    남으면 별도 청크로 보존한다. 제목만 있는 preamble 은 버린다."""
+    if extract_image_refs(preamble):
+        return True
+    body = _H1_LINE_RE.sub("", preamble)
+    return bool(body.strip())
 
 
 def _split_long(text: str) -> list[str]:
@@ -94,11 +104,13 @@ def chunk_markdown_file(
     def _emit(prefix: str, base_title: str, body: str) -> list[Chunk]:
         out: list[Chunk] = []
         parts = _split_long(body)
+        section_id = _hash_id(source, prefix)  # 같은 섹션의 길이분할 연속분이 공유
         for j, part in enumerate(parts):
             suffix = "" if len(parts) == 1 else f" ({j + 1}/{len(parts)})"
             out.append(
                 Chunk(
                     chunk_id=_hash_id(source, prefix, str(j)),
+                    section_id=section_id,
                     text=part,
                     source=source,
                     doc_set=doc_set,
@@ -110,16 +122,18 @@ def chunk_markdown_file(
             )
         return out
 
-    if _approx_tokens(text) <= _TOKEN_LIMIT:
-        return _emit("0", title, text)
-
-    matches = list(_H2_RE.finditer(text))
-    if not matches:
+    matches = list(_HEADING_RE.finditer(text))
+    # 헤딩이 2개 미만이면 분할하지 않는다(단순 페이지 과편화 방지).
+    # 본문이 _MAX_CHARS 를 넘으면 _emit 내부의 _split_long 이 글자 기준으로 처리.
+    if len(matches) < 2:
         return _emit("0", title, text)
 
     chunks: list[Chunk] = []
+    preamble = text[: matches[0].start()]
+    if _has_meaningful_preamble(preamble):
+        chunks.extend(_emit("pre", title, preamble))
     for i, m in enumerate(matches):
-        section_title = m.group(1).strip()
+        section_title = _clean_heading(m.group(2))
         start = m.start()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         body = text[start:end]

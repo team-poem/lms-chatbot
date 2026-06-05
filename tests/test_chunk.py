@@ -91,3 +91,60 @@ def test_csv_chunk_has_unique_section_id(tmp_path: Path):
     chunks = chunk_csv_file(p, doc_set="faq")
     assert chunks[0].section_id  # 비어있지 않음
     assert chunks[0].section_id != chunks[1].section_id  # 행마다 고유
+
+
+def test_chunk_markdown_splits_h3_and_isolates_images(tmp_path: Path):
+    text = (
+        "# 로그인 페이지\n\n"
+        "### 로그인\n\n로그인 설명 텍스트입니다.\n\n"
+        "### 대시보드 표시 유형 선택\n\n설명\n\n![](img/dash.png)\n"
+    )
+    p = tmp_path / "로그인 34f0163ecf148120811ee6bae8783430.md"
+    p.write_text(text, encoding="utf-8")
+    chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
+    login = next(c for c in chunks if c.title.endswith("로그인"))
+    dash = next(c for c in chunks if c.title.endswith("선택"))
+    assert login.image_refs == ()                  # 로그인 섹션엔 이미지 없음
+    assert dash.image_refs == ("img/dash.png",)    # 대시보드 섹션에만 이미지
+    assert login.section_id != dash.section_id      # 섹션 분리
+
+
+def test_same_section_long_split_shares_section_id(tmp_path: Path):
+    big = "한국어 본문 데이터입니다 " * 400  # _MAX_CHARS(3000) 초과
+    text = f"# 페이지\n\n## 섹션 A\n\n{big}\n\n## 섹션 B\n\n짧은 본문\n"
+    p = tmp_path / "페이지 abcdef1234567890.md"
+    p.write_text(text, encoding="utf-8")
+    chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
+    a = [c for c in chunks if "섹션 A" in c.title]
+    b = [c for c in chunks if "섹션 B" in c.title]
+    assert len(a) >= 2                              # 길이 분할됨
+    assert len({c.section_id for c in a}) == 1      # 같은 섹션은 section_id 공유
+    assert a[0].section_id != b[0].section_id       # 다른 섹션은 분리
+
+
+def test_meaningful_preamble_becomes_chunk(tmp_path: Path):
+    text = (
+        "# 페이지 제목\n\n인트로 본문입니다.\n\n![](img/intro.png)\n\n"
+        "## 섹션 A\n\n본문 A\n\n## 섹션 B\n\n본문 B\n"
+    )
+    p = tmp_path / "페이지 abcdef1234567890.md"
+    p.write_text(text, encoding="utf-8")
+    chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
+    pre = next(c for c in chunks if "img/intro.png" in c.image_refs)
+    assert "인트로 본문" in pre.text
+
+
+def test_title_only_preamble_is_skipped(tmp_path: Path):
+    text = "# 제목만\n\n## 섹션 A\n\n본문 A\n\n## 섹션 B\n\n본문 B\n"
+    p = tmp_path / "페이지 abcdef1234567890.md"
+    p.write_text(text, encoding="utf-8")
+    chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
+    assert len(chunks) == 2  # 제목만 있는 preamble은 청크가 안 생김
+
+
+def test_single_heading_page_stays_one_chunk(tmp_path: Path):
+    text = "# 페이지\n\n## 유일 섹션\n\n본문 짧음\n"
+    p = tmp_path / "페이지 abcdef1234567890.md"
+    p.write_text(text, encoding="utf-8")
+    chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
+    assert len(chunks) == 1  # 헤딩 1개면 분할하지 않음(과편화 방지)
