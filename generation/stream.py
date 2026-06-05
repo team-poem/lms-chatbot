@@ -6,20 +6,7 @@ import httpx
 
 from app_types import ChatEvent, ScoredChunk, Source
 from generation.filters import clean_response, streaming_clean
-from generation.guardrail import (
-    META_REPLY,
-    SOCIAL_REPLY,
-    is_help_request,
-    is_meta_question,
-    is_scope_question,
-    is_social_chitchat,
-)
-from generation.suggestions import (
-    build_help_reply,
-    build_topic_reply,
-    match_topic,
-    topic_for_fallback,
-)
+from generation.guardrail import META_REPLY, is_meta_question
 from generation.persona import build_prompt
 from rag.state import RagState
 from retrieval.search import hybrid_search
@@ -41,10 +28,10 @@ MAX_CONTEXT_CHUNKS = 3
 # 청크만 출처로 표시한다. 보조 컨텍스트로는 쓰되 약하게 관련된 이웃 문서가 출처
 # 목록에 노출되는 것을 막는다(#39 출처 오염).
 SOURCE_RATIO = 0.85
-NO_GUIDE_MSG = (
-    "해당 내용은 현재 가이드에서 확인이 어렵습니다. "
-    "교육혁신처 교수학습개발센터로 문의 부탁드립니다."
-)
+def _qna_fallback_msg(qna_board_url: str) -> str:
+    """매뉴얼에서 근거를 못 찾은 질문에 대한 안내. URL 이 있으면 링크를 덧붙인다."""
+    base = "해당 내용은 매뉴얼에서 확인되지 않습니다. 자세한 문의는 QnA 게시판을 이용해 주세요"
+    return f"{base}: {qna_board_url}" if qna_board_url else f"{base}."
 
 
 def _has_grounding(max_embed_sim: float) -> bool:
@@ -92,44 +79,15 @@ async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEven
         yield ChatEvent(type="done")
         return
 
-    if is_help_request(query):
-        reply = build_help_reply()
-        yield ChatEvent(type="text", delta=reply)
-        yield ChatEvent(type="text_final", text=reply)
-        yield ChatEvent(type="done")
-        return
-
-    if is_social_chitchat(query) or is_scope_question(query):
-        yield ChatEvent(type="text", delta=SOCIAL_REPLY)
-        yield ChatEvent(type="text_final", text=SOCIAL_REPLY)
-        yield ChatEvent(type="done")
-        return
-
-    topic = match_topic(query)
-    if topic:
-        reply = build_topic_reply(topic)
-        yield ChatEvent(type="text", delta=reply)
-        yield ChatEvent(type="text_final", text=reply)
-        yield ChatEvent(type="done")
-        return
-
     retrieval = hybrid_search(state, query)
     top_score = retrieval.top_score
-    # 가이드에 실제로 다뤄지지 않는 질문(off-topic·거짓 전제)은 절차를 지어내지 말고
-    # 폴백한다. 절대 임베딩 유사도 + (정규화)점수 둘 중 하나라도 바닥 미달이면 폴백.
+    # 매뉴얼에 근거가 없으면(off-topic·거짓 전제·짧거나 모호한 질문 포함) 답을 만들지
+    # 않고 QnA 게시판으로 안내한다. 절대 임베딩 유사도 + (정규화)점수 중 하나라도 바닥
+    # 미달이면 폴백. 인사·범위·역량 입력도 여기로 떨어진다(말투 대응은 목표가 아님).
     if retrieval.max_embed_sim < ABS_EMBED_FLOOR or top_score < SCORE_THRESHOLD:
-        # 매칭 문서가 없어 거절해야 하지만, 범위 내 주제어가 있으면("강의 운영은 어떻게
-        # 하나요" 같은 포괄 질문) 하드 거절 대신 그 주제의 세부 안내로 폴백한다. 같은
-        # 의도를 표현만 달리해도 막다른 거절이 나오지 않게 한다(범위 밖은 그대로 거절).
-        topic = topic_for_fallback(query)
-        if topic:
-            reply = build_topic_reply(topic)
-            yield ChatEvent(type="text", delta=reply)
-            yield ChatEvent(type="text_final", text=reply)
-            yield ChatEvent(type="done", score=top_score)
-            return
-        yield ChatEvent(type="text", delta=NO_GUIDE_MSG)
-        yield ChatEvent(type="text_final", text=NO_GUIDE_MSG)
+        msg = _qna_fallback_msg(state.qna_board_url)
+        yield ChatEvent(type="text", delta=msg)
+        yield ChatEvent(type="text_final", text=msg)
         yield ChatEvent(type="done", score=top_score)
         return
 

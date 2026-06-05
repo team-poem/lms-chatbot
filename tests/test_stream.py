@@ -10,6 +10,19 @@ from generation.stream import (
     _is_relevant,
     _is_source_worthy,
 )
+from generation.stream import _qna_fallback_msg
+
+
+def test_qna_fallback_msg_with_url():
+    msg = _qna_fallback_msg("https://qna.test/board")
+    assert "QnA 게시판" in msg
+    assert "https://qna.test/board" in msg
+
+
+def test_qna_fallback_msg_without_url():
+    msg = _qna_fallback_msg("")
+    assert "QnA 게시판" in msg
+    assert "http" not in msg  # 링크 없이 안내
 
 
 def test_abs_embed_floor_separates_faq_from_false_premise():
@@ -82,58 +95,34 @@ from app_types import Retrieval
 from generation import stream as stream_mod
 
 
-def _finals(query):
+def _finals(query, state=None):
     async def run():
         out = []
-        async for ev in stream_mod.stream_response(None, query):
+        async for ev in stream_mod.stream_response(state, query):
             if ev.type == "text_final":
                 out.append(ev.text)
         return out
     return asyncio.run(run())
 
 
-def test_help_request_short_circuits_before_retrieval(monkeypatch):
-    def boom(state, q):
-        raise AssertionError("retrieval must not run for help requests")
-    monkeypatch.setattr(stream_mod, "hybrid_search", boom)
-    finals = _finals("어떤걸 가이드 받을수잇죠?")
-    assert finals and "도와드릴 수 있어요" in finals[0]
-
-
-def test_topic_declaration_short_circuits_before_retrieval(monkeypatch):
-    def boom(state, q):
-        raise AssertionError("retrieval must not run for topic declarations")
-    monkeypatch.setattr(stream_mod, "hybrid_search", boom)
-    finals = _finals("강의 운영 관련해서 문의하고 싶어요")
-    assert finals and "강의 운영" in finals[0]
-
-
-def test_scope_question_short_circuits_to_social(monkeypatch):
-    def boom(state, q):
-        raise AssertionError("retrieval must not run for scope questions")
-    monkeypatch.setattr(stream_mod, "hybrid_search", boom)
-    finals = _finals("lms에 대해서?")
-    assert finals and "LMS 사용법을 안내" in finals[0]
-
-
-def test_real_question_falls_through_to_gate(monkeypatch):
-    # 임베딩이 낮으면 게이트가 거절(NO_GUIDE_MSG) → 라우팅이 게이트까지 도달했음을 증명.
-    # 범위 밖 질문(주제어 없음)은 그대로 하드 거절.
+def test_low_grounding_routes_to_qna(monkeypatch):
+    # 근거 미달(매뉴얼에 없음)이면 답을 만들지 않고 QnA 게시판으로 안내한다.
+    from types import SimpleNamespace
     low = Retrieval(items=(), top_score=0.0, max_embed_sim=0.0)
     monkeypatch.setattr(stream_mod, "hybrid_search", lambda state, q: low)
-    finals = _finals("오늘 점심 뭐 먹지?")
-    assert finals and "확인이 어렵습니다" in finals[0]
+    state = SimpleNamespace(qna_board_url="https://qna.test/board")
+    finals = _finals("오늘 점심 뭐 먹지?", state)
+    assert finals and "QnA 게시판" in finals[0]
+    assert "https://qna.test/board" in finals[0]
 
 
-def test_low_grounding_in_scope_topic_falls_back_to_topic_guide(monkeypatch):
-    # 게이트가 거절할 만큼 매칭이 약해도, 범위 내 주제어("강의 운영")가 있으면
-    # 하드 거절 대신 주제 안내로 폴백한다(같은 의도를 표현만 달리해도 막다른 거절 X).
-    low = Retrieval(items=(), top_score=0.0, max_embed_sim=0.0)
-    monkeypatch.setattr(stream_mod, "hybrid_search", lambda state, q: low)
-    finals = _finals("강의 운영은 어떻게 하나요?")
-    assert finals
-    assert "강의 운영" in finals[0]
-    assert "확인이 어렵습니다" not in finals[0]
+def test_meta_question_still_refused(monkeypatch):
+    # 메타 질문은 검색 전에 거절(유지).
+    def boom(state, q):
+        raise AssertionError("retrieval must not run for meta questions")
+    monkeypatch.setattr(stream_mod, "hybrid_search", boom)
+    finals = _finals("어떤 모델을 사용하나요?")
+    assert finals and "LMS 사용법 안내만 제공" in finals[0]
 
 
 from app_types import Chunk, ScoredChunk
