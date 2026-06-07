@@ -318,8 +318,8 @@ async function showCatalogMenu() {
       (c.items || []).forEach(it => {
         const ib = document.createElement("button");
         ib.className = "item-btn";
-        ib.textContent = it;
-        ib.onclick = () => ask(it);
+        ib.textContent = it.label;
+        ib.onclick = () => showGuide(it.doc, it.label);
         detail.appendChild(ib);
       });
     };
@@ -328,6 +328,46 @@ async function showCatalogMenu() {
   wrap.appendChild(catRow);
   wrap.appendChild(detail);
   log.appendChild(wrap);
+}
+
+async function showGuide(doc, label) {
+  const log = $("#log");
+  const div = document.createElement("div");
+  div.className = "turn";
+  div.innerHTML = `<div class="q">${escape(label)}</div><div class="a"><span class="loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></div><div class="imgs"></div><div class="src"></div>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  let g;
+  try {
+    const r = await fetch("/guide?doc=" + encodeURIComponent(doc));
+    if (!r.ok) { div.remove(); return ask(label); }
+    g = await r.json();
+  } catch (e) { div.remove(); return ask(label); }
+  const a = div.querySelector(".a");
+  a.innerHTML = "";
+  a.textContent = g.text || "";
+  const imgs = div.querySelector(".imgs");
+  (g.images || []).forEach(src => {
+    const i = document.createElement("img");
+    i.src = src; i.loading = "lazy"; i.alt = "";
+    i.onerror = () => i.remove();
+    i.onclick = () => openLightbox(src);
+    imgs.appendChild(i);
+  });
+  if (g.source_url) {
+    const srcEl = div.querySelector(".src");
+    const h = document.createElement("h4");
+    h.innerHTML = ICON_PAPERCLIP + " <span>관련 문서</span>";
+    srcEl.appendChild(h);
+    const ul = document.createElement("ul");
+    const li = document.createElement("li");
+    li.insertAdjacentHTML("beforeend", ICON_DOC);
+    const link = document.createElement("a");
+    link.href = g.source_url; link.target = "_blank"; link.rel = "noopener noreferrer";
+    link.textContent = g.title || doc;
+    li.appendChild(link); ul.appendChild(li); srcEl.appendChild(ul);
+  }
+  log.scrollTop = log.scrollHeight;
 }
 
 const ICON_PAPERCLIP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 1 1-8.49-8.49l8.57-8.57A4 4 0 1 1 17.93 8.8L9.41 17.32a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
