@@ -42,6 +42,9 @@ def load_config() -> AppConfig:
             "QNA_BOARD_URL",
             "https://eclass1.dongseo.ac.kr/catalogs/5c5d29852b16ce2565531c02/boards_v2/3/posts",
         ),
-        # 폴백 안내에 함께 노출할 문의처(예: 전화번호). 비우면 표시하지 않는다.
-        qna_contact=os.environ.get("QNA_CONTACT", ""),
+        # 폴백 안내에 함께 노출할 문의처. 기본값은 교육혁신처 교수학습개발센터 직통이며
+        # QNA_CONTACT 로 덮어쓸 수 있다.
+        qna_contact=os.environ.get(
+            "QNA_CONTACT", "교육혁신처 교수학습개발센터 ☎ 051-320-4835"
+        ),
     )

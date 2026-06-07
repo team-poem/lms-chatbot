@@ -20,10 +20,10 @@ def test_qna_contact_from_env(monkeypatch):
     assert load_config().qna_contact == "교육혁신처 051-320-0000"
 
 
-def test_qna_contact_defaults_empty(monkeypatch):
+def test_qna_contact_defaults_to_center(monkeypatch):
     monkeypatch.delenv("QNA_CONTACT", raising=False)
     monkeypatch.setattr("config.load_dotenv", lambda *a, **k: None)
-    assert load_config().qna_contact == ""
+    assert "051-320-4835" in load_config().qna_contact
 
 
 def test_ragstate_carries_qna_fields():
