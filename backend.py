@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from app_types import ChatEvent, Source
 from config import load_config
 from db import store
+from generation.catalog import catalog_as_dict
 from generation.stream import stream_response
 from rag.state import RagState, load_rag_state
 
@@ -73,6 +74,11 @@ def privacy_page():
 @app.get("/health")
 def health():
     return {"ok": True, "consent_version": CONSENT_VERSION}
+
+
+@app.get("/catalog")
+async def catalog():
+    return catalog_as_dict()
 
 
 class ConsentBody(BaseModel):

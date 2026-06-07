@@ -16,3 +16,14 @@ def test_catalog_as_dict_shape():
     first = d["categories"][0]
     assert set(first.keys()) == {"emoji", "name", "items"}
     assert isinstance(first["items"], list) and first["items"]
+
+
+import asyncio
+from backend import catalog as catalog_route
+
+
+def test_catalog_endpoint_returns_categories():
+    result = asyncio.run(catalog_route())
+    assert "categories" in result
+    assert result["categories"]
+    assert result["categories"][0]["name"]
