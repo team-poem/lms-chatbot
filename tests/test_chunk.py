@@ -158,3 +158,21 @@ def test_empty_heading_text_gets_fallback_title(tmp_path: Path):
     chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
     assert not any(c.title.endswith("— ") for c in chunks)  # 깨진 제목 없음
     assert any(c.title.endswith("섹션 1") for c in chunks)   # 폴백 적용
+
+
+def test_markdown_chunks_share_doc_title_and_increment_seq(tmp_path: Path):
+    text = ("# 퀴즈 개요\n\n인트로\n\n![](img/a.png)\n\n"
+            "## 섹션 A\n\n본문 A\n\n## 섹션 B\n\n본문 B\n")
+    p = tmp_path / "퀴즈 개요 abcdef1234567890.md"
+    p.write_text(text, encoding="utf-8")
+    chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
+    assert all(c.doc_title == "퀴즈 개요" for c in chunks)
+    seqs = [c.seq for c in chunks]
+    assert seqs == list(range(len(chunks)))
+
+
+def test_csv_chunks_have_doc_title_and_seq(tmp_path: Path):
+    p = tmp_path / "FAQ.csv"
+    pd.DataFrame({"FAQ": ["q1", "q2"], "메뉴명": ["a", "b"]}).to_csv(p, index=False)
+    chunks = chunk_csv_file(p, doc_set="faq")
+    assert chunks[0].doc_title and chunks[1].seq == 1

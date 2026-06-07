@@ -101,6 +101,8 @@ def chunk_markdown_file(
     source = str(path)
     notion_url = _extract_notion_url(path)
 
+    seq = [0]
+
     def _emit(prefix: str, base_title: str, body: str) -> list[Chunk]:
         out: list[Chunk] = []
         parts = _split_long(body)
@@ -111,6 +113,8 @@ def chunk_markdown_file(
                 Chunk(
                     chunk_id=_hash_id(source, prefix, str(j)),
                     section_id=section_id,
+                    doc_title=title,
+                    seq=seq[0],
                     text=part,
                     source=source,
                     doc_set=doc_set,
@@ -120,6 +124,7 @@ def chunk_markdown_file(
                     notion_url=notion_url,
                 )
             )
+            seq[0] += 1
         return out
 
     matches = list(_HEADING_RE.finditer(text))
@@ -158,6 +163,8 @@ def chunk_csv_file(path: Path, *, doc_set: DocSet) -> list[Chunk]:
             Chunk(
                 chunk_id=_hash_id(source, str(i)),
                 section_id=_hash_id(source, str(i)),
+                doc_title=base_title,
+                seq=i,
                 text=text,
                 source=source,
                 doc_set=doc_set,
