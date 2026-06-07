@@ -104,6 +104,13 @@
   .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
   .top .label { font-size: 12px; color: #57606a; }
   .empty { color: #8c959f; font-size: 13px; }
+  .catalog .cat-intro { color: #57606a; font-size: 13px; margin: 0 0 12px; }
+  .catalog .cat-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .catalog .cat-btn { background: #f6f8fa; }
+  .catalog .cat-btn.active { background: #0969da; color: #fff; border-color: #0969da; }
+  .catalog .cat-detail { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .catalog .item-btn { text-align: left; background: #fff; }
+  .catalog .item-btn:hover { background: #f6f8fa; border-color: #afb8c1; }
 </style>
 </head>
 <body>
@@ -164,6 +171,7 @@ async function consent(userLabel) {
   $("#q").disabled = false;
   $("#form button[type=submit]").disabled = false;
   $("#q").focus();
+  showCatalogMenu();
 }
 
 function deny() {
@@ -279,6 +287,49 @@ async function ask(query) {
 
 function escape(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 
+async function showCatalogMenu() {
+  const log = $("#log");
+  let data;
+  try {
+    const r = await fetch("/catalog");
+    if (!r.ok) return;            // 실패 시 기존 안내 문구 유지(graceful degradation)
+    data = await r.json();
+  } catch (e) { return; }
+  if (!data.categories || !data.categories.length) return;
+  log.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "catalog";
+  const intro = document.createElement("p");
+  intro.className = "cat-intro";
+  intro.textContent = "무엇을 도와드릴까요? 아래에서 골라 보세요. (직접 입력도 가능합니다)";
+  wrap.appendChild(intro);
+  const catRow = document.createElement("div");
+  catRow.className = "cat-row";
+  const detail = document.createElement("div");
+  detail.className = "cat-detail";
+  data.categories.forEach(c => {
+    const b = document.createElement("button");
+    b.className = "cat-btn";
+    b.textContent = (c.emoji ? c.emoji + " " : "") + c.name;
+    b.onclick = () => {
+      catRow.querySelectorAll(".cat-btn").forEach(x => x.classList.remove("active"));
+      b.classList.add("active");
+      detail.innerHTML = "";
+      (c.items || []).forEach(it => {
+        const ib = document.createElement("button");
+        ib.className = "item-btn";
+        ib.textContent = it;
+        ib.onclick = () => ask(it);
+        detail.appendChild(ib);
+      });
+    };
+    catRow.appendChild(b);
+  });
+  wrap.appendChild(catRow);
+  wrap.appendChild(detail);
+  log.appendChild(wrap);
+}
+
 const ICON_PAPERCLIP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 1 1-8.49-8.49l8.57-8.57A4 4 0 1 1 17.93 8.8L9.41 17.32a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
 const ICON_DOC = '<svg width="14" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/></svg>';
 const ICON_THUMBS_UP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H7V10l4.66-9.32a.5.5 0 0 1 .66-.22l1.06.53a2 2 0 0 1 1.02 2.4L15 5.88Z"/></svg>';
@@ -350,6 +401,7 @@ if (saved && savedConsent) {
   $("#form button[type=submit]").disabled = false;
   const lbl = localStorage.getItem("lms_label");
   if (lbl) $("#user-label").textContent = lbl;
+  showCatalogMenu();
 }
 </script>
 </body>
