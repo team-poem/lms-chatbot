@@ -176,33 +176,35 @@ from app_types import Chunk, ScoredChunk
 from generation.stream import _section_images
 
 
-def _sc(section_id, imgs, cid):
+def _sc(section_id, imgs, cid, source="s"):
     return ScoredChunk(
         chunk=Chunk(
-            chunk_id=cid, text="", source="s", doc_set="guide", title="t",
+            chunk_id=cid, text="", source=source, doc_set="guide", title="t",
             section_id=section_id, image_refs=tuple(imgs),
         ),
         score=1.0,
     )
 
 
-def test_section_images_excludes_other_section():
-    top = _sc("A", [], "a0")              # 1위 섹션, 이미지 없음
-    neighbor = _sc("B", ["b.png"], "b0")  # 다른 섹션이 이미지 보유
-    assert _section_images((top, neighbor)) == ()
+def test_section_images_collects_across_relevant_context():
+    # 관련 컨텍스트 청크들의 이미지를 모은다(다른 문서/섹션 포함). 주제 격리는
+    # 섹션 분할 + 관련성 필터가 담당하므로, 여기서는 컨텍스트에 든 이미지를 모은다.
+    top = _sc("A", [], "a0", source="faq.csv")          # 1위(FAQ행, 이미지 없음)
+    guide = _sc("G", ["g.png"], "g0", source="guide")    # 다른 문서 가이드
+    sib = _sc("B", ["b.png"], "b1", source="guide")      # 같은 가이드의 다른 섹션
+    assert _section_images((top, guide, sib)) == ("g.png", "b.png")
 
 
-def test_section_images_includes_same_section_continuation():
-    top = _sc("A", ["a1.png"], "a0")
-    cont = _sc("A", ["a2.png"], "a1")     # 같은 섹션 연속분
-    other = _sc("B", ["b.png"], "b0")
-    assert _section_images((top, cont, other)) == ("a1.png", "a2.png")
+def test_section_images_dedupes_preserving_order():
+    a = _sc("A", ["x.png", "y.png"], "a0")
+    b = _sc("B", ["y.png", "z.png"], "b0")
+    assert _section_images((a, b)) == ("x.png", "y.png", "z.png")
 
 
-def test_section_images_empty_section_id_uses_top_only():
-    top = _sc("", ["a.png"], "a0")
-    other = _sc("", ["b.png"], "b0")
-    assert _section_images((top, other)) == ("a.png",)
+def test_section_images_caps_at_limit():
+    a = _sc("A", ["1.png", "2.png", "3.png"], "a0")
+    b = _sc("B", ["4.png", "5.png", "6.png"], "b0")
+    assert _section_images((a, b), limit=5) == ("1.png", "2.png", "3.png", "4.png", "5.png")
 
 
 def test_section_images_empty_input():

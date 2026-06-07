@@ -57,20 +57,13 @@ def _is_source_worthy(score: float, top_score: float) -> bool:
 
 
 def _section_images(relevant: tuple[ScoredChunk, ...], limit: int = 5) -> tuple[str, ...]:
-    """이미지는 1위 청크가 속한 섹션(같은 section_id)에서만 모은다. 다른 섹션이
-    텍스트 컨텍스트로 끌려와도 이미지엔 기여하지 못하게 해, 형제 섹션 이미지가
-    답변에 새는 것을 구조적으로 차단한다(수치 임계값 비의존). section_id 가 비어
-    있으면(구 인덱스·CSV 등) 1위 청크 하나로만 제한한다."""
-    if not relevant:
-        return ()
-    top = relevant[0]
-    top_sid = top.chunk.section_id
+    """답변에 붙일 이미지를 관련 컨텍스트 청크 전체에서 모은다(중복 제거, 등장 순서,
+    상한 적용). 주제 격리는 인제스트의 섹션 분할과 검색의 관련성 필터(_is_relevant)가
+    담당한다 — 한 페이지에 로그인·대시보드가 섞여도 분할돼 있어, '로그인' 질문엔
+    대시보드 섹션이 관련성 미달로 컨텍스트에 들지 않아 그 이미지가 붙지 않는다.
+    반대로 단일 주제가 여러 섹션으로 나뉜 가이드는 관련 섹션들의 이미지가 함께 보인다."""
     seen: list[str] = []
     for it in relevant:
-        # 빈 section_id(구 인덱스·CSV)면 동등(==)이 아니라 1위 객체 자체(is)로만 한정.
-        same = (it.chunk.section_id == top_sid) if top_sid else (it is top)
-        if not same:
-            continue
         for img in it.chunk.image_refs:
             if img and img not in seen:
                 seen.append(img)
