@@ -14,8 +14,11 @@ from app_types import ChatEvent, Source
 from config import load_config
 from db import store
 from generation.catalog import catalog_as_dict
+from generation.guide import build_guide
 from generation.stream import stream_response
+from index.vector_store import get_collection
 from rag.state import RagState, load_rag_state
+from retrieval.search import _chunk_from_meta
 
 
 CONSENT_VERSION = "2026-05-26-v1"
@@ -79,6 +82,22 @@ def health():
 @app.get("/catalog")
 async def catalog():
     return catalog_as_dict()
+
+
+@app.get("/guide")
+async def guide(doc: str = Query(...)):
+    if _state is None:
+        raise HTTPException(status_code=503, detail="서버 초기화 중입니다")
+    coll = get_collection(_state.chroma)
+    res = coll.get(where={"doc_title": doc}, include=["documents", "metadatas"])
+    chunks = [
+        _chunk_from_meta(cid, d, m)
+        for cid, d, m in zip(res["ids"], res["documents"], res["metadatas"])
+    ]
+    result = build_guide(chunks, doc)
+    if result is None:
+        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다")
+    return result
 
 
 class ConsentBody(BaseModel):
