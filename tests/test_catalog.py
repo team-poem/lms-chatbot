@@ -2,7 +2,7 @@ from generation.catalog import CATALOG, catalog_as_dict
 
 
 def test_catalog_has_categories_with_items():
-    assert len(CATALOG) >= 5
+    assert len(CATALOG) == 10
     for c in CATALOG:
         assert c.name
         assert len(c.items) >= 1
