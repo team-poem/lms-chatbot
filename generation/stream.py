@@ -30,10 +30,15 @@ MAX_CONTEXT_CHUNKS = 3
 SOURCE_RATIO = 0.85
 
 
-def _qna_fallback_msg(qna_board_url: str) -> str:
-    """매뉴얼에서 근거를 못 찾은 질문에 대한 안내. URL 이 있으면 링크를 덧붙인다."""
-    base = "해당 내용은 매뉴얼에서 확인되지 않습니다. 자세한 문의는 QnA 게시판을 이용해 주세요"
-    return f"{base}: {qna_board_url}" if qna_board_url else f"{base}."
+def _qna_fallback_msg(qna_board_url: str, qna_contact: str = "") -> str:
+    """매뉴얼(준비된 답변)에서 근거를 못 찾은 질문에 대한 안내. QnA 게시판 링크와
+    문의처가 설정돼 있으면 함께 안내한다."""
+    lines = ["준비된 매뉴얼 답변에서 확인되지 않는 질문입니다. 자세한 사항은 QnA 게시판으로 문의해 주세요."]
+    if qna_board_url:
+        lines.append(f"QnA 게시판: {qna_board_url}")
+    if qna_contact:
+        lines.append(f"문의처: {qna_contact}")
+    return "\n".join(lines)
 
 
 def _has_grounding(max_embed_sim: float) -> bool:
@@ -87,7 +92,7 @@ async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEven
     # 않고 QnA 게시판으로 안내한다. 절대 임베딩 유사도 + (정규화)점수 중 하나라도 바닥
     # 미달이면 폴백. 인사·범위·역량 입력도 여기로 떨어진다(말투 대응은 목표가 아님).
     if retrieval.max_embed_sim < ABS_EMBED_FLOOR or top_score < SCORE_THRESHOLD:
-        msg = _qna_fallback_msg(state.qna_board_url)
+        msg = _qna_fallback_msg(state.qna_board_url, state.qna_contact)
         yield ChatEvent(type="text", delta=msg)
         yield ChatEvent(type="text_final", text=msg)
         yield ChatEvent(type="done", score=top_score)

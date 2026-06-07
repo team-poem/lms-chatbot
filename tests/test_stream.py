@@ -25,6 +25,13 @@ def test_qna_fallback_msg_without_url():
     assert "http" not in msg  # 링크 없이 안내
 
 
+def test_qna_fallback_msg_with_contact():
+    msg = _qna_fallback_msg("https://qna.test/board", "교육혁신처 051-320-0000")
+    assert "https://qna.test/board" in msg
+    assert "문의처" in msg
+    assert "051-320-0000" in msg
+
+
 def test_abs_embed_floor_separates_faq_from_false_premise():
     # 실측(80 FAQ vs false-premise/off-topic): 실제 질문 최저 raw 임베딩 유사도 0.634,
     # 폴백 대상 최고 0.592. 그 사이에 임계가 놓여 회귀 0 + 환각 차단을 동시에 만족.
@@ -110,7 +117,7 @@ def test_low_grounding_routes_to_qna(monkeypatch):
     # 근거 미달(매뉴얼에 없음)이면 답을 만들지 않고 QnA 게시판으로 안내한다.
     low = Retrieval(items=(), top_score=0.0, max_embed_sim=0.0)
     monkeypatch.setattr(stream_mod, "hybrid_search", lambda state, q: low)
-    state = SimpleNamespace(qna_board_url="https://qna.test/board")
+    state = SimpleNamespace(qna_board_url="https://qna.test/board", qna_contact="")
     finals = _finals("오늘 점심 뭐 먹지?", state)
     assert finals and "QnA 게시판" in finals[0]
     assert "https://qna.test/board" in finals[0]
@@ -121,7 +128,7 @@ def test_meta_question_still_refused(monkeypatch):
     def boom(state, q):
         raise AssertionError("retrieval must not run for meta questions")
     monkeypatch.setattr(stream_mod, "hybrid_search", boom)
-    finals = _finals("어떤 모델을 사용하나요?", SimpleNamespace(qna_board_url=""))
+    finals = _finals("어떤 모델을 사용하나요?", SimpleNamespace(qna_board_url="", qna_contact=""))
     assert finals and "LMS 사용법 안내만 제공" in finals[0]
 
 
@@ -157,7 +164,7 @@ def test_high_grounding_reaches_generation(monkeypatch):
 
     monkeypatch.setattr(stream_mod.httpx, "AsyncClient", _Client)
     state = SimpleNamespace(
-        qna_board_url="https://qna.test/board",
+        qna_board_url="https://qna.test/board", qna_contact="",
         ollama_host="http://x", ollama_model="m",
     )
     finals = _finals("문서에 있는 질문", state)
