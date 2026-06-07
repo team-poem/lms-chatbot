@@ -34,3 +34,14 @@ def test_meta_roundtrip_preserves_section_fields():
     assert r.section_path == c.section_path
     assert r.doc_set == c.doc_set
     assert r.title == c.title
+
+
+def test_chunk_from_meta_restores_doc_title_and_seq():
+    c = _chunk_from_meta("c1", "doc", {"doc_title": "페이지", "seq": 5})
+    assert c.doc_title == "페이지"
+    assert c.seq == 5
+
+
+def test_chunk_from_meta_seq_defaults_zero():
+    c = _chunk_from_meta("c1", "d", {})
+    assert c.seq == 0

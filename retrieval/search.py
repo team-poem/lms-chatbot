@@ -22,6 +22,8 @@ def _chunk_from_meta(cid: str, doc: str, meta: dict) -> Chunk:
         doc_set=meta.get("doc_set") or "guide",
         title=meta.get("title") or "",
         section_id=meta.get("section_id") or "",
+        doc_title=meta.get("doc_title", "") or "",
+        seq=int(meta.get("seq", 0) or 0),
         section_path=section_path,
         image_refs=image_refs,
         notion_url=meta.get("notion_url") or "",

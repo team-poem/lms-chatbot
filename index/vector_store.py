@@ -39,6 +39,8 @@ def _chunk_meta(c: Chunk) -> dict:
         "doc_set": c.doc_set,
         "title": c.title,
         "section_id": c.section_id,
+        "doc_title": c.doc_title,
+        "seq": c.seq,
         "section_path": " > ".join(c.section_path),
         "image_refs": ",".join(c.image_refs),
         "notion_url": c.notion_url,
