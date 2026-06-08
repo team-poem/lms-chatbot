@@ -8,7 +8,10 @@ import pandas as pd
 from app_types import Chunk, DocSet
 
 
-_IMG_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
+# 이미지 경로에 괄호가 들어갈 수 있다 — Notion 폴더명 '... (📄)' 가 URL 인코딩돼도
+# 경로 안에 리터럴 '( )' 가 남는다. 단순 [^)]+ 는 첫 ')' 에서 잘려 경로 절반(이미지
+# 46%)을 깨뜨렸다. 한 단계 균형 괄호 '(...)' 를 경로의 일부로 허용해 전체를 잡는다.
+_IMG_RE = re.compile(r"!\[[^\]]*\]\(((?:[^()]|\([^()]*\))*)\)")
 # H2·H3 헤딩으로 섹션 분할. H1(#)은 페이지 제목이라 분할 대상이 아니다.
 _HEADING_RE = re.compile(r"^(#{2,3})\s+(.+)$", flags=re.MULTILINE)
 _H1_LINE_RE = re.compile(r"^#\s+.*$", flags=re.MULTILINE)
@@ -28,6 +31,19 @@ def extract_image_refs(text: str) -> list[str]:
         if path not in seen:
             seen.append(path)
     return seen
+
+
+_ANY_HEADING_RE = re.compile(r"^#{1,6}\s+.*$", flags=re.MULTILINE)
+
+
+def is_contentful(chunk: Chunk) -> bool:
+    """검색·답변에 쓸모 있는 본문이 있는가. 헤딩만 있거나 'Untitled'(노션의 빈
+    이미지 블록 잔재)뿐인 껍데기 청크는 검색 노이즈라 인덱싱에서 뺀다. 단 이미지가
+    있으면 캡션 없는 그림 섹션이라도 가치가 있으므로 유지한다."""
+    if chunk.image_refs:
+        return True
+    body = _ANY_HEADING_RE.sub("", chunk.text).replace("Untitled", "").strip()
+    return len(body) >= 15
 
 
 def _clean_heading(s: str) -> str:

@@ -13,6 +13,47 @@ def test_extract_image_refs_dedup_preserve_order():
     assert extract_image_refs(md) == ["x.png", "y.png"]
 
 
+def test_extract_image_refs_handles_parens_in_path():
+    # Notion 폴더명에 괄호가 있으면(예 '... (📄)') URL 인코딩돼도 경로 안에
+    # 리터럴 ')'가 남는다. 단순 [^)]+ 는 그 ')'에서 잘려 경로를 깨뜨리므로,
+    # 균형 잡힌 한 단계 괄호는 경로의 일부로 포함해야 한다.
+    md = "![Untitled](folder%20(%F0%9F%93%84)/Untitled.png)"
+    assert extract_image_refs(md) == ["folder%20(%F0%9F%93%84)/Untitled.png"]
+
+
+def test_extract_image_refs_handles_multiple_paren_groups():
+    md = "![](a%20(x)/b%20(y)/img.png)"
+    assert extract_image_refs(md) == ["a%20(x)/b%20(y)/img.png"]
+
+
+def _chunk(text: str, image_refs=()):
+    from app_types import Chunk
+    return Chunk(
+        chunk_id="c", text=text, source="s", doc_set="guide", title="t",
+        section_id="sid", image_refs=tuple(image_refs),
+    )
+
+
+def test_is_contentful_drops_heading_only():
+    from ingest.chunk import is_contentful
+    assert is_contentful(_chunk("## 학기 초\n\n")) is False
+
+
+def test_is_contentful_drops_untitled_stub():
+    from ingest.chunk import is_contentful
+    assert is_contentful(_chunk("## 학기 초\n\nUntitled\n\n")) is False
+
+
+def test_is_contentful_keeps_real_body():
+    from ingest.chunk import is_contentful
+    assert is_contentful(_chunk("## 로그인\n\n로그인은 메인에서 진행합니다.")) is True
+
+
+def test_is_contentful_keeps_image_only_section():
+    from ingest.chunk import is_contentful
+    assert is_contentful(_chunk("## 화면\n\n", image_refs=("/assets/a.png",))) is True
+
+
 def test_chunk_markdown_small_returns_single(tmp_path: Path):
     p = tmp_path / "퀴즈 개요 abcdef1234567890.md"
     p.write_text("# 퀴즈 개요\n\n본문 짧음\n\n![](img/q.png)\n", encoding="utf-8")
