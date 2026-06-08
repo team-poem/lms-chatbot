@@ -3,9 +3,9 @@ from index.bm25 import build_bm25, save_bm25, load_bm25, query_bm25
 from app_types import Chunk
 
 
-def _chunk(cid: str, text: str, title: str = "T") -> Chunk:
+def _chunk(cid: str, text: str, title: str = "T", manual: str = "LMS") -> Chunk:
     return Chunk(chunk_id=cid, text=text, source=f"s/{cid}.md",
-                 doc_set="guide", title=title)
+                 doc_set="guide", title=title, manual=manual)
 
 
 def test_build_and_query_returns_scores():
@@ -19,6 +19,22 @@ def test_build_and_query_returns_scores():
     assert len(hits) == 2
     assert hits[0][0] == "c1"
     assert hits[0][1] > hits[1][1]
+
+
+def test_query_manual_scope_filters_other_manual():
+    chunks = [
+        _chunk("l1", "콘텐츠 등록 방법", title="주차학습", manual="LMS"),
+        _chunk("c1", "콘텐츠 등록 방법", title="콘텐츠 등록하기", manual="CMS"),
+    ]
+    bm = build_bm25(chunks)
+    # 같은 본문이라도 manual='LMS' 면 CMS 청크는 후보에서 빠진다(하드 격리).
+    lms = query_bm25(bm, "콘텐츠 등록", k=5, manual="LMS")
+    assert [cid for cid, _ in lms] == ["l1"]
+    cms = query_bm25(bm, "콘텐츠 등록", k=5, manual="CMS")
+    assert [cid for cid, _ in cms] == ["c1"]
+    # manual 미지정 시 둘 다(하위호환)
+    both = {cid for cid, _ in query_bm25(bm, "콘텐츠 등록", k=5)}
+    assert both == {"l1", "c1"}
 
 
 def test_save_and_load_roundtrip(tmp_path: Path):

@@ -27,12 +27,16 @@ def _chunk_from_meta(cid: str, doc: str, meta: dict) -> Chunk:
         section_path=section_path,
         image_refs=image_refs,
         notion_url=meta.get("notion_url") or "",
+        manual=meta.get("manual") or "LMS",
     )
 
 
-def hybrid_search(state: RagState, query: str, *, k: int = TOP_K) -> Retrieval:
-    bm = dict(query_bm25(state.bm25, query, k=BM25_K))
-    emb = dict(query_embed(state.chroma, state.embedder, query, k=EMBED_K))
+def hybrid_search(
+    state: RagState, query: str, *, k: int = TOP_K, manual: str | None = None
+) -> Retrieval:
+    # manual 지정 시 BM25·임베딩 양쪽을 해당 매뉴얼로 하드 스코핑(LMS↔CMS 격리).
+    bm = dict(query_bm25(state.bm25, query, k=BM25_K, manual=manual))
+    emb = dict(query_embed(state.chroma, state.embedder, query, k=EMBED_K, manual=manual))
     max_embed_sim = max(emb.values(), default=0.0)
     merged = combine_scores(bm, emb, k=k)
     if not merged:

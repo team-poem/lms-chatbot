@@ -1,5 +1,6 @@
 from __future__ import annotations
 import json
+import re
 from typing import AsyncIterator
 
 import httpx
@@ -33,6 +34,33 @@ MAX_CONTEXT_CHUNKS = 5
 # 답변에 이 문구가 있으면 이미지·출처를 붙이지 않는다.
 _FALLBACK_MARK = "확인되지 않는 질문입니다"
 
+# CMS 직접 언급 신호. 자유 입력은 이 신호가 있을 때만 CMS 로 스코핑하고, 그 외엔
+# LMS 로 하드 고정한다 — LMS 질문(대다수)에 CMS 문서가 섞이지 않게. 'CMS'/'Cloud
+# Editor' 처럼 LMS 와 혼동될 일 없는 표현만 넣는다('콘텐츠'는 LMS 에서도 흔해 제외).
+_CMS_TRIGGERS = ("cms", "cloud editor", "클라우드 에디터")
+
+
+def _route_manual(query: str) -> str:
+    """자유 입력 질문의 매뉴얼 스코프. 기본 LMS, CMS 직접 언급 시에만 CMS."""
+    q = query.lower()
+    return "CMS" if any(t in q for t in _CMS_TRIGGERS) else "LMS"
+
+
+_FAQ_LABEL_RE = re.compile(r"\*{0,2}\s*답변\s*\*{0,2}\s*[:：]\s*")
+_MD_IMG_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+
+
+def _faq_answer(text: str) -> str:
+    """FAQ 문서 본문에서 '답변' 텍스트만 추출한다. FAQ 는 사람이 작성한 정답이라
+    gemma 로 재생성하면 질문 되풀이·원인 누락 등 손실이 생겨, 원문을 그대로 쓴다.
+    제목('# 질문') 줄·'답변 :' 라벨·이미지 마크다운(이미지는 별도 영역)을 제거한다."""
+    body = "\n".join(
+        ln for ln in text.splitlines() if not ln.lstrip().startswith("#")
+    )
+    body = _MD_IMG_RE.sub("", body)
+    body = _FAQ_LABEL_RE.sub("", body, count=1)
+    return re.sub(r"\n{3,}", "\n\n", body).strip()
+
 
 def _qna_fallback_msg(qna_contact: str = "") -> str:
     """매뉴얼(준비된 답변)에서 근거를 못 찾은 질문에 대한 안내. persona 규칙 5의
@@ -50,15 +78,21 @@ def _is_relevant(score: float, top_score: float) -> bool:
     return score >= RELEVANCE_FLOOR and score >= top_score * RELEVANCE_RATIO
 
 
-def _doc_images(state: RagState, doc_title: str, fallback_items, limit: int = 5) -> list[str]:
+def _doc_images(
+    state: RagState, doc_title: str, fallback_items, limit: int = 5, *, manual: str = ""
+) -> list[str]:
     """1순위 문서(doc_title)의 모든 섹션 이미지를 seq 순서로 모은다(중복 제거, 상한).
     컨텍스트 청크에만 의존할 때 생기는 누락을 막는다. 조회 실패/빈 결과면 컨텍스트
-    청크(fallback_items)의 이미지로 대체한다."""
+    청크(fallback_items)의 이미지로 대체한다. manual 지정 시 동명 문서가 다른
+    매뉴얼에 있어도 섞이지 않게 함께 필터한다."""
     refs: list[str] = []
     try:
         if doc_title:
+            where = {"doc_title": doc_title}
+            if manual:
+                where = {"$and": [{"doc_title": doc_title}, {"manual": manual}]}
             res = get_collection(state.chroma).get(
-                where={"doc_title": doc_title}, include=["metadatas"]
+                where=where, include=["metadatas"]
             )
             metas = list(res.get("metadatas") or [])
             metas.sort(key=lambda m: int(m.get("seq", 0) or 0))
@@ -76,7 +110,9 @@ def _doc_images(state: RagState, doc_title: str, fallback_items, limit: int = 5)
     return refs[:limit]
 
 
-async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEvent]:
+async def stream_response(
+    state: RagState, query: str, *, manual: str | None = None
+) -> AsyncIterator[ChatEvent]:
     if is_meta_question(query):
         # 챗봇 자체/범위 밖 질문도 매뉴얼 밖 질문과 동일하게 QnA 안내로 통일한다.
         msg = _qna_fallback_msg(state.qna_contact)
@@ -85,7 +121,10 @@ async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEven
         yield ChatEvent(type="done")
         return
 
-    retrieval = hybrid_search(state, query)
+    # 매뉴얼 스코프: 네비 클릭은 manual 을 명시(CMS 문서 → 'CMS'), 자유 입력은
+    # 직접 언급 라우팅(기본 LMS). 검색이 매뉴얼 단위로 하드 격리된다.
+    scope = manual if manual else _route_manual(query)
+    retrieval = hybrid_search(state, query, manual=scope)
     top_score = retrieval.top_score
     # 매뉴얼에 근거가 없으면(절대 임베딩 유사도 바닥 미달 또는 정규화 점수 바닥 미달)
     # 답을 지어내지 않고 QnA 안내로 폴백한다.
@@ -130,6 +169,22 @@ async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEven
         yield ChatEvent(type="done", score=top_score)
         return
 
+    # FAQ 직출력: 추천 질문 등 FAQ 문서는 사람이 쓴 정답을 그대로 내보낸다(gemma
+    # 우회). gemma:4b 가 짧은 FAQ 정답을 질문 되풀이·원인 누락으로 망가뜨리던 문제를
+    # 차단한다. 가이드 문서는 길어 종전대로 gemma 가 생성한다.
+    if primary.doc_set == "faq":
+        answer = _faq_answer(primary.text)
+        yield ChatEvent(type="text", delta=answer)
+        yield ChatEvent(type="text_final", text=answer)
+        imgs = _doc_images(state, primary.doc_title, relevant, manual=primary.manual)
+        sources: tuple[Source, ...] = ()
+        if primary.doc_title and not primary.doc_title.startswith("FAQ —"):
+            sources = (Source(title=primary.doc_title, url=primary.notion_url or ""),)
+        yield ChatEvent(
+            type="done", images=tuple(imgs), sources=sources, score=top_score
+        )
+        return
+
     messages = build_prompt(
         query,
         [{"title": it.chunk.title, "text": it.chunk.text} for it in relevant],
@@ -168,7 +223,7 @@ async def stream_response(state: RagState, query: str) -> AsyncIterator[ChatEven
     # 이미지 (상위 5장): 1순위 문서의 '모든 섹션'에서 seq 순으로 모은다. 컨텍스트에
     # 든 청크에만 의존하면 이미지가 검색 top-k 밖 섹션에 있을 때 누락된다(예: 성적
     # 메뉴). 단일 문서 기준이라 다른 문서 이미지 누수는 없다.
-    seen_imgs = _doc_images(state, primary.doc_title, relevant)
+    seen_imgs = _doc_images(state, primary.doc_title, relevant, manual=primary.manual)
 
     # 출처: 1 질문 : 1 매뉴얼 문서 — 답에 쓴 문서를 한 건만 노출한다(섹션 단위가 아닌
     # 문서 단위 제목·링크). 'FAQ —'(답변 없는 CSV) 접두는 출처로 쓰지 않는다.

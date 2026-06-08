@@ -148,6 +148,21 @@
     transition: background .2s, color .2s;
   }
   .faq .faq-chip:hover { background: var(--primary); color: #fff; }
+  /* 가이드 네비게이션: 대분류(카테고리) 칩 + 하위 문서 칩 */
+  .faq .cat-section { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--border); }
+  .faq .cat-intro { color: var(--text-muted); font-size: 14px; margin: 0 0 12px; line-height: 1.6; }
+  .faq .manual-block { margin-bottom: 14px; }
+  .faq .manual-block:last-child { margin-bottom: 0; }
+  .faq .manual-label { display: inline-block; font-size: 12px; font-weight: 700; color: var(--primary); margin: 0 0 8px; letter-spacing: .02em; }
+  .faq .chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .faq .cat-chip {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 18px; padding: 8px 14px; font-size: 15px; cursor: pointer;
+    transition: background .2s, color .2s, border-color .2s;
+  }
+  .faq .cat-chip:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .faq .cat-chip .arrow { color: var(--text-muted); margin-left: 6px; }
+  .faq .cat-chip:hover .arrow { color: #fff; }
   /* 하단 푸터 (e-Class 풍: 개인정보처리방침 + 동서대학교 교육혁신처 + copyright) */
   .site-footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 12px; line-height: 1.9; }
   .site-footer a { color: var(--text-muted); text-decoration: none; }
@@ -203,13 +218,16 @@ let session = null;
 let QNA_BOARD_URL = "";
 fetch("/health").then(r => r.json()).then(d => { QNA_BOARD_URL = d.qna_board_url || ""; }).catch(() => {});
 
-// 답변 텍스트를 렌더한다(평문). 단 'e-Class QnA 게시판' 문구는 게시판 하이퍼링크로
-// 건다 — 매뉴얼에 없는 질문 안내 시 게시판으로 바로 이동할 수 있게.
+// 답변 텍스트를 렌더한다(평문). 단 게시판 문구('e-Class QnA 게시판', 'Q&A 바로가기'
+// 등)는 게시판 하이퍼링크로 건다 — 안내 시 게시판으로 바로 이동할 수 있게.
+const QNA_LINK_PHRASES = ["e-Class QnA 게시판", "Q&A 바로가기", "Q&A 게시판"];
 function setAnswerText(el, text) {
   let html = escape(text);
   if (QNA_BOARD_URL) {
-    const a = `<a href="${escape(QNA_BOARD_URL)}" target="_blank" rel="noopener noreferrer">e-Class QnA 게시판</a>`;
-    html = html.split("e-Class QnA 게시판").join(a);
+    QNA_LINK_PHRASES.forEach(phrase => {
+      const a = `<a href="${escape(QNA_BOARD_URL)}" target="_blank" rel="noopener noreferrer">${escape(phrase)}</a>`;
+      html = html.split(escape(phrase)).join(a);
+    });
   }
   el.innerHTML = html;
 }
@@ -235,7 +253,7 @@ function deny() {
   document.body.innerHTML = "<div style='padding:40px;text-align:center'>동의하지 않으시면 챗봇을 사용하실 수 없습니다.</div>";
 }
 
-async function ask(query) {
+async function ask(query, manual) {
   const log = $("#log");
   if (log.querySelector(".empty")) log.innerHTML = "";
   const div = document.createElement("div");
@@ -252,7 +270,11 @@ async function ask(query) {
     if (l) { a.removeChild(l); }
   };
 
-  const resp = await fetch("/chat", {method:"POST", headers: {"content-type":"application/json"}, body: JSON.stringify({session_id: session, query})});
+  const body = {session_id: session, query};
+  // 가이드 네비에서 CMS 문서를 누른 경우만 manual='CMS' 로 스코프 전송. LMS/자유
+  // 입력은 생략 → 서버가 직접 언급 라우팅(기본 LMS)으로 처리.
+  if (manual) body.manual = manual;
+  const resp = await fetch("/chat", {method:"POST", headers: {"content-type":"application/json"}, body: JSON.stringify(body)});
   // 세션이 서버에 없으면(컨테이너 재시작·DB 리셋으로 캐시 세션이 만료) 403.
   // 옛 세션을 비우고 동의 모달을 다시 띄워 재동의 → 새 세션을 받게 한다.
   // (이 처리가 없으면 재방문자가 조용히 403만 받고 기록도 전혀 안 남았다.)
@@ -344,15 +366,103 @@ async function ask(query) {
 
 function escape(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 
+// --- 가이드 네비게이션(3뎁스) -------------------------------------------------
+// 1뎁스: 첫 진입 시 랜덤 FAQ + 대분류 칩. 2뎁스: 대분류 → 하위 문서 칩.
+// 3뎁스: 하위 문서 제목을 질문으로 전송(기존 FAQ 칩과 동일 경로).
+
+let _catalog = null;
+async function loadCatalog() {
+  if (_catalog) return _catalog;
+  try {
+    const r = await fetch("/catalog");
+    _catalog = r.ok ? ((await r.json()).manuals || []) : [];
+  } catch (e) { _catalog = []; }
+  return _catalog;
+}
+
+function makeChip(label, cls, onClick, withArrow) {
+  const b = document.createElement("button");
+  b.className = cls;
+  b.type = "button";
+  if (withArrow) b.innerHTML = escape(label) + ' <span class="arrow">›</span>';
+  else b.textContent = label;
+  b.onclick = onClick;
+  return b;
+}
+
+function faqRowOf(questions) {
+  const row = document.createElement("div");
+  row.className = "faq-row";
+  questions.forEach(q => row.appendChild(makeChip(q, "faq-chip", () => ask(q))));
+  return row;
+}
+
+// 2뎁스: 선택한 대분류의 하위 문서 칩 블록을 로그에 덧붙인다. CMS 문서는
+// manual='CMS' 스코프로 보내 LMS 검색에 섞이지 않게 한다(LMS 는 자동 라우팅).
+function appendCategoryBlock(manualName, cat) {
+  const log = $("#log");
+  const wrap = document.createElement("div");
+  wrap.className = "faq";
+  const intro = document.createElement("p");
+  intro.className = "faq-intro";
+  intro.textContent = "‘" + cat.name + "’ 관련 안내입니다. 궁금한 항목을 선택해 주세요.";
+  wrap.appendChild(intro);
+  const row = document.createElement("div");
+  row.className = "faq-row";
+  const scope = manualName === "LMS" ? undefined : manualName;
+  cat.docs.forEach(doc => row.appendChild(makeChip(doc, "faq-chip", () => ask(doc, scope))));
+  wrap.appendChild(row);
+  log.appendChild(wrap);
+  log.scrollTop = log.scrollHeight;
+}
+
+// 1뎁스: 매뉴얼별 대분류 칩 섹션(엘리먼트 반환, 데이터 없으면 null).
+async function buildCatalogSection(introText) {
+  const manuals = await loadCatalog();
+  if (!manuals.length) return null;
+  const sec = document.createElement("div");
+  sec.className = "cat-section";
+  const intro = document.createElement("p");
+  intro.className = "cat-intro";
+  intro.textContent = introText;
+  sec.appendChild(intro);
+  manuals.forEach(m => {
+    const block = document.createElement("div");
+    block.className = "manual-block";
+    const label = document.createElement("span");
+    label.className = "manual-label";
+    label.textContent = m.title;
+    block.appendChild(label);
+    const grid = document.createElement("div");
+    grid.className = "chip-grid";
+    m.categories.forEach(cat =>
+      grid.appendChild(makeChip(cat.name, "cat-chip", () => appendCategoryBlock(m.name, cat), true)));
+    block.appendChild(grid);
+    sec.appendChild(block);
+  });
+  return sec;
+}
+
+function appendUserBubble(text) {
+  const log = $("#log");
+  if (log.querySelector(".empty")) log.innerHTML = "";
+  const div = document.createElement("div");
+  div.className = "turn";
+  div.innerHTML = `<div class="q">${escape(text)}</div>`;
+  log.appendChild(div);
+}
+
+// 첫 진입 화면: 랜덤 FAQ 칩 + 가이드 대분류 네비.
 async function showFaqSuggestions() {
   const log = $("#log");
-  let data;
+  let data = {questions: []};
   try {
     const r = await fetch("/faq");
-    if (!r.ok) return;            // 실패 시 기존 안내 문구 유지(graceful degradation)
-    data = await r.json();
-  } catch (e) { return; }
-  if (!data.questions || !data.questions.length) return;
+    if (r.ok) data = await r.json();
+  } catch (e) {}
+  const sec = await buildCatalogSection(
+    "이외에도 아래 주제들을 안내해 드릴 수 있습니다. 주제를 선택하면 세부 항목을 보여드립니다.");
+  if ((!data.questions || !data.questions.length) && !sec) return;
   log.innerHTML = "";
   const wrap = document.createElement("div");
   wrap.className = "faq";
@@ -360,18 +470,48 @@ async function showFaqSuggestions() {
   intro.className = "faq-intro";
   intro.textContent = "저는 동서대학교 LMS 교수자 가이드를 담당하고 있습니다. 아래와 같은 질문을 주시면 빠르게 답변해 드립니다.";
   wrap.appendChild(intro);
-  const row = document.createElement("div");
-  row.className = "faq-row";
-  data.questions.forEach(q => {
-    const b = document.createElement("button");
-    b.className = "faq-chip";
-    b.type = "button";
-    b.textContent = q;
-    b.onclick = () => { log.innerHTML = ""; ask(q); };
-    row.appendChild(b);
-  });
-  wrap.appendChild(row);
+  if (data.questions && data.questions.length) wrap.appendChild(faqRowOf(data.questions));
+  if (sec) wrap.appendChild(sec);
   log.appendChild(wrap);
+}
+
+// "다른 질문 보여줘": 새 랜덤 FAQ 칩 블록을 덧붙인다(대화 유지).
+async function appendRerollSuggestions(userText) {
+  const log = $("#log");
+  appendUserBubble(userText);
+  let data = {questions: []};
+  try {
+    const r = await fetch("/faq");
+    if (r.ok) data = await r.json();
+  } catch (e) {}
+  const wrap = document.createElement("div");
+  wrap.className = "faq";
+  const intro = document.createElement("p");
+  intro.className = "faq-intro";
+  intro.textContent = "다른 추천 질문입니다. 궁금한 것을 선택해 주세요.";
+  wrap.appendChild(intro);
+  if (data.questions && data.questions.length) wrap.appendChild(faqRowOf(data.questions));
+  log.appendChild(wrap);
+  log.scrollTop = log.scrollHeight;
+}
+
+// 가이드 언급 시: 안내 가능한 대분류 목록을 덧붙인다.
+async function appendCatalogList(userText) {
+  const log = $("#log");
+  appendUserBubble(userText);
+  const sec = await buildCatalogSection("아래와 같은 가이드를 안내해 드릴 수 있습니다. 주제를 선택해 주세요.");
+  const wrap = document.createElement("div");
+  wrap.className = "faq";
+  if (sec) {
+    wrap.appendChild(sec);
+  } else {
+    const p = document.createElement("p");
+    p.className = "faq-intro";
+    p.textContent = "안내 가능한 가이드 목록을 불러오지 못했습니다.";
+    wrap.appendChild(p);
+  }
+  log.appendChild(wrap);
+  log.scrollTop = log.scrollHeight;
 }
 
 const ICON_PAPERCLIP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 1 1-8.49-8.49l8.57-8.57A4 4 0 1 1 17.93 8.8L9.41 17.32a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
@@ -415,11 +555,17 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape") closeLightbox();
 });
 
+// "다른/또 추천 질문 보여줘" → 랜덤 FAQ 리롤. "가이드/매뉴얼 뭐 있어" → 대분류 목록.
+const RE_REROLL = /(다른|또|새|다시)\s*(추천\s*)?질문|질문\s*(다시|더|또)/;
+const RE_GUIDE = /(가이드|매뉴얼|메뉴얼)\s*(목록|리스트|종류|항목|뭐|무엇|어떤|있|보여|안내)|(뭐|무슨|어떤|무엇)\s*(가이드|매뉴얼|메뉴얼)|^\s*(가이드|매뉴얼|메뉴얼)\s*$/;
+
 $("#form").addEventListener("submit", e => {
   e.preventDefault();
   const q = $("#q").value.trim();
   if (!q) return;
   $("#q").value = "";
+  if (RE_REROLL.test(q)) { appendRerollSuggestions(q); return; }
+  if (RE_GUIDE.test(q)) { appendCatalogList(q); return; }
   ask(q);
 });
 

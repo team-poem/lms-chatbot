@@ -4,7 +4,14 @@ from pathlib import Path
 import pandas as pd
 
 from config import AppConfig
-from ingest.pipeline import collect_chunks
+from ingest.pipeline import collect_chunks, detect_manual
+
+
+def test_detect_manual_from_path():
+    assert detect_manual(Path("Private & Shared/LMS 매뉴얼/주차학습/x.md")) == "LMS"
+    assert detect_manual(Path("Private & Shared/CMS 매뉴얼/콘텐츠 등록하기/x.md")) == "CMS"
+    # 매뉴얼 폴더가 없으면(FAQ 등) 기본 LMS
+    assert detect_manual(Path("Private & Shared/LMS FAQ DATABASE/q.md")) == "LMS"
 
 
 def _make_config(raw_dir: Path, tmp: Path) -> AppConfig:

@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from app_types import ChatEvent, Source
 from config import load_config
 from db import store
+from generation.catalog import build_catalog
 from generation.faq import sample_for_entry, sample_questions
 from generation.stream import stream_response
 from rag.state import RagState, load_rag_state
@@ -89,6 +90,25 @@ def faq(n: int | None = Query(None, ge=1, le=12)):
     return {"questions": questions}
 
 
+@app.get("/catalog")
+def catalog():
+    """가이드 네비게이션 트리. 매뉴얼별 대분류 → 하위 문서(2·3뎁스). 노션 매뉴얼
+    목차에서 파싱한다. CMS 문서를 누를 때 manual='CMS' 스코프로 질문을 보내야
+    LMS 검색에 섞이지 않으므로, manual 키도 함께 내려준다."""
+    return {
+        "manuals": [
+            {
+                "name": m.name,
+                "title": m.title,
+                "categories": [
+                    {"name": c.name, "docs": list(c.docs)} for c in m.categories
+                ],
+            }
+            for m in build_catalog()
+        ]
+    }
+
+
 class ConsentBody(BaseModel):
     user_label: str | None = None
 
@@ -106,6 +126,9 @@ def consent(body: ConsentBody):
 class ChatBody(BaseModel):
     session_id: str
     query: str
+    # 가이드 네비에서 CMS 문서를 누를 때 'CMS' 로 지정 → CMS 스코프 검색. 미지정 시
+    # 서버가 질문 내용으로 라우팅(기본 LMS). LMS 네비/FAQ 클릭은 굳이 안 보내도 됨.
+    manual: str | None = None
 
 
 @app.post("/chat")
@@ -124,7 +147,7 @@ async def _chat_sse(body: ChatBody):
     score = 0.0
     text_parts: list[str] = []
 
-    async for evt in stream_response(_state, body.query):
+    async for evt in stream_response(_state, body.query, manual=body.manual):
         if evt.type == "text":
             text_parts.append(evt.delta)
         elif evt.type == "text_final":

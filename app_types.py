@@ -22,6 +22,9 @@ class Chunk:
     image_refs: tuple[str, ...] = ()
     csv_refs: tuple[str, ...] = ()
     notion_url: str = ""
+    # 소속 매뉴얼 스코프 키('LMS'/'CMS'). 검색을 매뉴얼 단위로 하드 필터해 LMS 질문에
+    # CMS 문서가 섞이는 것을 구조적으로 차단한다. 기본 'LMS'(주 사용 매뉴얼).
+    manual: str = "LMS"
 
 
 @dataclass(frozen=True)

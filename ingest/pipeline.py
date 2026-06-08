@@ -31,6 +31,16 @@ def _detect_doc_set(rel_path: Path) -> str:
     return "faq" if "faq" in blob else "guide"
 
 
+def detect_manual(rel_path: Path) -> str:
+    """경로에서 소속 매뉴얼 스코프 키를 유도한다('LMS 매뉴얼' 폴더 → 'LMS',
+    'CMS 매뉴얼' → 'CMS'). 매뉴얼 폴더가 없으면(FAQ 등) 기본 'LMS'. 검색 하드
+    스코핑(LMS↔CMS 격리)에 쓰인다."""
+    for part in rel_path.parts:
+        if part.endswith("매뉴얼"):
+            return part[: -len("매뉴얼")].strip() or "LMS"
+    return "LMS"
+
+
 def _is_index_page(md_path: Path) -> bool:
     """Notion 부모/목차(TOC) 페이지인가. 제목과 같은 이름의 형제 폴더에 자식 .md 가
     있으면, 그 .md 본문은 하위 페이지 링크 목록이라 답변 가치가 없고 거의 모든
@@ -84,11 +94,12 @@ def collect_chunks(
             continue
         rel = md.relative_to(raw_dir)
         doc_set = _detect_doc_set(rel)
+        manual = detect_manual(rel)
         section_path = list(_section_path_from(rel))
         text = clean_markdown(md.read_text(encoding="utf-8"))
         md.write_text(text, encoding="utf-8")
         for c in chunk_markdown_file(md, doc_set=doc_set, section_path=section_path):
-            rc = _rewrite_image_refs(c, img_mapping, raw_dir)
+            rc = replace(_rewrite_image_refs(c, img_mapping, raw_dir), manual=manual)
             if not is_contentful(rc):
                 skipped_empty += 1
                 continue
