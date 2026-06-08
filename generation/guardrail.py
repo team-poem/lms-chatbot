@@ -7,9 +7,6 @@ from __future__ import annotations
 import re
 
 
-META_REPLY = "본 챗봇은 LMS 사용법 안내만 제공합니다. 다른 질문은 응답드리지 않습니다."
-
-
 # 페르소나·시스템·모델 정보를 캐내려는 시도
 _META_PATTERNS = [
     # 시스템/프롬프트 노출 시도

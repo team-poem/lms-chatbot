@@ -26,10 +26,9 @@ def test_qna_contact_defaults_to_center(monkeypatch):
     assert "051-320-4835" in load_config().qna_contact
 
 
-def test_ragstate_carries_qna_fields():
+def test_ragstate_carries_qna_contact():
     st = RagState(
         embedder=None, chroma=None, bm25=None,
-        ollama_host="h", ollama_model="m", qna_board_url="u", qna_contact="c",
+        ollama_host="h", ollama_model="m", qna_contact="c",
     )
-    assert st.qna_board_url == "u"
     assert st.qna_contact == "c"

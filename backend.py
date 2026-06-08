@@ -13,12 +13,9 @@ from pydantic import BaseModel
 from app_types import ChatEvent, Source
 from config import load_config
 from db import store
-from generation.catalog import catalog_as_dict
-from generation.guide import build_guide
+from generation.faq import sample_for_entry, sample_questions
 from generation.stream import stream_response
-from index.vector_store import get_collection
 from rag.state import RagState, load_rag_state
-from retrieval.search import _chunk_from_meta
 
 
 CONSENT_VERSION = "2026-05-26-v1"
@@ -76,28 +73,20 @@ def privacy_page():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "consent_version": CONSENT_VERSION}
+    # qna_board_url 은 프론트가 폴백 답변의 'e-Class QnA 게시판' 문구를 하이퍼링크로
+    # 걸 때 쓴다(로드 시 1회 조회).
+    return {
+        "ok": True,
+        "consent_version": CONSENT_VERSION,
+        "qna_board_url": config.qna_board_url,
+    }
 
 
-@app.get("/catalog")
-async def catalog():
-    return catalog_as_dict()
-
-
-@app.get("/guide")
-async def guide(doc: str = Query(...)):
-    if _state is None:
-        raise HTTPException(status_code=503, detail="서버 초기화 중입니다")
-    coll = get_collection(_state.chroma)
-    res = coll.get(where={"doc_title": doc}, include=["documents", "metadatas"])
-    chunks = [
-        _chunk_from_meta(cid, d, m)
-        for cid, d, m in zip(res["ids"], res["documents"], res["metadatas"])
-    ]
-    result = build_guide(chunks, doc)
-    if result is None:
-        raise HTTPException(status_code=404, detail="문서를 찾을 수 없습니다")
-    return result
+@app.get("/faq")
+def faq(n: int | None = Query(None, ge=1, le=12)):
+    """첫 진입 화면에 노출할 FAQ 질문을 랜덤으로 반환한다. n 미지정 시 5~7개."""
+    questions = sample_questions(n) if n is not None else sample_for_entry()
+    return {"questions": questions}
 
 
 class ConsentBody(BaseModel):
