@@ -16,6 +16,10 @@ reports/
 /*.zip
 /ExportBlock-*.zip
 
+# 맥미니 배포용 데이터 번들(raw+index, 수백 MB) — 전송 아티팩트라 추적 안 함
+/*.tgz
+lms-data-bundle.tgz
+
 # 작업 참고용 스크린샷
 /KakaoTalk_Photo_*.png
 /*.heic
