@@ -46,6 +46,40 @@ def test_collect_chunks_skips_answerless_csv(tmp_path: Path):
     assert any("교직원 번호로 로그인" in c.text for c in chunks)
 
 
+def test_collect_chunks_skips_index_toc_page(tmp_path: Path):
+    """제목과 같은 이름의 폴더에 자식 .md 가 있는 목차(TOC) 페이지는 인덱싱에서
+    제외한다 (루트 'LMS 매뉴얼' 같은 허브 링크 누수 방지)."""
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    (raw / "LMS 매뉴얼 abcdef1234567890.md").write_text(
+        "# LMS 매뉴얼\n\n## 출결현황\n\n출결 관리하기 페이지로 이동\n\n", encoding="utf-8"
+    )
+    child = raw / "LMS 매뉴얼"
+    child.mkdir()
+    (child / "출결현황 조회 abcdef1234567890.md").write_text(
+        "# 출결현황 조회\n\n출결은 출결현황 메뉴에서 확인합니다.\n", encoding="utf-8"
+    )
+    config = _make_config(raw, tmp_path)
+    titles = [c.title for c in collect_chunks(config)]
+    assert not any(t.startswith("LMS 매뉴얼") for t in titles), "허브 TOC가 인덱싱됨"
+    assert any("출결현황 조회" in t for t in titles), "자식 페이지는 유지돼야 함"
+
+
+def test_collect_chunks_drops_empty_section(tmp_path: Path):
+    """헤딩만 있거나 'Untitled' 뿐인 빈 섹션 청크는 인덱싱에서 제외한다."""
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    (raw / "페이지 abcdef1234567890.md").write_text(
+        "# 페이지\n\n## 빈 섹션\n\nUntitled\n\n"
+        "## 실제 섹션\n\n여기에는 실제 내용이 충분히 들어 있습니다.\n",
+        encoding="utf-8",
+    )
+    config = _make_config(raw, tmp_path)
+    titles = [c.title for c in collect_chunks(config)]
+    assert not any("빈 섹션" in t for t in titles), "빈 청크가 인덱싱됨"
+    assert any("실제 섹션" in t for t in titles)
+
+
 def test_collect_chunks_strips_metaheader_from_md(tmp_path: Path):
     """md 본문에 인덱싱되는 청크 텍스트에 메타헤더가 남지 않는다 (#24)."""
     raw = tmp_path / "raw"

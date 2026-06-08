@@ -15,6 +15,9 @@ class Chunk:
     source: str
     doc_set: DocSet
     title: str
+    section_id: str = ""
+    doc_title: str = ""
+    seq: int = 0
     section_path: tuple[str, ...] = ()
     image_refs: tuple[str, ...] = ()
     csv_refs: tuple[str, ...] = ()
@@ -45,6 +48,10 @@ class ScoredChunk:
 class Retrieval:
     items: tuple[ScoredChunk, ...]
     top_score: Score
+    # 후보 중 최대 원시 임베딩 유사도(정규화 전, 0~1). top_score 는 후보 집합 내
+    # 정규화값이라 "매뉴얼에 실제로 다뤄지는가"를 못 잰다. 이 절대 유사도로 매뉴얼
+    # 밖 질문(환각 유발)을 폴백으로 걸러낸다.
+    max_embed_sim: Score = 0.0
 
 
 @dataclass(frozen=True)

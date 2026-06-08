@@ -22,6 +22,15 @@ class BM25Pack:
     chunk_ids: list[str]
 
 
+# 하위호환 alias: 옛 인덱스 pkl 은 클래스 경로가 index.bm25_index.BM25Pack 로 박혀 있음
+# (모듈이 index/bm25_index.py → index/bm25.py 로 이름만 바뀌고 클래스는 동일).
+# 옛 경로를 현재 모듈로 매핑해, 기존 운영 pkl(data/bm25.pkl)을 재인덱싱 없이 그대로 역직렬화.
+# load_bm25 가 이 모듈에 있으므로 어떤 load 호출보다 먼저 등록됨이 보장된다.
+import sys as _sys
+
+_sys.modules.setdefault("index.bm25_index", _sys.modules[__name__])
+
+
 def build_bm25(chunks: list[Chunk]) -> BM25Pack:
     docs = [_tokenize(f"{c.title}\n{' '.join(c.section_path)}\n{c.text}") for c in chunks]
     bm25 = BM25Okapi(docs)

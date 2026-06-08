@@ -4,31 +4,62 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LMS 챗봇</title>
+<!-- 테마 폰트: Pretendard (Ai-X-Lab 디자인 테마) -->
+<link rel="stylesheet" as="style" crossorigin
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
 <style>
+  /* ===== Ai-X-Lab 디자인 테마 (동서대 크림슨 + Pretendard) — 색상/폰트/반경만 적용,
+     구조·기능은 변경 없음 ===== */
+  :root {
+    --bg: #fbf9f9;
+    --surface: #ffffff;
+    --text: #17191A;
+    --text-muted: #666666;
+    --border: #dddddd;
+    --border-strong: #cccccc;
+    --primary: #c51130;
+    --primary-hover: #9b021d;
+    --note: #fff8c5;
+    --radius: 8px;
+    --radius-sm: 4px;
+  }
   * { box-sizing: border-box; }
-  body { font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; margin: 0; background: #f6f8fa; color: #1f2328; }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px 80px; }
+  body { font-family: 'Pretendard Variable', Pretendard, -apple-system, "Apple SD Gothic Neo", sans-serif; margin: 0; background: var(--bg); color: var(--text); font-size: 16px; }
+  /* e-Class 상단 크림슨 바 (로고 위, 전체폭) */
+  .topbar { height: 6px; background: var(--primary); width: 100%; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
   h1 { font-size: 18px; margin: 0 0 16px; }
   .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 10; }
-  .modal { background: #fff; border-radius: 8px; padding: 24px; max-width: 540px; width: 90%; max-height: 90vh; overflow-y: auto; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--primary); border-radius: var(--radius); padding: 24px; max-width: 540px; width: 90%; max-height: 90vh; overflow-y: auto; }
   .modal h2 { font-size: 16px; margin: 0 0 12px; }
-  .modal section { border-top: 1px solid #d0d7de; padding: 10px 0; }
-  .modal section h3 { margin: 0 0 4px; font-size: 13px; color: #57606a; }
+  .modal section { border-top: 1px solid var(--border); padding: 10px 0; }
+  .modal section h3 { margin: 0 0 4px; font-size: 13px; color: var(--text-muted); }
   .modal section p { margin: 0; font-size: 14px; }
-  .modal .accent { background: #fff8c5; padding: 8px 10px; border-radius: 4px; margin: 8px 0; font-size: 13px; }
+  .modal .accent { background: var(--note); padding: 8px 10px; border-radius: var(--radius-sm); margin: 8px 0; font-size: 13px; }
   .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
-  button { padding: 8px 14px; border: 1px solid #d0d7de; background: #fff; border-radius: 6px; cursor: pointer; font-size: 14px; }
-  button.primary { background: #0969da; color: #fff; border-color: #0969da; }
-  .log { background: #fff; border: 1px solid #d0d7de; border-radius: 8px; padding: 16px; min-height: 320px; max-height: 60vh; overflow-y: auto; }
-  .turn { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px dashed #d0d7de; }
+  button { padding: 8px 14px; border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; transition: background .2s, border-color .2s; }
+  button.primary { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 700; }
+  button.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+  /* 대화창: 로그인 박스와 동일한 색감 — 흰 카드 + 1px 회색 + 상단 4px 크림슨 */
+  .log { background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--primary); border-radius: var(--radius); padding: 16px; min-height: 320px; max-height: 60vh; overflow-y: auto; }
+  .turn { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px dashed var(--border); }
   .turn:last-child { border-bottom: none; }
-  .q { color: #57606a; font-size: 13px; margin-bottom: 6px; }
-  .a { white-space: pre-wrap; line-height: 1.7; min-height: 24px; }
+  /* 질문 = 우측 크림슨 말풍선(보낸 메시지). .turn 직계 .q 만 — 피드백 .q 는 제외 */
+  .turn > .q {
+    display: block; width: fit-content; max-width: 80%;
+    margin: 0 0 12px auto;
+    background: var(--primary); color: #fff;
+    font-size: 16px; line-height: 1.5;
+    padding: 9px 14px;
+    border-radius: 16px 16px 4px 16px;
+  }
+  .a { white-space: pre-wrap; line-height: 1.7; min-height: 24px; font-size: 16px; }
+  .a a { color: var(--primary); text-decoration: underline; }
   .loading { display: inline-flex; gap: 4px; align-items: center; padding: 4px 0; }
   .loading .dot {
     width: 7px; height: 7px;
     border-radius: 50%;
-    background: #57606a;
+    background: var(--text-muted);
     animation: lms-bounce 1.3s infinite ease-in-out both;
   }
   .loading .dot:nth-child(2) { animation-delay: 0.15s; }
@@ -37,15 +68,15 @@
     0%, 80%, 100% { opacity: 0.25; transform: scale(0.7); }
     40% { opacity: 1; transform: scale(1); }
   }
-  .src { margin-top: 16px; padding-top: 14px; border-top: 1px solid #eaeef2; }
-  .src h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 14px; font-weight: 600; color: #2b3137; }
-  .src h4 svg { color: #57606a; }
+  .src { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .src h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--text); }
+  .src h4 svg { color: var(--text-muted); }
   .src ul { list-style: none; padding: 0; margin: 0; }
   .src li { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 14px; }
-  .src li svg { color: #0969da; flex-shrink: 0; }
-  .src li a { color: #1f2328; text-decoration: none; }
-  .src li a:hover { color: #0969da; text-decoration: underline; }
-  .src li.no-link { color: #1f2328; }
+  .src li svg { color: var(--primary); flex-shrink: 0; }
+  .src li a { color: var(--text); text-decoration: none; }
+  .src li a:hover { color: var(--primary); text-decoration: underline; }
+  .src li.no-link { color: var(--text); }
   .imgs {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -56,11 +87,11 @@
     width: 100%;
     height: auto;
     aspect-ratio: auto;
-    border: 1px solid #d0d7de;
-    border-radius: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
     cursor: zoom-in;
     display: block;
-    background: #f6f8fa;
+    background: var(--bg);
     transition: transform 0.12s ease;
   }
   .imgs img:hover { transform: scale(1.01); }
@@ -92,24 +123,43 @@
     opacity: 0.7;
   }
   .fb { margin-top: 14px; display: flex; gap: 10px; align-items: center; font-size: 14px; flex-wrap: wrap; }
-  .fb .q { color: #57606a; }
-  .fb button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: transparent; border: 1px solid #d0d7de; border-radius: 6px; color: #1f2328; font-size: 14px; cursor: pointer; }
-  .fb button:hover { background: #f6f8fa; border-color: #afb8c1; }
-  .fb button svg { color: #57606a; }
+  .fb .q { color: var(--text-muted); }
+  .fb button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; cursor: pointer; }
+  .fb button:hover { background: var(--bg); border-color: var(--border-strong); }
+  .fb button svg { color: var(--text-muted); }
   .fb button.yes:hover svg { color: #1a7f37; }
-  .fb button.no:hover svg { color: #cf222e; }
+  .fb button.no:hover svg { color: var(--primary); }
   .fb .thanks { color: #1a7f37; font-size: 13px; }
   .input { display: flex; gap: 8px; margin-top: 16px; }
-  .input input { flex: 1; padding: 10px; border: 1px solid #d0d7de; border-radius: 6px; font-size: 14px; }
+  .input input { flex: 1; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 16px; }
+  .input input:focus { outline: none; border-color: var(--primary); }
   .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-  .top .label { font-size: 12px; color: #57606a; }
-  .empty { color: #8c959f; font-size: 13px; }
+  .top h1 { margin: 0; line-height: 0; }
+  .top h1 img { height: 28px; width: auto; display: block; }
+  .top .label { font-size: 12px; color: var(--text-muted); }
+  .empty { color: var(--text-muted); font-size: 13px; }
+  .faq .faq-intro { color: var(--text-muted); font-size: 14px; margin: 0 0 14px; line-height: 1.6; }
+  .faq .faq-row { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  /* 추천 질문 = 둥근 알약 말풍선(내용 너비, 크림슨 테두리, hover 채움) */
+  .faq .faq-chip {
+    text-align: left; width: fit-content; max-width: 100%;
+    background: var(--surface); border: 1px solid var(--primary); color: var(--primary);
+    border-radius: 18px; padding: 9px 16px; font-size: 16px; cursor: pointer;
+    transition: background .2s, color .2s;
+  }
+  .faq .faq-chip:hover { background: var(--primary); color: #fff; }
+  /* 하단 푸터 (e-Class 풍: 개인정보처리방침 + 동서대학교 교육혁신처 + copyright) */
+  .site-footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 12px; line-height: 1.9; }
+  .site-footer a { color: var(--text-muted); text-decoration: none; }
+  .site-footer a:hover { color: var(--primary); text-decoration: underline; }
+  .site-footer .copy { margin: 6px 0 0; color: #9b9d9f; }
 </style>
 </head>
 <body>
+<div class="topbar"></div>
 <div class="wrap">
   <div class="top">
-    <h1>LMS 챗봇</h1>
+    <h1><img src="https://eclass1.dongseo.ac.kr/customs/main/xnds_header_logo.png" alt="동서대학교 e-Class LMS 챗봇"></h1>
     <span class="label" id="user-label"></span>
   </div>
   <div class="log" id="log"><p class="empty">질문을 입력하시면 가이드 내용을 바탕으로 답변드리겠습니다.</p></div>
@@ -117,11 +167,14 @@
     <input id="q" placeholder="질문을 입력하십시오" autocomplete="off" disabled>
     <button class="primary" type="submit" disabled>전송</button>
   </form>
-  <p style="margin-top:12px;font-size:12px;color:#57606a">
-    <a href="#" id="purge">대화 기록 삭제 및 동의 철회</a>
-    &nbsp;·&nbsp;
-    <a href="/privacy" target="_blank">개인정보처리방침</a>
-  </p>
+  <footer class="site-footer">
+    <p class="links">
+      <a href="/privacy" target="_blank">개인정보처리방침</a>
+      &nbsp;·&nbsp;
+      <a href="#" id="purge">대화 기록 삭제 및 동의 철회</a>
+    </p>
+    <p class="copy">동서대학교 교육혁신처 · COPYRIGHT © 2026 DONGSEO UNIVERSITY. ALL RIGHTS RESERVED.</p>
+  </footer>
 </div>
 
 <div id="lightbox"><img id="lightbox-img" alt=""><span class="hint">아무 곳이나 클릭하거나 ESC 키를 눌러 닫기</span></div>
@@ -129,16 +182,13 @@
 <div class="modal-bg" id="modal">
   <div class="modal">
     <h2>개인정보 수집 및 이용 동의</h2>
-    <section><h3>수집 항목</h3><p>질의 본문, 응답 본문, 응답 시각, 표시명(선택), 피드백 점수와 코멘트</p></section>
+    <section><h3>수집 항목</h3><p>질의 본문, 응답 본문, 응답 시각, 피드백 점수와 코멘트</p></section>
     <section><h3>수집 목적</h3><p>가이드북 업데이트 우선순위 도출 및 챗봇 응답 품질 모니터링</p></section>
     <section><h3>보유 기간</h3><p>수집일로부터 6개월. 동의 철회 시 즉시 삭제</p></section>
     <section><h3>동의 철회 방법</h3><p>화면 하단의 "대화 기록 삭제 및 동의 철회" 링크를 누르면 즉시 삭제됩니다</p></section>
     <div class="accent">본 대화 내용은 모델 학습에 사용되지 않습니다.</div>
     <div class="accent">외부 제3자에게 제공되지 않습니다 (모든 처리는 로컬에서 이루어집니다).</div>
     <p style="font-size:12px;color:#57606a;margin:8px 0 0">보호책임자: 김강민 · 문의: 동서대학교 교육혁신처 교수학습개발센터 · <a href="/privacy" target="_blank">처리방침 전문</a></p>
-    <div style="margin-top:12px">
-      <label style="font-size:13px">표시명(선택): <input id="ulabel" style="border:1px solid #d0d7de;border-radius:4px;padding:4px 6px"></label>
-    </div>
     <div class="actions">
       <button id="deny">동의 안 함</button>
       <button class="primary" id="agree">동의하고 시작</button>
@@ -149,6 +199,20 @@
 <script>
 const $ = (s) => document.querySelector(s);
 let session = null;
+// 폴백 답변의 'e-Class QnA 게시판' 문구를 하이퍼링크로 걸 때 쓸 게시판 URL.
+let QNA_BOARD_URL = "";
+fetch("/health").then(r => r.json()).then(d => { QNA_BOARD_URL = d.qna_board_url || ""; }).catch(() => {});
+
+// 답변 텍스트를 렌더한다(평문). 단 'e-Class QnA 게시판' 문구는 게시판 하이퍼링크로
+// 건다 — 매뉴얼에 없는 질문 안내 시 게시판으로 바로 이동할 수 있게.
+function setAnswerText(el, text) {
+  let html = escape(text);
+  if (QNA_BOARD_URL) {
+    const a = `<a href="${escape(QNA_BOARD_URL)}" target="_blank" rel="noopener noreferrer">e-Class QnA 게시판</a>`;
+    html = html.split("e-Class QnA 게시판").join(a);
+  }
+  el.innerHTML = html;
+}
 
 async function consent(userLabel) {
   const r = await fetch("/consent", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({user_label: userLabel})});
@@ -164,6 +228,7 @@ async function consent(userLabel) {
   $("#q").disabled = false;
   $("#form button[type=submit]").disabled = false;
   $("#q").focus();
+  showFaqSuggestions();
 }
 
 function deny() {
@@ -188,6 +253,25 @@ async function ask(query) {
   };
 
   const resp = await fetch("/chat", {method:"POST", headers: {"content-type":"application/json"}, body: JSON.stringify({session_id: session, query})});
+  // 세션이 서버에 없으면(컨테이너 재시작·DB 리셋으로 캐시 세션이 만료) 403.
+  // 옛 세션을 비우고 동의 모달을 다시 띄워 재동의 → 새 세션을 받게 한다.
+  // (이 처리가 없으면 재방문자가 조용히 403만 받고 기록도 전혀 안 남았다.)
+  if (resp.status === 403) {
+    removeLoading();
+    div.querySelector(".a").textContent = "세션이 만료되었습니다. 다시 동의해 주시면 이어서 도와드릴게요.";
+    localStorage.removeItem("lms_session");
+    localStorage.removeItem("lms_consent");
+    session = null;
+    $("#modal").style.display = "flex";
+    $("#q").disabled = true;
+    $("#form button[type=submit]").disabled = true;
+    return;
+  }
+  if (!resp.ok || !resp.body) {
+    removeLoading();
+    div.querySelector(".a").textContent = "일시적인 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
+    return;
+  }
   const reader = resp.body.getReader();
   const dec = new TextDecoder();
   let buf = "";
@@ -207,7 +291,7 @@ async function ask(query) {
         log.scrollTop = log.scrollHeight;
       } else if (evt.type === "text_final") {
         removeLoading();
-        div.querySelector(".a").textContent = evt.text;
+        setAnswerText(div.querySelector(".a"), evt.text);
       } else if (evt.type === "done") {
         removeLoading();
         const imgs = div.querySelector(".imgs");
@@ -260,6 +344,36 @@ async function ask(query) {
 
 function escape(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c])); }
 
+async function showFaqSuggestions() {
+  const log = $("#log");
+  let data;
+  try {
+    const r = await fetch("/faq");
+    if (!r.ok) return;            // 실패 시 기존 안내 문구 유지(graceful degradation)
+    data = await r.json();
+  } catch (e) { return; }
+  if (!data.questions || !data.questions.length) return;
+  log.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "faq";
+  const intro = document.createElement("p");
+  intro.className = "faq-intro";
+  intro.textContent = "저는 동서대학교 LMS 교수자 가이드를 담당하고 있습니다. 아래와 같은 질문을 주시면 빠르게 답변해 드립니다.";
+  wrap.appendChild(intro);
+  const row = document.createElement("div");
+  row.className = "faq-row";
+  data.questions.forEach(q => {
+    const b = document.createElement("button");
+    b.className = "faq-chip";
+    b.type = "button";
+    b.textContent = q;
+    b.onclick = () => { log.innerHTML = ""; ask(q); };
+    row.appendChild(b);
+  });
+  wrap.appendChild(row);
+  log.appendChild(wrap);
+}
+
 const ICON_PAPERCLIP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 1 1-8.49-8.49l8.57-8.57A4 4 0 1 1 17.93 8.8L9.41 17.32a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
 const ICON_DOC = '<svg width="14" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/></svg>';
 const ICON_THUMBS_UP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H7V10l4.66-9.32a.5.5 0 0 1 .66-.22l1.06.53a2 2 0 0 1 1.02 2.4L15 5.88Z"/></svg>';
@@ -309,7 +423,7 @@ $("#form").addEventListener("submit", e => {
   ask(q);
 });
 
-$("#agree").addEventListener("click", e => { e.preventDefault(); consent($("#ulabel").value.trim() || null); });
+$("#agree").addEventListener("click", e => { e.preventDefault(); consent(null); });
 $("#deny").addEventListener("click", e => { e.preventDefault(); deny(); });
 $("#purge").addEventListener("click", async e => {
   e.preventDefault();
@@ -331,6 +445,7 @@ if (saved && savedConsent) {
   $("#form button[type=submit]").disabled = false;
   const lbl = localStorage.getItem("lms_label");
   if (lbl) $("#user-label").textContent = lbl;
+  showFaqSuggestions();
 }
 </script>
 </body>

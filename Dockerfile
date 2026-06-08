@@ -62,22 +62,25 @@ COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /opt/hf /opt/hf
 
 # 애플리케이션 코드
-COPY backend.py ./
+# 루트 레벨 모듈(app_types/config)·rag 패키지 누락 시 backend import 단계에서
+# ModuleNotFoundError 로 컨테이너가 부팅 즉시 크래시함. 런타임 import 폐포 전체를 복사.
+COPY backend.py app_types.py config.py ./
 COPY ingest ./ingest
 COPY index ./index
 COPY retrieval ./retrieval
 COPY generation ./generation
+COPY rag ./rag
 COPY db ./db
 COPY static ./static
 
-RUN mkdir -p data/raw data/assets data/chroma
+RUN mkdir -p data/raw data/assets data/chroma data/logs
 
 ENV OLLAMA_HOST=http://host.docker.internal:11434 \
     OLLAMA_MODEL=gemma3:4b \
     EMBED_MODEL=BAAI/bge-m3 \
     CHROMA_DIR=/app/data/chroma \
     BM25_PATH=/app/data/bm25.pkl \
-    LOGS_DB_PATH=/app/data/chat_logs.db \
+    LOGS_DB_PATH=/app/data/logs/chat_logs.db \
     ASSETS_DIR=/app/data/assets \
     RAW_DIR=/app/data/raw \
     PORT=8080

@@ -31,20 +31,29 @@ def reset_collection(client):
     return client.get_or_create_collection(_COLLECTION)
 
 
+def _chunk_meta(c: Chunk) -> dict:
+    # csv_refs 는 Chroma 에 저장하지 않는다(검색 후 사용처 없음 → 복원 시 ()).
+    # 필드 추가 시 _chunk_from_meta 와 대칭으로 맞춰 section_id 같은 누락을 막을 것.
+    return {
+        "source": c.source,
+        "doc_set": c.doc_set,
+        "title": c.title,
+        "section_id": c.section_id,
+        "doc_title": c.doc_title,
+        "seq": c.seq,
+        "section_path": " > ".join(c.section_path),
+        "image_refs": ",".join(c.image_refs),
+        "notion_url": c.notion_url,
+    }
+
+
 def upsert_chunks(client, model: SentenceTransformer, chunks: list[Chunk]) -> None:
     if not chunks:
         return
     coll = get_collection(client)
     ids = [c.chunk_id for c in chunks]
     docs = [c.text for c in chunks]
-    metas = [{
-        "source": c.source,
-        "doc_set": c.doc_set,
-        "title": c.title,
-        "section_path": " > ".join(c.section_path),
-        "image_refs": ",".join(c.image_refs),
-        "notion_url": c.notion_url,
-    } for c in chunks]
+    metas = [_chunk_meta(c) for c in chunks]
     vecs = encode_texts(model, docs)
     coll.upsert(ids=ids, documents=docs, metadatas=metas, embeddings=vecs)
 

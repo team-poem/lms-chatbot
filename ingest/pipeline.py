@@ -9,7 +9,8 @@ from config import AppConfig
 from index.bm25 import build_bm25, save_bm25
 from index.embed import load_embedder
 from index.vector_store import get_chroma_client, reset_collection, upsert_chunks
-from ingest.chunk import chunk_csv_file, chunk_markdown_file
+from ingest.chunk import (chunk_csv_file, chunk_markdown_file, _derive_title,
+                          is_contentful)
 from ingest.extract import (collect_csv, collect_images, collect_markdown,
                             copy_assets, unzip_all_recursive)
 from ingest.preprocess import clean_markdown
@@ -28,6 +29,15 @@ def _section_path_from(rel_path: Path) -> tuple[str, ...]:
 def _detect_doc_set(rel_path: Path) -> str:
     blob = " ".join(p.lower() for p in rel_path.parts)
     return "faq" if "faq" in blob else "guide"
+
+
+def _is_index_page(md_path: Path) -> bool:
+    """Notion 부모/목차(TOC) 페이지인가. 제목과 같은 이름의 형제 폴더에 자식 .md 가
+    있으면, 그 .md 본문은 하위 페이지 링크 목록이라 답변 가치가 없고 거의 모든
+    질문에 얕게 매칭돼 검색·출처를 오염시킨다(루트 'LMS 매뉴얼' 링크 누수). 인덱싱
+    에서 제외한다."""
+    sibling = md_path.parent / _derive_title(md_path)
+    return sibling.is_dir() and any(sibling.rglob("*.md"))
 
 
 def _rewrite_image_refs(chunk: Chunk, mapping: dict[str, str], raw_dir: Path) -> Chunk:
@@ -67,14 +77,23 @@ def collect_chunks(
     log(f"    이미지 {len(img_mapping)}개")
 
     all_chunks: list[Chunk] = []
+    skipped_index = skipped_empty = 0
     for md in collect_markdown(raw_dir):
+        if _is_index_page(md):
+            skipped_index += 1
+            continue
         rel = md.relative_to(raw_dir)
         doc_set = _detect_doc_set(rel)
         section_path = list(_section_path_from(rel))
         text = clean_markdown(md.read_text(encoding="utf-8"))
         md.write_text(text, encoding="utf-8")
         for c in chunk_markdown_file(md, doc_set=doc_set, section_path=section_path):
-            all_chunks.append(_rewrite_image_refs(c, img_mapping, raw_dir))
+            rc = _rewrite_image_refs(c, img_mapping, raw_dir)
+            if not is_contentful(rc):
+                skipped_empty += 1
+                continue
+            all_chunks.append(rc)
+    log(f"    제외: 목차 페이지 {skipped_index}개, 빈 청크 {skipped_empty}개")
     return all_chunks
 
 

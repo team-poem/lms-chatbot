@@ -25,6 +25,14 @@ README.md
 AGENT.md
 run.sh
 
+# QA 하니스·리포트·주간보고·노드 의존성 (컨텍스트만 부풀림, 이미지에 불필요)
+qa/
+reports/
+work/
+node_modules/
+package.json
+package-lock.json
+
 # IDE / OS
 .DS_Store
 .idea/

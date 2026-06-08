@@ -16,6 +16,7 @@ class RagState:
     bm25: BM25Pack
     ollama_host: str
     ollama_model: str
+    qna_contact: str = ""
 
 
 def load_rag_state(config: AppConfig) -> RagState:
@@ -25,4 +26,5 @@ def load_rag_state(config: AppConfig) -> RagState:
         bm25=load_bm25(config.bm25_path),
         ollama_host=config.ollama_host,
         ollama_model=config.ollama_model,
+        qna_contact=config.qna_contact,
     )
