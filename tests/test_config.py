@@ -20,10 +20,11 @@ def test_qna_contact_from_env(monkeypatch):
     assert load_config().qna_contact == "교육혁신처 051-320-0000"
 
 
-def test_qna_contact_defaults_to_center(monkeypatch):
+def test_qna_contact_defaults_empty_no_phone(monkeypatch):
+    # 기본값은 비움 — 문의 안내는 QnA 게시판만, 전화번호 미노출.
     monkeypatch.delenv("QNA_CONTACT", raising=False)
     monkeypatch.setattr("config.load_dotenv", lambda *a, **k: None)
-    assert "051-320-4835" in load_config().qna_contact
+    assert load_config().qna_contact == ""
 
 
 def test_ragstate_carries_qna_contact():
