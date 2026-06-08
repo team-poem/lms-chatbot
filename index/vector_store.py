@@ -44,6 +44,7 @@ def _chunk_meta(c: Chunk) -> dict:
         "section_path": " > ".join(c.section_path),
         "image_refs": ",".join(c.image_refs),
         "notion_url": c.notion_url,
+        "manual": c.manual,
     }
 
 
@@ -58,10 +59,19 @@ def upsert_chunks(client, model: SentenceTransformer, chunks: list[Chunk]) -> No
     coll.upsert(ids=ids, documents=docs, metadatas=metas, embeddings=vecs)
 
 
-def query_embed(client, model: SentenceTransformer, query: str, k: int = 20) -> list[tuple[str, float]]:
+def query_embed(
+    client,
+    model: SentenceTransformer,
+    query: str,
+    k: int = 20,
+    *,
+    manual: str | None = None,
+) -> list[tuple[str, float]]:
     coll = get_collection(client)
     qvec = encode_texts(model, [query])[0]
-    res = coll.query(query_embeddings=[qvec], n_results=k)
+    # manual 지정 시 해당 매뉴얼 청크만 후보로(LMS↔CMS 하드 격리).
+    where = {"manual": manual} if manual else None
+    res = coll.query(query_embeddings=[qvec], n_results=k, where=where)
     ids = res["ids"][0]
     dists = res["distances"][0]
     # cosine 거리(0~2) → 유사도(0~1)

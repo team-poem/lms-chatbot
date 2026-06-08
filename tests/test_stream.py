@@ -5,9 +5,37 @@ from generation.stream import (
     MAX_CONTEXT_CHUNKS,
     RELEVANCE_FLOOR,
     RELEVANCE_RATIO,
+    _faq_answer,
     _is_relevant,
     _qna_fallback_msg,
+    _route_manual,
 )
+
+
+def test_faq_answer_extracts_answer_only():
+    text = "# 블루프린트 동기화가 안돼요?\n\n **답변** : 연결된 주차 삭제 시 동기화가 안 됩니다. 복원하세요.\n"
+    assert _faq_answer(text) == "연결된 주차 삭제 시 동기화가 안 됩니다. 복원하세요."
+
+
+def test_faq_answer_strips_image_and_keeps_link_phrase():
+    text = ("# 문의는 어디에?\n\n **답변** : 문의는 Q&A 게시판으로 남겨주세요.\n\n"
+            "- 메인 페이지 : Q&A 바로가기\n\n![image.png](/assets/x.png)\n")
+    out = _faq_answer(text)
+    assert "![" not in out
+    assert "Q&A 바로가기" in out
+    assert out.startswith("문의는 Q&A 게시판으로 남겨주세요.")
+
+
+def test_route_manual_defaults_lms():
+    # 자유 입력은 CMS 직접 언급이 없으면 항상 LMS(대다수 질문 보호).
+    assert _route_manual("출결 현황 어떻게 조회하나요") == "LMS"
+    assert _route_manual("주차학습에 콘텐츠 올리는 법") == "LMS"  # '콘텐츠'만으론 CMS 아님
+
+
+def test_route_manual_cms_on_direct_mention():
+    assert _route_manual("CMS에서 콘텐츠 등록 어떻게 하나요") == "CMS"
+    assert _route_manual("cloud editor 편집 방법") == "CMS"
+    assert _route_manual("클라우드 에디터 편집 도구") == "CMS"
 
 
 def test_abs_embed_floor_in_calibrated_range():
@@ -24,9 +52,10 @@ def test_qna_fallback_includes_contact_and_board_phrase():
 
 
 def test_qna_fallback_without_contact():
+    # 기본(연락처 없음): QnA 게시판만 안내, 전화번호 일절 없음.
     msg = _qna_fallback_msg("")
-    assert "e-Class QnA 게시판" in msg
-    assert "문의 부탁드립니다" in msg
+    assert msg == "준비된 매뉴얼 답변에서 확인되지 않는 질문입니다. e-Class QnA 게시판으로 문의 부탁드립니다."
+    assert "051" not in msg and "☎" not in msg and "또는" not in msg
 
 
 def test_is_relevant_requires_absolute_floor():
