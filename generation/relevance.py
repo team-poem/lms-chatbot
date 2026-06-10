@@ -5,8 +5,7 @@
 문서 예/아니오 판정은 신뢰도가 높다(실측 분리 양호)."""
 from __future__ import annotations
 
-import httpx
-
+from generation import ollama
 from tuning import RELEVANCE_OPTIONS, RELEVANCE_TIMEOUT_S
 
 _PROMPT = (
@@ -34,17 +33,11 @@ async def doc_answers_question(
     timeout: float = RELEVANCE_TIMEOUT_S,
 ) -> bool | None:
     """1위 문서가 질문에 답하는가. LLM 호출/파싱 실패 시 None(통과 — 답을 막지 않음)."""
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": build_prompt(query, title, text)}],
-        "stream": False,
-        "options": RELEVANCE_OPTIONS,
-    }
+    messages = [{"role": "user", "content": build_prompt(query, title, text)}]
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
-            resp = await client.post(f"{host}/api/chat", json=payload)
-            resp.raise_for_status()
-            reply = resp.json().get("message", {}).get("content", "")
+        reply = await ollama.chat(
+            host, model, messages, options=RELEVANCE_OPTIONS, timeout=timeout
+        )
     except Exception:
         return None
     return parse_verdict(reply)

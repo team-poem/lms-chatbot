@@ -1,13 +1,11 @@
 from __future__ import annotations
-import json
 import re
 from typing import AsyncIterator
-
-import httpx
 
 from app_types import ChatEvent, Source
 from generation.filters import clean_response, streaming_clean
 from generation.guardrail import is_meta_question
+from generation.ollama import chat_stream
 from generation.persona import build_prompt
 from generation.relevance import doc_answers_question
 from index.vector_store import get_collection
@@ -181,27 +179,17 @@ async def stream_response(
         query,
         [{"title": it.chunk.title, "text": it.chunk.text} for it in relevant],
     )
-    url = f"{state.ollama_host}/api/chat"
-    payload = {
-        "model": state.ollama_model,
-        "messages": messages,
-        "stream": True,
-        "options": GEN_OPTIONS,
-    }
 
     raw_buf = ""
-    async with httpx.AsyncClient(timeout=httpx.Timeout(GEN_TIMEOUT_S)) as client:
-        async with client.stream("POST", url, json=payload) as resp:
-            async for line in resp.aiter_lines():
-                if not line.strip():
-                    continue
-                obj = json.loads(line)
-                delta = obj.get("message", {}).get("content", "")
-                if delta:
-                    raw_buf += delta
-                    yield ChatEvent(type="text", delta=streaming_clean(delta))
-                if obj.get("done"):
-                    break
+    async for delta in chat_stream(
+        state.ollama_host,
+        state.ollama_model,
+        messages,
+        options=GEN_OPTIONS,
+        timeout=GEN_TIMEOUT_S,
+    ):
+        raw_buf += delta
+        yield ChatEvent(type="text", delta=streaming_clean(delta))
 
     answer = clean_response(raw_buf)
     yield ChatEvent(type="text_final", text=answer)
