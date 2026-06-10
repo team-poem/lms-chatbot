@@ -23,7 +23,8 @@ from functools import lru_cache
 from pathlib import Path
 
 from config import load_config
-from ingest.preprocess import strip_emoji
+from ingest.chunk import derive_title
+from ingest.preprocess import strip_emoji, strip_empty_parens
 
 # 매뉴얼 TOC 페이지 제목 접미사. 'LMS 매뉴얼', 'CMS 매뉴얼' …
 _MANUAL_SUFFIX = "매뉴얼"
@@ -31,7 +32,6 @@ _MANUAL_SUFFIX = "매뉴얼"
 _H2_RE = re.compile(r"^##\s+(.*)$")
 _H1_RE = re.compile(r"^#\s+(.*)$")
 _MD_LINK_RE = re.compile(r"^\[(.+)\]\(.*\)\s*$")
-_EMPTY_PARENS_RE = re.compile(r"\s*\(\s*\)\s*")
 
 
 @dataclass(frozen=True)
@@ -65,7 +65,7 @@ def _clean_doc_label(line: str) -> str:
     m = _MD_LINK_RE.match(s)
     s = m.group(1) if m else s.split("%", 1)[0]
     s = strip_emoji(s)
-    s = _EMPTY_PARENS_RE.sub(" ", s)
+    s = strip_empty_parens(s)
     return re.sub(r"\s+", " ", s).strip()
 
 
@@ -153,10 +153,9 @@ def _manual_key(title: str) -> str:
 
 def _find_manual_tocs(raw_dir: Path) -> list[Path]:
     """'…매뉴얼' 제목의 TOC 인덱스 페이지(같은 이름 형제 폴더에 자식 .md 보유)."""
-    from ingest.chunk import _derive_title
     out: list[Path] = []
     for md in raw_dir.rglob("*.md"):
-        title = _derive_title(md)
+        title = derive_title(md)
         if not title.endswith(_MANUAL_SUFFIX):
             continue
         sibling = md.parent / title
@@ -169,11 +168,10 @@ def _find_manual_tocs(raw_dir: Path) -> list[Path]:
 def build_catalog() -> tuple[Manual, ...]:
     """raw_dir 의 매뉴얼 TOC 들을 파싱해 매뉴얼 트리를 만든다(없으면 빈 튜플 —
     네비는 graceful 하게 생략). LMS 를 항상 앞에 둔다(주 사용 매뉴얼)."""
-    from ingest.chunk import _derive_title
     raw_dir = load_config().raw_dir
     manuals: list[Manual] = []
     for toc in _find_manual_tocs(raw_dir):
-        title = _derive_title(toc)
+        title = derive_title(toc)
         cats = parse_toc(toc.read_text(encoding="utf-8"))
         if cats:
             manuals.append(Manual(name=_manual_key(title), title=title, categories=cats))

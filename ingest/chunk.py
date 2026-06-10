@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from app_types import Chunk, DocSet
+from ingest.preprocess import strip_emoji, strip_empty_parens
 from tuning import CHUNK_MAX_CHARS, CHUNK_OVERLAP
 
 
@@ -78,20 +79,18 @@ def _split_long(text: str) -> list[str]:
     return parts
 
 
-_EMPTY_PARENS_RE = re.compile(r"\s*\(\s*\)\s*")
 _PAGE_ID_RE = re.compile(r"\s([0-9a-f]{32})$")
 
 
-def _derive_title(path: Path) -> str:
+def derive_title(path: Path) -> str:
     name = path.stem
     parts = name.rsplit(" ", 1)
     if len(parts) == 2 and len(parts[1]) >= 16:
         name = parts[0]
     # 파일명에 있던 (📄) 같은 장식 이모지가 preprocess 단계에서 사라지고
     # () 빈 괄호만 남는 경우가 흔함 — 제거하고 공백 정리.
-    from ingest.preprocess import strip_emoji
     name = strip_emoji(name)
-    name = _EMPTY_PARENS_RE.sub(" ", name)
+    name = strip_empty_parens(name)
     return name.strip()
 
 
@@ -112,7 +111,7 @@ def chunk_markdown_file(
     section_path: list[str],
 ) -> list[Chunk]:
     text = path.read_text(encoding="utf-8")
-    title = _derive_title(path)
+    title = derive_title(path)
     source = str(path)
     notion_url = _extract_notion_url(path)
 
@@ -164,7 +163,7 @@ def chunk_markdown_file(
 def chunk_csv_file(path: Path, *, doc_set: DocSet) -> list[Chunk]:
     df = pd.read_csv(path)
     source = str(path)
-    base_title = f"FAQ — {_derive_title(path)}"
+    base_title = f"FAQ — {derive_title(path)}"
     notion_url = _extract_notion_url(path)
     chunks: list[Chunk] = []
     for i, row in df.iterrows():

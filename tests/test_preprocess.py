@@ -102,3 +102,11 @@ def test_clean_markdown_keeps_real_image_links():
     src = "본문\n\n![](/assets/screen.png)\n\n다음"
     out = clean_markdown(src)
     assert "![](/assets/screen.png)" in out
+
+
+def test_strip_empty_parens_removes_and_pads():
+    from ingest.preprocess import strip_empty_parens
+    # (📄) 장식이 이모지 제거 후 남긴 빈 괄호 — 공백 하나로 치환된다
+    assert strip_empty_parens("제목 ( ) 끝") == "제목 끝"
+    assert strip_empty_parens("제목()") == "제목 "
+    assert strip_empty_parens("그대로") == "그대로"
