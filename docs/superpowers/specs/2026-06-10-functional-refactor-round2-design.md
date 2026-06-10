@@ -125,7 +125,7 @@ async def chat(host, model, messages, *, options, timeout) -> str
 ```
 static/index.html   마크업 + <link rel="stylesheet"> + <script type="module" src="/static/js/main.js">
 static/css/app.css  기존 <style> 내용 그대로 (수정 없음)
-static/js/api.js    서버 통신·SSE 파싱 (컨트롤러): health/consent/chat/feedback/faq/catalog/guide
+static/js/api.js    서버 통신·SSE 파싱 (컨트롤러): health/consent/chat/feedback/faq/catalog/purge
 static/js/ui.js     DOM 렌더 (프레젠테이션): 턴 렌더·QnA 링크 치환·이미지·출처·라이트박스·칩·네비
 static/js/main.js   엔트리: 세션 상태(localStorage)·이벤트 바인딩·동의 모달 플로우
 ```
