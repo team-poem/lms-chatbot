@@ -14,7 +14,11 @@ import httpx
 async def chat_stream(
     host: str, model: str, messages: list[dict], *, options: dict, timeout: float
 ) -> AsyncIterator[str]:
-    """스트리밍 chat. 토큰 델타(비어 있지 않은 것만)를 그대로 흘린다."""
+    """스트리밍 chat. 토큰 델타(비어 있지 않은 것만)를 그대로 흘린다.
+
+    의도적으로 raise_for_status 를 호출하지 않는다 — HTTP 에러 응답(JSON 본문)은
+    델타 없이 자연 종료되는 것이 종전 stream.py 동작이며, 추가하면 행동이 바뀐다.
+    클라이언트도 요청마다 새로 연다(커넥션 풀 미사용) — 종전 동작 보존."""
     payload = {"model": model, "messages": messages, "stream": True, "options": options}
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
         async with client.stream("POST", f"{host}/api/chat", json=payload) as resp:

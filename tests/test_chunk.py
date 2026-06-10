@@ -81,14 +81,14 @@ def test_chunk_markdown_two_h2_sections_split(tmp_path: Path):
 
 
 def test_chunk_markdown_enforces_char_limit(tmp_path: Path):
-    """H2가 없고 본문이 _MAX_CHARS(3000)를 초과하면 글자 기준으로 분할."""
+    """H2가 없고 본문이 CHUNK_MAX_CHARS(3000)를 초과하면 글자 기준으로 분할."""
     body = "한국어 본문 데이터입니다 " * 400  # 약 8000자
     p = tmp_path / "긴페이지 abcdef1234567890.md"
     p.write_text(f"# 긴 페이지\n\n{body}\n", encoding="utf-8")
     chunks = chunk_markdown_file(p, doc_set="guide", section_path=[])
     assert len(chunks) >= 2
     for c in chunks:
-        assert len(c.text) <= 3500  # _MAX_CHARS + 약간 마진
+        assert len(c.text) <= 3500  # CHUNK_MAX_CHARS + 약간 마진
 
 
 def test_chunk_extracts_notion_url_from_filename(tmp_path: Path):
@@ -151,7 +151,7 @@ def test_chunk_markdown_splits_h3_and_isolates_images(tmp_path: Path):
 
 
 def test_same_section_long_split_shares_section_id(tmp_path: Path):
-    big = "한국어 본문 데이터입니다 " * 400  # _MAX_CHARS(3000) 초과
+    big = "한국어 본문 데이터입니다 " * 400  # CHUNK_MAX_CHARS(3000) 초과
     text = f"# 페이지\n\n## 섹션 A\n\n{big}\n\n## 섹션 B\n\n짧은 본문\n"
     p = tmp_path / "페이지 abcdef1234567890.md"
     p.write_text(text, encoding="utf-8")
