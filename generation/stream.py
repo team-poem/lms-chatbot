@@ -8,9 +8,8 @@ from generation.guardrail import is_meta_question
 from generation.ollama import chat_stream
 from generation.persona import FALLBACK_MARK, build_prompt, qna_fallback_msg
 from generation.relevance import doc_answers_question
-from index.vector_store import get_collection
 from rag.state import RagState
-from retrieval.search import hybrid_search
+from retrieval.search import doc_image_refs, hybrid_search
 from tuning import (
     ABS_EMBED_CONFIDENT,
     ABS_EMBED_FLOOR,
@@ -49,27 +48,10 @@ def _is_relevant(score: float, top_score: float) -> bool:
 def _doc_images(
     state: RagState, doc_title: str, fallback_items, limit: int = MAX_IMAGES, *, manual: str = ""
 ) -> list[str]:
-    """1순위 문서(doc_title)의 모든 섹션 이미지를 seq 순서로 모은다(중복 제거, 상한).
-    컨텍스트 청크에만 의존할 때 생기는 누락을 막는다. 조회 실패/빈 결과면 컨텍스트
-    청크(fallback_items)의 이미지로 대체한다. manual 지정 시 동명 문서가 다른
-    매뉴얼에 있어도 섞이지 않게 함께 필터한다."""
-    refs: list[str] = []
-    try:
-        if doc_title:
-            where = {"doc_title": doc_title}
-            if manual:
-                where = {"$and": [{"doc_title": doc_title}, {"manual": manual}]}
-            res = get_collection(state.chroma).get(
-                where=where, include=["metadatas"]
-            )
-            metas = list(res.get("metadatas") or [])
-            metas.sort(key=lambda m: int(m.get("seq", 0) or 0))
-            for m in metas:
-                for img in (m.get("image_refs") or "").split(","):
-                    if img and img not in refs:
-                        refs.append(img)
-    except Exception:
-        refs = []
+    """1순위 문서의 전 섹션 이미지(retrieval 조회, seq 순·중복 제거)를 모은다.
+    컨텍스트 청크에만 의존할 때 생기는 누락을 막는다. 조회 실패/빈 결과면
+    컨텍스트 청크(fallback_items)의 이미지로 대체한다."""
+    refs = list(doc_image_refs(state, doc_title, manual=manual))
     if not refs:
         for it in fallback_items:
             for img in it.chunk.image_refs:
