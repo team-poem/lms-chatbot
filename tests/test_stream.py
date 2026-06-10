@@ -1,14 +1,16 @@
 from __future__ import annotations
 
 from generation.stream import (
-    ABS_EMBED_FLOOR,
-    MAX_CONTEXT_CHUNKS,
-    RELEVANCE_FLOOR,
-    RELEVANCE_RATIO,
     _faq_answer,
     _is_relevant,
     _qna_fallback_msg,
     _route_manual,
+)
+from tuning import (
+    ABS_EMBED_FLOOR,
+    MAX_CONTEXT_CHUNKS,
+    RELEVANCE_FLOOR,
+    RELEVANCE_RATIO,
 )
 
 

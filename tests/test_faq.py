@@ -1,11 +1,7 @@
 from pathlib import Path
 
-from generation.faq import (
-    ENTRY_MAX,
-    ENTRY_MIN,
-    parse_questions,
-    pick,
-)
+from generation.faq import parse_questions, pick
+from tuning import FAQ_ENTRY_MAX, FAQ_ENTRY_MIN
 
 
 def _write_csv(tmp_path: Path, rows: str) -> Path:
@@ -54,4 +50,4 @@ def test_pick_empty_pool():
 
 
 def test_entry_range_is_sane():
-    assert 1 <= ENTRY_MIN <= ENTRY_MAX
+    assert 1 <= FAQ_ENTRY_MIN <= FAQ_ENTRY_MAX

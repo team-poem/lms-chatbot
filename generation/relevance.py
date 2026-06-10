@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import httpx
 
+from tuning import RELEVANCE_OPTIONS, RELEVANCE_TIMEOUT_S
+
 _PROMPT = (
     "질문: {q}\n\n문서 제목: {title}\n문서 내용: {text}\n\n"
     "이 문서가 위 질문에 대한 답을 담고 있습니까? '예' 또는 '아니오' 한 단어로만 답하십시오."
@@ -28,14 +30,15 @@ def parse_verdict(reply: str) -> bool | None:
 
 
 async def doc_answers_question(
-    host: str, model: str, query: str, title: str, text: str, *, timeout: float = 30.0
+    host: str, model: str, query: str, title: str, text: str, *,
+    timeout: float = RELEVANCE_TIMEOUT_S,
 ) -> bool | None:
     """1위 문서가 질문에 답하는가. LLM 호출/파싱 실패 시 None(통과 — 답을 막지 않음)."""
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": build_prompt(query, title, text)}],
         "stream": False,
-        "options": {"temperature": 0.0},
+        "options": RELEVANCE_OPTIONS,
     }
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:

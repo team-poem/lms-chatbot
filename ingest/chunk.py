@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 
 from app_types import Chunk, DocSet
+from tuning import CHUNK_MAX_CHARS, CHUNK_OVERLAP
 
 
 # 이미지 경로에 괄호가 들어갈 수 있다 — Notion 폴더명 '... (📄)' 가 URL 인코딩돼도
@@ -15,8 +16,6 @@ _IMG_RE = re.compile(r"!\[[^\]]*\]\(((?:[^()]|\([^()]*\))*)\)")
 # H2·H3 헤딩으로 섹션 분할. H1(#)은 페이지 제목이라 분할 대상이 아니다.
 _HEADING_RE = re.compile(r"^(#{2,3})\s+(.+)$", flags=re.MULTILINE)
 _H1_LINE_RE = re.compile(r"^#\s+.*$", flags=re.MULTILINE)
-_MAX_CHARS = 3000  # 임베더(BGE-M3, max_seq=1024)에 안전하게 들어가는 한국어 청크 상한
-_OVERLAP = 200    # 분할 시 청크간 겹침
 
 
 def _hash_id(*parts: str) -> str:
@@ -60,22 +59,22 @@ def _has_meaningful_preamble(preamble: str) -> bool:
 
 
 def _split_long(text: str) -> list[str]:
-    """문자 길이 _MAX_CHARS 를 넘는 본문을 약간 겹침을 주며 분할."""
-    if len(text) <= _MAX_CHARS:
+    """문자 길이 CHUNK_MAX_CHARS 를 넘는 본문을 약간 겹침을 주며 분할."""
+    if len(text) <= CHUNK_MAX_CHARS:
         return [text]
     parts: list[str] = []
     start = 0
     while start < len(text):
-        end = min(start + _MAX_CHARS, len(text))
+        end = min(start + CHUNK_MAX_CHARS, len(text))
         # 줄바꿈 경계에서 자르기
         if end < len(text):
             nl = text.rfind("\n", start, end)
-            if nl > start + _MAX_CHARS // 2:
+            if nl > start + CHUNK_MAX_CHARS // 2:
                 end = nl
         parts.append(text[start:end])
         if end >= len(text):
             break
-        start = max(end - _OVERLAP, start + 1)
+        start = max(end - CHUNK_OVERLAP, start + 1)
     return parts
 
 
@@ -145,7 +144,7 @@ def chunk_markdown_file(
 
     matches = list(_HEADING_RE.finditer(text))
     # 헤딩이 2개 미만이면 분할하지 않는다(단순 페이지 과편화 방지).
-    # 본문이 _MAX_CHARS 를 넘으면 _emit 내부의 _split_long 이 글자 기준으로 처리.
+    # 본문이 CHUNK_MAX_CHARS 를 넘으면 _emit 내부의 _split_long 이 글자 기준으로 처리.
     if len(matches) < 2:
         return _emit("0", title, text)
 

@@ -13,37 +13,29 @@ from generation.relevance import doc_answers_question
 from index.vector_store import get_collection
 from rag.state import RagState
 from retrieval.search import hybrid_search
+from tuning import (
+    ABS_EMBED_CONFIDENT,
+    ABS_EMBED_FLOOR,
+    CMS_TRIGGERS,
+    GEN_OPTIONS,
+    GEN_TIMEOUT_S,
+    MAX_CONTEXT_CHUNKS,
+    MAX_IMAGES,
+    RELEVANCE_FLOOR,
+    RELEVANCE_RATIO,
+    SCORE_THRESHOLD,
+)
 
 
-SCORE_THRESHOLD = 0.25
-# 원시 임베딩 유사도 절대 바닥. 매뉴얼 밖 질문(다크모드·날씨 등)은 무관 문서가
-# 정규화 점수론 높게 잡혀 환각을 유발한다. 실측 분리: 매뉴얼 내 질문 최저 ~0.55,
-# 명백한 헛질문 ~0.50 이하 → 0.50. (과거 0.60은 실제 질문도 막아 폐기됨.)
-ABS_EMBED_FLOOR = 0.50
-# 강한 매칭 기준. 이 이상이면 검색이 확실히 맞춘 것이라 LLM 관련성 게이트를 건너뛰고
-# 무조건 답한다 — gemma:4b 게이트가 정확히 매칭된 FAQ(임베딩 0.72+)조차 오판해 추천
-# 질문을 막은 사례가 있었다. 실측: 진짜 FAQ ≥0.72, 헛질문 ≤0.57 → 0.65에서 분리.
-# 게이트는 애매 구간(0.50~0.65, 예: '주차장' 0.57)에서만 작동시킨다.
-ABS_EMBED_CONFIDENT = 0.65
-RELEVANCE_FLOOR = 0.30
-RELEVANCE_RATIO = 0.60
-# 컨텍스트로 LLM에 넘기는 청크 수 상한. 1위(정답) 외에 의미적으로 유사하지만
-# 다른 주제의 청크가 섞여 답변을 오염시키는 것을 막는다(#39). 1위는 항상 포함.
-MAX_CONTEXT_CHUNKS = 5
 # 폴백 답변(매뉴얼 밖) 식별 표지 — 게이트·생성 양쪽 폴백 문구에 공통으로 들어간다.
 # 답변에 이 문구가 있으면 이미지·출처를 붙이지 않는다.
 _FALLBACK_MARK = "확인되지 않는 질문입니다"
-
-# CMS 직접 언급 신호. 자유 입력은 이 신호가 있을 때만 CMS 로 스코핑하고, 그 외엔
-# LMS 로 하드 고정한다 — LMS 질문(대다수)에 CMS 문서가 섞이지 않게. 'CMS'/'Cloud
-# Editor' 처럼 LMS 와 혼동될 일 없는 표현만 넣는다('콘텐츠'는 LMS 에서도 흔해 제외).
-_CMS_TRIGGERS = ("cms", "cloud editor", "클라우드 에디터")
 
 
 def _route_manual(query: str) -> str:
     """자유 입력 질문의 매뉴얼 스코프. 기본 LMS, CMS 직접 언급 시에만 CMS."""
     q = query.lower()
-    return "CMS" if any(t in q for t in _CMS_TRIGGERS) else "LMS"
+    return "CMS" if any(t in q for t in CMS_TRIGGERS) else "LMS"
 
 
 _FAQ_LABEL_RE = re.compile(r"\*{0,2}\s*답변\s*\*{0,2}\s*[:：]\s*")
@@ -79,7 +71,7 @@ def _is_relevant(score: float, top_score: float) -> bool:
 
 
 def _doc_images(
-    state: RagState, doc_title: str, fallback_items, limit: int = 5, *, manual: str = ""
+    state: RagState, doc_title: str, fallback_items, limit: int = MAX_IMAGES, *, manual: str = ""
 ) -> list[str]:
     """1순위 문서(doc_title)의 모든 섹션 이미지를 seq 순서로 모은다(중복 제거, 상한).
     컨텍스트 청크에만 의존할 때 생기는 누락을 막는다. 조회 실패/빈 결과면 컨텍스트
@@ -194,11 +186,11 @@ async def stream_response(
         "model": state.ollama_model,
         "messages": messages,
         "stream": True,
-        "options": {"num_ctx": 8192, "temperature": 0.2},
+        "options": GEN_OPTIONS,
     }
 
     raw_buf = ""
-    async with httpx.AsyncClient(timeout=httpx.Timeout(180.0)) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(GEN_TIMEOUT_S)) as client:
         async with client.stream("POST", url, json=payload) as resp:
             async for line in resp.aiter_lines():
                 if not line.strip():

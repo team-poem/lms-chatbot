@@ -5,11 +5,7 @@ from index.bm25 import query_bm25
 from index.vector_store import get_collection, query_embed
 from rag.state import RagState
 from retrieval.hybrid import combine_scores
-
-
-TOP_K = 5
-EMBED_K = 20
-BM25_K = 20
+from tuning import BM25_K, EMBED_K, TOP_K
 
 
 def _chunk_from_meta(cid: str, doc: str, meta: dict) -> Chunk:

@@ -9,10 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from config import load_config
-
-# 첫 진입에 노출할 FAQ 질문 개수 범위(무작위).
-ENTRY_MIN = 5
-ENTRY_MAX = 7
+from tuning import FAQ_ENTRY_MAX, FAQ_ENTRY_MIN
 
 # FAQ DATABASE CSV 의 질문 컬럼명(Notion export 헤더).
 _FAQ_COLUMN = "FAQ"
@@ -57,4 +54,4 @@ def sample_questions(n: int) -> list[str]:
 
 def sample_for_entry() -> list[str]:
     """첫 진입용: 5~7개 사이 무작위 개수만큼 뽑는다."""
-    return pick(load_questions(), random.randint(ENTRY_MIN, ENTRY_MAX))
+    return pick(load_questions(), random.randint(FAQ_ENTRY_MIN, FAQ_ENTRY_MAX))

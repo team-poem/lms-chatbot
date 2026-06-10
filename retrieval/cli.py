@@ -8,12 +8,13 @@ import argparse
 from config import load_config
 from rag.state import load_rag_state
 from retrieval.search import hybrid_search
+from tuning import TOP_K
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("query", nargs="+", help="검색할 질의")
-    parser.add_argument("--k", type=int, default=5)
+    parser.add_argument("--k", type=int, default=TOP_K)
     args = parser.parse_args(argv)
 
     query = " ".join(args.query)
