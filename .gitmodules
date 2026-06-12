@@ -1,3 +1,0 @@
-[submodule "qa/devtools-qa-runner"]
-	path = qa/devtools-qa-runner
-	url = https://github.com/team-poem/devtools-qa-runner.git

@@ -60,7 +60,7 @@
 - `generation/` 검색 결과 + LLM 결합 + 후처리 (ollama.py 가 HTTP 클라이언트)
 - `rag/` RagState 정의·로드 (서버가 기동 시 1회)
 - `db/` SQLite 스키마와 DAO
-- `qa/` QA 러너 (devtools-qa-runner 서브모듈) + 프로파일
+- `qa/devtools-profiles/` LMS 전용 DevTools QA 프로파일 (`devtools-qa-runner`는 `file:../devtools-qa-runner` 패키지로 소비)
 - `backend.py` FastAPI 얇은 wrapper
 - `static/` index.html(마크업) + css/app.css + js/{api,ui,main}.js (통신/렌더/배선)
 - `docs/` spec, plans, privacy
