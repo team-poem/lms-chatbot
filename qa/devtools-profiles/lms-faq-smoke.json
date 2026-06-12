@@ -1,0 +1,46 @@
+{
+  "name": "lms-faq-smoke",
+  "description": "LMS 챗봇 FAQ 80개 응답 품질 검증",
+  "selectors": {
+    "chatInput": {
+      "role": "textbox",
+      "nameIncludes": "질문을 입력하십시오"
+    },
+    "consentAgreeButton": {
+      "role": "button",
+      "nameIncludes": "동의하고 시작"
+    },
+    "consentLabelInput": {
+      "role": "textbox",
+      "excludeNameIncludes": [
+        "질문을 입력하십시오"
+      ]
+    },
+    "answerDoneText": "이 응답이 도움이 되었습니까?"
+  },
+  "quality": {
+    "ignoreSeo": true,
+    "ignoreFavicon404": true,
+    "lighthouseFailBelow": 0.5,
+    "lighthouseWarnBelow": 0.7
+  },
+  "scenarios": [
+    {
+      "type": "consent",
+      "name": "consent-flow",
+      "label": "qa-faq-검증"
+    },
+    {
+      "type": "question",
+      "name": "faq-01",
+      "text": "로그인이 안 되는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-02",
+      "text": "로그인을 했는데 대시보드에 이번 학기 강의가 안 보이는데, 어떻게 하나요?",
+      "timeoutMs": 180000
+    }
+  ]
+}

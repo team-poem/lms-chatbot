@@ -1,0 +1,514 @@
+{
+  "name": "lms-faq-verification",
+  "description": "LMS 챗봇 FAQ 80개 응답 품질 검증",
+  "selectors": {
+    "chatInput": {
+      "role": "textbox",
+      "nameIncludes": "질문을 입력하십시오"
+    },
+    "consentAgreeButton": {
+      "role": "button",
+      "nameIncludes": "동의하고 시작"
+    },
+    "consentLabelInput": {
+      "role": "textbox",
+      "excludeNameIncludes": [
+        "질문을 입력하십시오"
+      ]
+    },
+    "answerDoneText": "이 응답이 도움이 되었습니까?"
+  },
+  "quality": {
+    "ignoreSeo": true,
+    "ignoreFavicon404": true,
+    "lighthouseFailBelow": 0.5,
+    "lighthouseWarnBelow": 0.7
+  },
+  "scenarios": [
+    {
+      "type": "consent",
+      "name": "consent-flow",
+      "label": "qa-faq-검증"
+    },
+    {
+      "type": "question",
+      "name": "faq-01",
+      "text": "로그인이 안 되는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-02",
+      "text": "로그인을 했는데 대시보드에 이번 학기 강의가 안 보이는데, 어떻게 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-03",
+      "text": "LMS 관련 매뉴얼은 어디에서 확인할 수 있나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-04",
+      "text": "LMS 관련 문의는 어디에 하면 되나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-05",
+      "text": "모바일 앱은 어떻게 사용하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-06",
+      "text": "과목 카드 썸네일 배경 색상을 변경할 수 있나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-07",
+      "text": "외국인 교수님의 과목만 언어를 다르게 설정할 수 있나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-08",
+      "text": "수업을 구성 후 학생 화면에 어떻게 보이는지 볼 수 있나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-09",
+      "text": "특정 PC에서만 안 보이고, 안돼요.",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-10",
+      "text": "LMS, e-Class, Learning-X 모두 다 같은건가요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-11",
+      "text": "블루프린트 과목은 어떻게 신청하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-12",
+      "text": "블루프린트 과목은 어떻게 운영하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-13",
+      "text": "블루프린트 과목 운영 시 주의해야 할 사항이 있나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-14",
+      "text": "블루프린트를 동기화했는데 동기화가 되지 않았어요. 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-15",
+      "text": "LMS에서 수업계획서를 입력·수정할 수 있나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-16",
+      "text": "과목 복사를 하니 기존 수업계획서가 함께 가져와졌는데, 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-17",
+      "text": "지난 학기 과목을 복사하려면 어떻게 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-18",
+      "text": "주차학습에 수업은 어떻게 등록하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-19",
+      "text": "삭제한 학습 요소를 복원하려면 어떻게 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-20",
+      "text": "학생이 수강신청을 했다는데 과목에 등록되어 있지 않은데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-21",
+      "text": "비활성화된 학생이있던데 비활성화가 무엇인가요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-22",
+      "text": "학생 이름 뒤에 숫자는 무엇을 의미하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-23",
+      "text": "사용자 명단, 출결현황 메뉴에서 학생이 중복으로 등록되어 있는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-24",
+      "text": "앱 푸시 알림이 너무 많이 오는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-25",
+      "text": "앱 푸시 알림이 오지 않는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-26",
+      "text": "강의자료실에 업로드한 자료는 앱 푸시 알림이 가지 않나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-27",
+      "text": "공지에 첨부 파일은 어떻게 등록하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-28",
+      "text": "게시판 정보 조회에 실패한다는 메시지가 뜨는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-29",
+      "text": "주차학습에 강의를 올렸는데, 학생들이 보이지 않는다고 하는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-30",
+      "text": "강의콘텐츠에 접속하면 물결 모양이 뜨면서 강의 자료가 클릭되지 않는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-31",
+      "text": "MP4 변환 중 문구가 뜨면서 영상이 보이지 않는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-32",
+      "text": "출결 기록은 유지한 채로 파일을 교체하려면 어떻게 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-33",
+      "text": "주차학습에 콘텐츠를 올렸는데 출결현황에 나타나지 않는데  어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-34",
+      "text": "주차학습에서 ZOOM을 사용하고 싶은데, 어떻게 해야하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-35",
+      "text": "과제 일괄 다운로드가 되지 않는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-36",
+      "text": "과제에 이미지를 첨부하면 'something went wrong' 메시지가 뜨면서 첨부가 안 되는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-37",
+      "text": "과제를 출제할 때 '업로드에 실패하였습니다' 메시지가 뜨면서 첨부 파일 업로드가 안 되는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-38",
+      "text": "학생이 과제를 미제출했는데 제출 완료로 표시되는데 왜 그런가요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-39",
+      "text": "학생들이 과제 첨부 파일을 다운로드하면 '접근 불가' 화면이 뜨면서 다운로드가 안 되는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-40",
+      "text": "그룹 과제인데 한 학생의 파일만 있는데 어떻게 된 건가요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-41",
+      "text": "SpeedGrader 미리보기 화면이 하얀 화면으로 뜨는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-42",
+      "text": "시험 문제 순서를 랜덤으로 출제하려면 어떻게 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-43",
+      "text": "그룹 퀴즈는 어떻게 출제하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-44",
+      "text": "학생들이 답안을 제출할 때 점수가 공개되지 않도록 설정할 수 있나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-45",
+      "text": "마감 기간 이후에 문제를 풀지 못하도록 하려면 마감일과 이용 종료일을 어떻게 설정해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-46",
+      "text": "퀴즈에 참여했는데 완료 표시가 뜨지 않는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-47",
+      "text": "퀴즈가 자동으로 제출되는데 어떻게 된 건가요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-48",
+      "text": "퀴즈 페이지에서 벗어나도 응시 시간이 차감되나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-49",
+      "text": "PC가 갑자기 종료되면 퀴즈 응시 내역이 저장되나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-50",
+      "text": "퀴즈 마감 이후에 학습자가 응시하지 못하도록 막을 수 있나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-51",
+      "text": "객관식 문항인데 일부 학생들에게는 주관식 문항으로 보이는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-52",
+      "text": "온라인 시험이 끝난 후 특정 학생에게 재응시 기회를 부여할 수 있나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-53",
+      "text": "응시 이력은 어떻게 조회하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-54",
+      "text": "퀴즈 풀이 로그는 어떻게 확인하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-55",
+      "text": "문제은행은 어떻게 사용하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-56",
+      "text": "학생의 토론 참여 여부는 어떻게 확인하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-57",
+      "text": "토론 생성 시 스레드로 답변 허용 옵션은 어떤 기능인가요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-58",
+      "text": "수업자료실은 어떻게 활용하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-59",
+      "text": "어떤 출결 방식이 가능한가요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-60",
+      "text": "학생의 부정 출결을 방지할 수 있나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-61",
+      "text": "학생은 학습했다고 하는데 결석으로 나오는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-62",
+      "text": "학생이 중복으로 표시되는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-63",
+      "text": "출결/학습 현황 메뉴에서 학습 요소가 보이지 않는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-64",
+      "text": "동영상 출결에서 미결은 어떤 의미인가요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-65",
+      "text": "학생이 출석했는데 결석으로 처리되어 있는데 왜 그런가요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-66",
+      "text": "전자출결은 어떻게 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-67",
+      "text": "학생이 전자출결에서 결석으로 되어 있다고 하는데, 어떻게 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-68",
+      "text": "대면으로 중간고사를 실시하였고, 학생들에게 LMS를 통해 점수를 알려주고 싶은데 가능한가요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-69",
+      "text": "대면 시험 점수 일괄 등록에 실패했는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-70",
+      "text": "빈칸 채우기 문항에서 학생이 정확하게 답변을 제출했는데도 오답으로 처리되는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-71",
+      "text": "퀴즈 또는 시험 문제의 학생이 제출한 답안을 다운로드할 수 있나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-72",
+      "text": "채점을 했는데 학생에게 점수가 보지이 않는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-73",
+      "text": "재채점 옵션이 보이지 않는데 어떻게 해야 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-74",
+      "text": "문제 정답을 잘못 입력했는데 수정하려면 어떻게 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-75",
+      "text": "퀴즈에 남긴 피드백을 학생들은 어디에서 확인할 수 있나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-76",
+      "text": "문제 그룹 내 문제를 작성하면 배점이 일괄적으로 동일하게 지정되는데 개별 변경은 불가능한가요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-77",
+      "text": "학생들이 응시한 답이 표기된 시험지를 한꺼번에 다운로드할 수 있나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-78",
+      "text": "학습활동(과제, 퀴즈, 토론)의 평가는 어떻게 하나요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-79",
+      "text": "과제를 채점한 학생과 채점하지 않은 학생을 분류하고 싶은데 가능한가요?",
+      "timeoutMs": 180000
+    },
+    {
+      "type": "question",
+      "name": "faq-80",
+      "text": "학습기간을 일괄 설정하는 방법이 있나요?",
+      "timeoutMs": 180000
+    }
+  ]
+}

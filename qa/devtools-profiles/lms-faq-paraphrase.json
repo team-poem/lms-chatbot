@@ -1,0 +1,54 @@
+{
+  "name": "lms-faq-paraphrase",
+  "description": "답변 가능한 정규 FAQ를 말투/표현만 바꾼 변형·구어체 입력에 대한 강건성 검증 (과잉 거절·오답 탐지)",
+  "selectors": {
+    "chatInput": { "role": "textbox", "nameIncludes": "질문을 입력하십시오" },
+    "consentAgreeButton": { "role": "button", "nameIncludes": "동의하고 시작" },
+    "consentLabelInput": { "role": "textbox", "excludeNameIncludes": ["질문을 입력하십시오"] },
+    "answerDoneText": "이 응답이 도움이 되었습니까?"
+  },
+  "quality": { "ignoreSeo": true, "ignoreFavicon404": true, "lighthouseFailBelow": 0.5, "lighthouseWarnBelow": 0.7 },
+  "scenarios": [
+    { "type": "consent", "name": "consent-flow", "label": "qa-paraphrase" },
+
+    { "type": "question", "category": "paraphrase", "name": "para-01a", "expect": "지난 학기 과목을 복사하려면 어떻게 하나요?", "text": "지난 학기에 운영했던 과목을 이번 학기로 그대로 가져오고 싶은데, 어떤 절차로 복사하면 될까요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-01b", "expect": "지난 학기 과목을 복사하려면 어떻게 하나요?", "text": "과목 복사 어케함?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-01c", "expect": "지난 학기 과목을 복사하려면 어떻게 하나요?", "text": "지난학기 과목 복사하는법좀여 ㅠㅠ", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "para-02a", "expect": "전자출결은 어떻게 하나요?", "text": "전자출결 기능으로 학생 출석을 받으려면 어떻게 설정해야 하나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-02b", "expect": "전자출결은 어떻게 하나요?", "text": "전자출결 어케해요", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-02c", "expect": "전자출결은 어떻게 하나요?", "text": "전자출결 어케하는거에여?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "para-03a", "expect": "과제 일괄 다운로드가 되지 않는데 어떻게 해야 하나요?", "text": "학생들이 제출한 과제를 한 번에 모두 내려받으려는데 일괄 다운로드가 작동하지 않습니다. 해결 방법이 있을까요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-03b", "expect": "과제 일괄 다운로드가 되지 않는데 어떻게 해야 하나요?", "text": "과제 한번에 다운 안됨", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-03c", "expect": "과제 일괄 다운로드가 되지 않는데 어떻게 해야 하나요?", "text": "과제 일괄다운 안되여 ㅜㅜ 어케함", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "para-04a", "expect": "퀴즈가 자동으로 제출되는데 어떻게 된 건가요?", "text": "학생이 퀴즈를 푸는 도중 직접 제출하지 않았는데도 자동으로 제출 처리가 됩니다. 왜 이런 현상이 생기나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-04b", "expect": "퀴즈가 자동으로 제출되는데 어떻게 된 건가요?", "text": "퀴즈 자동제출됨 왜?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-04c", "expect": "퀴즈가 자동으로 제출되는데 어떻게 된 건가요?", "text": "퀴즈가 지맘대로 제출돼욬ㅋㅋ 이거 왜이럼", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "para-05a", "expect": "재채점 옵션이 보이지 않는데 어떻게 해야 하나요?", "text": "채점을 마친 뒤 다시 채점하려는데 재채점 옵션이 화면에 나타나지 않습니다. 어떻게 하면 되나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-05b", "expect": "재채점 옵션이 보이지 않는데 어떻게 해야 하나요?", "text": "재채점 버튼이 없어요", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-05c", "expect": "재채점 옵션이 보이지 않는데 어떻게 해야 하나요?", "text": "재채점옵션이 안보임 어케해야됨?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "para-06a", "expect": "앱 푸시 알림이 오지 않는데 어떻게 해야 하나요?", "text": "휴대폰 앱에서 푸시 알림이 전혀 도착하지 않는데, 알림을 받으려면 어떤 설정을 확인해야 하나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-06b", "expect": "앱 푸시 알림이 오지 않는데 어떻게 해야 하나요?", "text": "앱 알림 안와요", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-06c", "expect": "앱 푸시 알림이 오지 않는데 어떻게 해야 하나요?", "text": "앱푸시 알림이 안와욬ㅠ 왜 안오죠", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "para-07a", "expect": "로그인이 안 되는데 어떻게 해야 하나요?", "text": "LMS에 접속하려는데 로그인이 되지 않습니다. 어떤 점을 확인해야 할까요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-07b", "expect": "로그인이 안 되는데 어떻게 해야 하나요?", "text": "로그인 안됨", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-07c", "expect": "로그인이 안 되는데 어떻게 해야 하나요?", "text": "로그인이 자꾸 안되는데여 ㅠㅠ", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "para-08a", "expect": "온라인 시험이 끝난 후 특정 학생에게 재응시 기회를 부여할 수 있나요?", "text": "온라인 시험이 종료된 뒤에, 사정이 있었던 특정 학생 한 명에게만 다시 응시할 기회를 줄 수 있나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-08b", "expect": "온라인 시험이 끝난 후 특정 학생에게 재응시 기회를 부여할 수 있나요?", "text": "시험 끝났는데 특정학생 재응시 가능?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-08c", "expect": "온라인 시험이 끝난 후 특정 학생에게 재응시 기회를 부여할 수 있나요?", "text": "시험끝나고 한명만 다시 보게 해줄수있나여?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "para-09a", "expect": "주차학습에 수업은 어떻게 등록하나요?", "text": "주차별 학습 영역에 강의 콘텐츠를 등록하려면 어떤 순서로 진행하면 되나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-09b", "expect": "주차학습에 수업은 어떻게 등록하나요?", "text": "주차학습에 강의 어케 올림?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-09c", "expect": "주차학습에 수업은 어떻게 등록하나요?", "text": "주차학습에 수업 등록하는거 어케하나여", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "para-10a", "expect": "학생들이 답안을 제출할 때 점수가 공개되지 않도록 설정할 수 있나요?", "text": "학생이 퀴즈 답안을 제출한 직후 점수가 바로 노출되지 않게 숨기는 설정이 가능한가요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-10b", "expect": "학생들이 답안을 제출할 때 점수가 공개되지 않도록 설정할 수 있나요?", "text": "제출하면 점수 바로 보이는거 숨길수있어요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "para-10c", "expect": "학생들이 답안을 제출할 때 점수가 공개되지 않도록 설정할 수 있나요?", "text": "점수 바로 안보이게 할수있나여?", "timeoutMs": 180000 }
+  ]
+}

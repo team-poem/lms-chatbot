@@ -1,0 +1,63 @@
+{
+  "name": "lms-conversation",
+  "description": "이번 대화에서 실제로 다루고 테스트한 질문 총정리 — 인사·역량·범위·포괄토픽(과잉거절 사례)·로그인(라이브 버그)·변형구어체 FAQ·적대적 일부",
+  "selectors": {
+    "chatInput": { "role": "textbox", "nameIncludes": "질문을 입력하십시오" },
+    "consentAgreeButton": { "role": "button", "nameIncludes": "동의하고 시작" },
+    "consentLabelInput": { "role": "textbox", "excludeNameIncludes": ["질문을 입력하십시오"] },
+    "answerDoneText": "이 응답이 도움이 되었습니까?"
+  },
+  "quality": { "ignoreSeo": true, "ignoreFavicon404": true, "lighthouseFailBelow": 0.5, "lighthouseWarnBelow": 0.7 },
+  "scenarios": [
+    { "type": "consent", "name": "consent-flow", "label": "qa-conversation" },
+
+    { "type": "question", "category": "social", "name": "conv-greet-1", "text": "안녕하세여", "timeoutMs": 180000 },
+    { "type": "question", "category": "social", "name": "conv-greet-2", "text": "ㅎㅇ", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "help", "name": "conv-help-1", "text": "어떤걸 가이드 해줄수있나여?", "timeoutMs": 180000 },
+    { "type": "question", "category": "help", "name": "conv-help-2", "text": "뭐 할 수 있어?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "scope", "name": "conv-scope-1", "text": "lms에 대해서?", "timeoutMs": 180000 },
+    { "type": "question", "category": "scope", "name": "conv-scope-2", "text": "lms가 뭐야?", "timeoutMs": 180000 },
+    { "type": "question", "category": "scope", "name": "conv-scope-3", "text": "lms에 어떤 기능들이 있나요?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "conv-broad-1", "expect": "강의 운영 주제 안내(과목 복사·주차학습 등)", "text": "강의 운영", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-broad-2", "expect": "강의 운영 주제 안내(과목 복사·주차학습 등)", "text": "강의 운영은 어떻게 하나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-broad-3", "expect": "강의 운영 주제 안내(과목 복사·주차학습 등)", "text": "강의운영은 어떻게 하나여?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "conv-login-1", "expect": "로그인이 안 되는데 어떻게 해야 하나요?", "text": "로그인 안됨", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-login-2", "expect": "로그인이 안 되는데 어떻게 해야 하나요?", "text": "접속이 안돼요", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-login-3", "expect": "로그인이 안 되는데 어떻게 해야 하나요?", "text": "로그인이 자꾸 안되는데여 ㅠㅠ", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-login-4", "expect": "로그인이 안 되는데 어떻게 해야 하나요?", "text": "로그인이 안 되는데 어떻게 해야 하나요?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "conv-para-copy-a", "expect": "지난 학기 과목을 복사하려면 어떻게 하나요?", "text": "지난학기 과목 복사하는법좀여 ㅠㅠ", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-para-copy-b", "expect": "지난 학기 과목을 복사하려면 어떻게 하나요?", "text": "과목 복사 어케함?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "conv-para-attn-a", "expect": "전자출결은 어떻게 하나요?", "text": "전자출결 어케해요", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-para-attn-b", "expect": "전자출결은 어떻게 하나요?", "text": "전자출결 어케하는거에여?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "conv-para-asgn-a", "expect": "과제 일괄 다운로드가 되지 않는데 어떻게 해야 하나요?", "text": "과제 한번에 다운 안됨", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-para-asgn-b", "expect": "과제 일괄 다운로드가 되지 않는데 어떻게 해야 하나요?", "text": "과제 일괄다운 안되여 ㅜㅜ 어케함", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "conv-para-quiz-a", "expect": "퀴즈가 자동으로 제출되는데 어떻게 된 건가요?", "text": "퀴즈 자동제출됨 왜?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-para-quiz-b", "expect": "퀴즈가 자동으로 제출되는데 어떻게 된 건가요?", "text": "퀴즈가 지맘대로 제출돼욬ㅋㅋ 이거 왜이럼", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "conv-para-regr-a", "expect": "재채점 옵션이 보이지 않는데 어떻게 해야 하나요?", "text": "재채점 버튼이 없어요", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-para-regr-b", "expect": "재채점 옵션이 보이지 않는데 어떻게 해야 하나요?", "text": "재채점옵션이 안보임 어케해야됨?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "conv-para-push-a", "expect": "앱 푸시 알림이 오지 않는데 어떻게 해야 하나요?", "text": "앱 알림 안와요", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-para-push-b", "expect": "앱 푸시 알림이 오지 않는데 어떻게 해야 하나요?", "text": "앱푸시 알림이 안와욬ㅠ 왜 안오죠", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "conv-para-retry-a", "expect": "온라인 시험이 끝난 후 특정 학생에게 재응시 기회를 부여할 수 있나요?", "text": "시험 끝났는데 특정학생 재응시 가능?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-para-retry-b", "expect": "온라인 시험이 끝난 후 특정 학생에게 재응시 기회를 부여할 수 있나요?", "text": "시험끝나고 한명만 다시 보게 해줄수있나여?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "conv-para-week-a", "expect": "주차학습에 수업은 어떻게 등록하나요?", "text": "주차학습에 강의 어케 올림?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-para-week-b", "expect": "주차학습에 수업은 어떻게 등록하나요?", "text": "주차학습에 수업 등록하는거 어케하나여", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "paraphrase", "name": "conv-para-hide-a", "expect": "학생들이 답안을 제출할 때 점수가 공개되지 않도록 설정할 수 있나요?", "text": "제출하면 점수 바로 보이는거 숨길수있어요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "paraphrase", "name": "conv-para-hide-b", "expect": "학생들이 답안을 제출할 때 점수가 공개되지 않도록 설정할 수 있나요?", "text": "점수 바로 안보이게 할수있나여?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "false-premise", "name": "conv-fp-vr", "text": "강의실 VR 모드는 어떻게 입장하나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "out-of-scope", "name": "conv-oos-lunch", "text": "오늘 점심 뭐 먹지?", "timeoutMs": 180000 }
+  ]
+}
