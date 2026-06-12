@@ -2,20 +2,21 @@
   "scripts": {
     "qa:chatbot": "node qa/lms-chatbot-qa/cli.mjs",
     "qa:chatbot:devtools": "node qa/lms-chatbot-devtools-qa/cli.mjs",
-    "qa:devtools-runner": "node qa/devtools-qa-runner/src/cli.mjs",
-    "qa:chatbot:devtools-profile": "node qa/devtools-qa-runner/src/cli.mjs --profile qa/devtools-qa-runner/profiles/lms-chatbot.json",
-    "qa:devtools-runner:test": "npm --prefix qa/devtools-qa-runner test",
-    "qa:devtools-runner:check": "npm --prefix qa/devtools-qa-runner run check",
-    "qa:adversarial": "node qa/devtools-qa-runner/src/cli.mjs --profile qa/devtools-qa-runner/profiles/lms-faq-adversarial.json --out reports/faq-adversarial --timeout 180000",
-    "qa:adversarial:judge": "node qa/devtools-qa-runner/judge/cli.mjs --report reports/faq-adversarial",
-    "qa:paraphrase": "node qa/devtools-qa-runner/src/cli.mjs --profile qa/devtools-qa-runner/profiles/lms-faq-paraphrase.json --out reports/faq-paraphrase --timeout 180000",
-    "qa:paraphrase:judge": "node qa/devtools-qa-runner/judge/cli.mjs --report reports/faq-paraphrase --profile lms-faq-paraphrase --llm",
-    "qa:conversation": "node qa/devtools-qa-runner/src/cli.mjs --profile qa/devtools-qa-runner/profiles/lms-conversation.json --out reports/conversation --timeout 200000",
-    "qa:human-report": "node qa/devtools-qa-runner/report/human-report.mjs --report reports/conversation",
-    "qa:human-report:html": "node qa/devtools-qa-runner/report/human-report-html.mjs --report reports/conversation"
+    "qa:devtools-runner": "devtools-qa-runner",
+    "qa:chatbot:devtools-profile": "devtools-qa-runner --profile qa/devtools-profiles/lms-chatbot.json",
+    "qa:devtools-runner:test": "npm --prefix ../devtools-qa-runner test",
+    "qa:devtools-runner:check": "npm --prefix ../devtools-qa-runner run check",
+    "qa:adversarial": "devtools-qa-runner --profile qa/devtools-profiles/lms-faq-adversarial.json --out reports/faq-adversarial --timeout 180000",
+    "qa:adversarial:judge": "devtools-qa-runner-judge --report reports/faq-adversarial",
+    "qa:paraphrase": "devtools-qa-runner --profile qa/devtools-profiles/lms-faq-paraphrase.json --out reports/faq-paraphrase --timeout 180000",
+    "qa:paraphrase:judge": "devtools-qa-runner-judge --report reports/faq-paraphrase --profile lms-faq-paraphrase --llm",
+    "qa:conversation": "devtools-qa-runner --profile qa/devtools-profiles/lms-conversation.json --out reports/conversation --timeout 200000",
+    "qa:human-report": "devtools-qa-runner-human-report --report reports/conversation",
+    "qa:human-report:html": "devtools-qa-runner-human-report-html --report reports/conversation"
   },
   "devDependencies": {
     "chrome-devtools-mcp": "^1.1.0",
+    "devtools-qa-runner": "file:../devtools-qa-runner",
     "playwright": "^1.52.0"
   }
 }
