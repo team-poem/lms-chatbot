@@ -158,3 +158,18 @@
   .site-footer a { color: var(--text-muted); text-decoration: none; }
   .site-footer a:hover { color: var(--primary); text-decoration: underline; }
   .site-footer .copy { margin: 6px 0 0; color: #9b9d9f; }
+
+/* ── 선택형 상담 플로우 ── */
+.welcome-card { background:#f1f5ff; border:1px solid #d6e0ff; border-radius:12px;
+  padding:14px 16px; margin-bottom:14px; line-height:1.6; color:#1f2d4d; }
+.cat-block { margin:6px 0; }
+.cat-docs { margin:8px 0 12px 8px; }
+.a.card { background:#fff; border:1px solid #e6e8ec; border-radius:12px;
+  padding:14px 16px; line-height:1.7; white-space:pre-wrap; }
+.related { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.rel-chip, .back-chip { font-size:13px; }
+.back-chip { background:#f0f1f3; }
+.links, .quick-links { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.link-chip { display:inline-block; padding:8px 12px; border-radius:18px;
+  background:#0b66ff; color:#fff; text-decoration:none; font-size:13px; }
+.link-chip:hover { background:#0a5ae0; }
