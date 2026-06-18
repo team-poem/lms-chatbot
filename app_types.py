@@ -58,6 +58,32 @@ class Retrieval:
 
 
 @dataclass(frozen=True)
+class NodeLink:
+    label: str
+    url: str
+
+
+@dataclass(frozen=True)
+class NodeRef:
+    id: str
+    label: str
+
+
+@dataclass(frozen=True)
+class AnswerCard:
+    """선택형 확정 답변 카드 — /answer/{id} 응답. LLM 미경유."""
+    id: str
+    category: str
+    question: str
+    answer: str
+    images: tuple[str, ...] = ()
+    links: tuple[NodeLink, ...] = ()
+    related: tuple[NodeRef, ...] = ()
+    parent: NodeRef | None = None
+    sources: tuple[Source, ...] = ()
+
+
+@dataclass(frozen=True)
 class ChatEvent:
     """ /chat SSE 스트림 단위 이벤트.
       text: delta 채워짐 (스트리밍 토큰 일부)
