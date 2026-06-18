@@ -33,7 +33,46 @@ async function consent(userLabel) {
   ui.showConsentModal(false);
   ui.setChatEnabled(true);
   ui.focusComposer();
-  showFaqSuggestions();
+  if (CONSULT) enterMenu(); else showFaqSuggestions();
+}
+
+// ── 선택형 상담 모드 (?mode=consult) ────────────────────────────
+const CONSULT = new URLSearchParams(location.search).get("mode") === "consult";
+const navStack = [];          // 방문한 노드 id (뒤로가기)
+const cardCache = new Map();  // id → card (뒤로 시 재요청·재로그 없음)
+
+async function enterMenu() {
+  const entry = await api.fetchEntry();
+  navStack.length = 0;
+  if (!entry) { ui.renderEntry([], null, ask); return; }   // 폴백: 레거시 진입
+  ui.renderEntryMenu(entry, selectNode);
+}
+
+async function selectNode(id) {
+  let card = cardCache.get(id);
+  if (!card) {
+    card = await api.fetchAnswer(id);
+    if (!card) { return; }
+    cardCache.set(id, card);
+  }
+  navStack.push(id);
+  ui.renderAnswerCard(card, {
+    onSelect: selectNode,
+    onBack: goBack,
+    showBack: navStack.length > 1,
+  });
+}
+
+function goBack() {
+  navStack.pop();                       // 현재 제거
+  const prev = navStack.pop();          // 직전(다시 push 됨)
+  if (prev) selectNode(prev);
+  else enterMenu();
+}
+
+async function consultSearch(q) {
+  const candidates = await api.searchNodes(q);
+  ui.appendCandidateBlock(q, candidates, selectNode);
 }
 
 async function ask(query, manual) {
@@ -113,6 +152,7 @@ ui.$("#form").addEventListener("submit", e => {
   const q = ui.$("#q").value.trim();
   if (!q) return;
   ui.$("#q").value = "";
+  if (CONSULT) { consultSearch(q); return; }
   if (RE_REROLL.test(q)) { appendRerollSuggestions(q); return; }
   if (RE_GUIDE.test(q)) { appendCatalogList(q); return; }
   ask(q);
@@ -141,5 +181,5 @@ if (saved && savedConsent) {
   ui.setChatEnabled(true);
   const lbl = localStorage.getItem("lms_label");
   if (lbl) ui.setUserLabel(lbl);
-  showFaqSuggestions();
+  if (CONSULT) enterMenu(); else showFaqSuggestions();
 }
