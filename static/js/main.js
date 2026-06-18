@@ -3,6 +3,9 @@ import * as api from "./api.js";
 import * as ui from "./ui.js";
 
 let session = null;
+const CONSULT = new URLSearchParams(location.search).get("mode") === "consult";
+const navStack = [];          // 방문한 노드 id (뒤로가기)
+const cardCache = new Map();  // id → card (뒤로 시 재요청·재로그 없음)
 // 폴백 답변의 'e-Class QnA 게시판' 문구를 하이퍼링크로 걸 때 쓸 게시판 URL(로드 시 1회 조회).
 let qnaBoardUrl = "";
 api.fetchHealth().then(d => { qnaBoardUrl = d.qna_board_url || ""; });
@@ -37,10 +40,6 @@ async function consent(userLabel) {
 }
 
 // ── 선택형 상담 모드 (?mode=consult) ────────────────────────────
-const CONSULT = new URLSearchParams(location.search).get("mode") === "consult";
-const navStack = [];          // 방문한 노드 id (뒤로가기)
-const cardCache = new Map();  // id → card (뒤로 시 재요청·재로그 없음)
-
 async function enterMenu() {
   const entry = await api.fetchEntry();
   navStack.length = 0;

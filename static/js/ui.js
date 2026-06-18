@@ -379,7 +379,7 @@ export function appendCandidateBlock(userText, candidates, onSelect) {
     wrap.appendChild(p);
     const row = document.createElement("div");
     row.className = "faq-row";
-    candidates.forEach(c => row.appendChild(makeChip(c.label, "faq-chip", () => onSelect(c.id))));
+    candidates.forEach(c => row.appendChild(makeChip(c.label, "faq-chip", () => { wrap.remove(); onSelect(c.id); })));
     wrap.appendChild(row);
   } else {
     p.textContent = "준비된 안내에서 찾지 못했습니다. e-Class QnA 게시판으로 문의 부탁드립니다.";
