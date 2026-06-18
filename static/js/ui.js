@@ -272,3 +272,119 @@ export function appendCatalogListBlock(catalogSectionEl) {
   log.appendChild(wrap);
   log.scrollTop = log.scrollHeight;
 }
+
+// ── 선택형 상담 플로우 ───────────────────────────────────────────
+// 빠른 링크/바로가기(외부 URL) 칩.
+function linkChip(label, url) {
+  const a = document.createElement("a");
+  a.className = "link-chip";
+  a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
+  a.textContent = label;
+  return a;
+}
+
+// 첫 화면: 환영 카드 + 카테고리(드릴다운) + 추천 FAQ + 빠른 링크. #log 를 채운다.
+export function renderEntryMenu(entry, onSelect) {
+  const log = $("#log");
+  log.innerHTML = "";
+  const wrap = document.createElement("div");
+  wrap.className = "consult-entry";
+
+  const hello = document.createElement("div");
+  hello.className = "welcome-card";
+  hello.textContent = entry.welcome || "";
+  wrap.appendChild(hello);
+
+  if (entry.recommended?.length) {
+    const rec = document.createElement("div");
+    rec.className = "faq";
+    const p = document.createElement("p");
+    p.className = "faq-intro";
+    p.textContent = "자주 묻는 질문";
+    rec.appendChild(p);
+    const row = document.createElement("div");
+    row.className = "faq-row";
+    entry.recommended.forEach(n => row.appendChild(makeChip(n.label, "faq-chip", () => onSelect(n.id))));
+    rec.appendChild(row);
+    wrap.appendChild(rec);
+  }
+
+  (entry.categories || []).forEach(cat => {
+    const block = document.createElement("div");
+    block.className = "cat-block";
+    const head = makeChip(cat.label, "cat-chip", () => {
+      const open = block.querySelector(".cat-docs");
+      if (open) { open.remove(); return; }   // 토글
+      const docs = document.createElement("div");
+      docs.className = "cat-docs faq-row";
+      cat.nodes.forEach(n => docs.appendChild(makeChip(n.label, "faq-chip", () => onSelect(n.id))));
+      block.appendChild(docs);
+    }, true);
+    block.appendChild(head);
+    wrap.appendChild(block);
+  });
+
+  if (entry.quick_links?.length) {
+    const ql = document.createElement("div");
+    ql.className = "quick-links";
+    entry.quick_links.forEach(l => ql.appendChild(linkChip(l.label, l.url)));
+    wrap.appendChild(ql);
+  }
+
+  log.appendChild(wrap);
+  log.scrollTop = 0;
+}
+
+// 확정 답변 카드: 사용자 말풍선(질문) + 좌측 카드(본문·이미지·바로가기·관련·뒤로·출처).
+export function renderAnswerCard(card, {onSelect, onBack, showBack}) {
+  const log = $("#log");
+  if (log.querySelector(".empty") || log.querySelector(".consult-entry")) log.innerHTML = "";
+
+  const turn = document.createElement("div");
+  turn.className = "turn";
+  turn.innerHTML = `<div class="q">${escapeHtml(card.question)}</div>`
+    + `<div class="a card"></div><div class="imgs"></div>`
+    + `<div class="links"></div><div class="related"></div>`
+    + `<div class="src"></div>`;
+  log.appendChild(turn);
+
+  setAnswerText(turn.querySelector(".a"), card.answer, "");
+  renderImages(turn, card.images || []);
+
+  if (card.links?.length) {
+    const box = turn.querySelector(".links");
+    card.links.forEach(l => box.appendChild(linkChip(l.label, l.url)));
+  }
+
+  const rel = turn.querySelector(".related");
+  if (showBack && card.parent) {
+    rel.appendChild(makeChip("‹ 뒤로", "back-chip", () => onBack()));
+  }
+  (card.related || []).forEach(r => rel.appendChild(makeChip(r.label, "rel-chip", () => onSelect(r.id))));
+
+  if (card.sources?.length) renderSources(turn, card.sources);
+  log.scrollTop = log.scrollHeight;
+}
+
+// 자유 입력 → 후보 노드 추천(또는 안내). userText 는 말풍선으로.
+export function appendCandidateBlock(userText, candidates, onSelect) {
+  appendUserBubble(userText);
+  const log = $("#log");
+  const wrap = document.createElement("div");
+  wrap.className = "faq";
+  const p = document.createElement("p");
+  p.className = "faq-intro";
+  if (candidates.length) {
+    p.textContent = "관련 있어 보이는 항목입니다. 선택해 주세요.";
+    wrap.appendChild(p);
+    const row = document.createElement("div");
+    row.className = "faq-row";
+    candidates.forEach(c => row.appendChild(makeChip(c.label, "faq-chip", () => onSelect(c.id))));
+    wrap.appendChild(row);
+  } else {
+    p.textContent = "준비된 안내에서 찾지 못했습니다. e-Class QnA 게시판으로 문의 부탁드립니다.";
+    wrap.appendChild(p);
+  }
+  log.appendChild(wrap);
+  log.scrollTop = log.scrollHeight;
+}
