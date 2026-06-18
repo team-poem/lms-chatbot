@@ -60,3 +60,20 @@ export function postFeedback(turnId, rating) {
 export function postPurge(sessionId) {
   return fetch("/purge", {method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({session_id: sessionId})});
 }
+
+export async function fetchEntry() {
+  try { const r = await fetch("/entry"); return r.ok ? await r.json() : null; }
+  catch (e) { return null; }
+}
+
+export async function fetchAnswer(id) {
+  try { const r = await fetch(`/answer/${encodeURIComponent(id)}`); return r.ok ? await r.json() : null; }
+  catch (e) { return null; }
+}
+
+export async function searchNodes(q) {
+  try {
+    const r = await fetch(`/search?q=${encodeURIComponent(q)}`);
+    return r.ok ? ((await r.json()).candidates || []) : [];
+  } catch (e) { return []; }
+}
