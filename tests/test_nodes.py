@@ -174,3 +174,27 @@ def test_entry_payload_structure():
     rec_ids = {r["id"] for r in payload["recommended"]}
     assert _node_id("LMS", "faq", "비밀번호 재설정") in rec_ids   # 추천=FAQ 노드
     assert payload["quick_links"] == []
+
+
+def test_entry_payload_recommended_is_random_faq_subset():
+    faq_chunks = [
+        _faq("비밀번호 재설정", "# q\n\n **답변** : 초기화는 이렇게 합니다."),
+        _faq("강의 등록 방법", "# q\n\n **답변** : 강의를 이렇게 등록합니다."),
+        _faq("출석 확인 방법", "# q\n\n **답변** : 출석을 이렇게 확인합니다."),
+    ]
+    chunks = [_guide("로그인 방법", "a")] + faq_chunks
+    nodes = fill_auto_related(build_nodes(chunks, _CAT))
+    reg = Registry(by_id=nodes, meta={})
+    faq_ids = {_node_id("LMS", "faq", t) for t in
+               ["비밀번호 재설정", "강의 등록 방법", "출석 확인 방법"]}
+
+    payload = entry_payload(reg, _CAT, n_recommended=2)
+
+    # (a) exactly n_recommended items returned
+    assert len(payload["recommended"]) == 2
+    # (b) every recommended id is one of the FAQ node ids
+    for item in payload["recommended"]:
+        assert item["id"] in faq_ids
+    # (c) every recommended entry has both id and label keys
+    for item in payload["recommended"]:
+        assert "id" in item and "label" in item

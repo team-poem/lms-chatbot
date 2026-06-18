@@ -8,6 +8,7 @@ import random
 import re
 from dataclasses import dataclass, replace
 from pathlib import Path
+from typing import Iterable
 
 from app_types import AnswerCard, Chunk, NodeLink, NodeRef, ScoredChunk, Source
 from generation.catalog import Manual, build_catalog
@@ -15,7 +16,7 @@ from generation.faq import faq_answer
 from index.vector_store import get_collection
 from ingest.preprocess import strip_emoji
 from rag.state import RagState
-from retrieval.search import _chunk_from_meta, hybrid_search
+from retrieval.search import _chunk_from_meta
 
 FAQ_CATEGORY = "자주 묻는 질문"
 FAQ_ROOT_ID = "lms-faq-root"
@@ -195,7 +196,7 @@ def dockey_index(nodes: dict[str, Node]) -> dict[tuple[str, str], Node]:
     return {(n.manual, _norm(n.doc_title)): n for n in nodes.values()}
 
 
-def find_related(items, nodes: dict[str, Node], *, limit: int = 5) -> list[NodeRef]:
+def find_related(items: Iterable[ScoredChunk], nodes: dict[str, Node], *, limit: int = 5) -> list[NodeRef]:
     """검색 결과(ScoredChunk) → 노드 후보. (manual, _norm(doc_title))로 매핑,
     중복 노드 제거, 점수 순 상위 limit. 노드 없는 청크는 건너뜀. LLM 미경유."""
     idx = dockey_index(nodes)
