@@ -15,8 +15,10 @@ from config import load_config
 from db import store
 from generation.catalog import build_catalog
 from generation.faq import sample_for_entry, sample_questions
+from generation.nodes import build_registry, card_of, entry_payload, find_related
 from generation.stream import stream_response
 from rag.state import RagState, load_rag_state
+from retrieval.search import hybrid_search
 
 
 CONSENT_VERSION = "2026-05-26-v1"
@@ -38,6 +40,10 @@ async def lifespan(app: FastAPI):
     t0 = time.time()
     app.state.rag = await asyncio.to_thread(load_rag_state, config)
     print(f"[startup] RagState 준비 완료 ({time.time() - t0:.1f}s)", flush=True)
+    app.state.nodes = await asyncio.to_thread(
+        build_registry, app.state.rag, overlay_path=config.nodes_overlay_path
+    )
+    print(f"[startup] 노드 레지스트리 {len(app.state.nodes.by_id)}개", flush=True)
     yield
 
 
@@ -92,6 +98,38 @@ def catalog():
             for m in build_catalog()
         ]
     }
+
+
+@app.get("/entry")
+def entry(request: Request):
+    """첫 화면: 환영 + 카테고리 + 추천 FAQ + 빠른 링크. 공개(세션 불필요)."""
+    reg = getattr(request.app.state, "nodes", None)
+    if reg is None:
+        raise HTTPException(status_code=503, detail="서버 초기화 중입니다")
+    return entry_payload(reg, build_catalog())
+
+
+@app.get("/answer/{node_id}")
+def answer(node_id: str, request: Request):
+    """노드의 확정 답변 카드. 재검색·게이트·LLM 없음. 미존재 404."""
+    reg = getattr(request.app.state, "nodes", None)
+    if reg is None:
+        raise HTTPException(status_code=503, detail="서버 초기화 중입니다")
+    node = reg.by_id.get(node_id)
+    if node is None:
+        raise HTTPException(status_code=404, detail="없는 항목입니다")
+    return asdict(card_of(node))
+
+
+@app.get("/search")
+def search(request: Request, q: str = Query(..., min_length=1)):
+    """자유 입력 → 가장 가까운 노드 추천(생성 없음). 공개."""
+    reg = getattr(request.app.state, "nodes", None)
+    state = getattr(request.app.state, "rag", None)
+    if reg is None or state is None:
+        raise HTTPException(status_code=503, detail="서버 초기화 중입니다")
+    refs = find_related(hybrid_search(state, q).items, reg.by_id)
+    return {"candidates": [{"id": r.id, "label": r.label} for r in refs]}
 
 
 class ConsentBody(BaseModel):
