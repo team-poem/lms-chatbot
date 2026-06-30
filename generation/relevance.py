@@ -5,7 +5,8 @@
 문서 예/아니오 판정은 신뢰도가 높다(실측 분리 양호)."""
 from __future__ import annotations
 
-import httpx
+from generation import ollama
+from tuning import RELEVANCE_OPTIONS, RELEVANCE_TIMEOUT_S
 
 _PROMPT = (
     "질문: {q}\n\n문서 제목: {title}\n문서 내용: {text}\n\n"
@@ -28,20 +29,15 @@ def parse_verdict(reply: str) -> bool | None:
 
 
 async def doc_answers_question(
-    host: str, model: str, query: str, title: str, text: str, *, timeout: float = 30.0
+    host: str, model: str, query: str, title: str, text: str, *,
+    timeout: float = RELEVANCE_TIMEOUT_S,
 ) -> bool | None:
     """1위 문서가 질문에 답하는가. LLM 호출/파싱 실패 시 None(통과 — 답을 막지 않음)."""
-    payload = {
-        "model": model,
-        "messages": [{"role": "user", "content": build_prompt(query, title, text)}],
-        "stream": False,
-        "options": {"temperature": 0.0},
-    }
+    messages = [{"role": "user", "content": build_prompt(query, title, text)}]
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
-            resp = await client.post(f"{host}/api/chat", json=payload)
-            resp.raise_for_status()
-            reply = resp.json().get("message", {}).get("content", "")
+        reply = await ollama.chat(
+            host, model, messages, options=RELEVANCE_OPTIONS, timeout=timeout
+        )
     except Exception:
         return None
     return parse_verdict(reply)

@@ -5,19 +5,33 @@
 from __future__ import annotations
 import csv
 import random
+import re
 from functools import lru_cache
 from pathlib import Path
 
 from config import load_config
-
-# 첫 진입에 노출할 FAQ 질문 개수 범위(무작위).
-ENTRY_MIN = 5
-ENTRY_MAX = 7
+from tuning import FAQ_ENTRY_MAX, FAQ_ENTRY_MIN
 
 # FAQ DATABASE CSV 의 질문 컬럼명(Notion export 헤더).
 _FAQ_COLUMN = "FAQ"
 # Notion export 파일명은 재export 시 해시가 바뀌므로 고정 경로 대신 패턴으로 찾는다.
 _FAQ_CSV_GLOB = "**/*FAQ DATABASE*_all.csv"
+
+
+_FAQ_LABEL_RE = re.compile(r"\*{0,2}\s*답변\s*\*{0,2}\s*[:：]\s*")
+_MD_IMG_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+
+
+def faq_answer(text: str) -> str:
+    """FAQ 문서 본문에서 '답변' 텍스트만 추출한다. FAQ 는 사람이 작성한 정답이라
+    gemma 로 재생성하면 질문 되풀이·원인 누락 등 손실이 생겨, 원문을 그대로 쓴다.
+    제목('# 질문') 줄·'답변 :' 라벨·이미지 마크다운(이미지는 별도 영역)을 제거한다."""
+    body = "\n".join(
+        ln for ln in text.splitlines() if not ln.lstrip().startswith("#")
+    )
+    body = _MD_IMG_RE.sub("", body)
+    body = _FAQ_LABEL_RE.sub("", body, count=1)
+    return re.sub(r"\n{3,}", "\n\n", body).strip()
 
 
 def parse_questions(csv_path: Path) -> tuple[str, ...]:
@@ -57,4 +71,4 @@ def sample_questions(n: int) -> list[str]:
 
 def sample_for_entry() -> list[str]:
     """첫 진입용: 5~7개 사이 무작위 개수만큼 뽑는다."""
-    return pick(load_questions(), random.randint(ENTRY_MIN, ENTRY_MAX))
+    return pick(load_questions(), random.randint(FAQ_ENTRY_MIN, FAQ_ENTRY_MAX))

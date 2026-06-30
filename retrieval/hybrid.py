@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tuning import W_BM25, W_EMBED
+
 
 def _normalize(scores: dict[str, float]) -> dict[str, float]:
     if not scores:
@@ -15,8 +17,8 @@ def combine_scores(
     bm25_scores: dict[str, float],
     embed_scores: dict[str, float],
     *,
-    w_bm25: float = 0.4,
-    w_embed: float = 0.6,
+    w_bm25: float = W_BM25,
+    w_embed: float = W_EMBED,
     k: int = 5,
 ) -> list[tuple[str, float]]:
     bm_n = _normalize(bm25_scores)

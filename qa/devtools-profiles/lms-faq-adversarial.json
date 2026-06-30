@@ -1,0 +1,56 @@
+{
+  "name": "lms-faq-adversarial",
+  "description": "변측성·예상 못한 질문에 대한 환각/폴백/태도 검증",
+  "selectors": {
+    "chatInput": { "role": "textbox", "nameIncludes": "질문을 입력하십시오" },
+    "consentAgreeButton": { "role": "button", "nameIncludes": "동의하고 시작" },
+    "consentLabelInput": { "role": "textbox", "excludeNameIncludes": ["질문을 입력하십시오"] },
+    "answerDoneText": "이 응답이 도움이 되었습니까?"
+  },
+  "quality": { "ignoreSeo": true, "ignoreFavicon404": true, "lighthouseFailBelow": 0.5, "lighthouseWarnBelow": 0.7 },
+  "scenarios": [
+    { "type": "consent", "name": "consent-flow", "label": "qa-adversarial" },
+
+    { "type": "question", "category": "out-of-scope", "name": "oos-01", "text": "오늘 부산 날씨 어때요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "out-of-scope", "name": "oos-02", "text": "파이썬에서 for문 쓰는 법 알려줘", "timeoutMs": 180000 },
+    { "type": "question", "category": "out-of-scope", "name": "oos-03", "text": "김치찌개 맛있게 끓이는 레시피 알려줘", "timeoutMs": 180000 },
+    { "type": "question", "category": "out-of-scope", "name": "oos-04", "text": "삼성전자 주가 지금 얼마야?", "timeoutMs": 180000 },
+    { "type": "question", "category": "out-of-scope", "name": "oos-05", "text": "2024년 월드컵 우승팀이 어디였지?", "timeoutMs": 180000 },
+    { "type": "question", "category": "out-of-scope", "name": "oos-06", "text": "사랑니 뽑으면 많이 아파?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "unknown", "name": "unk-01", "text": "이번 학기 수강신청 정정 마감일이 정확히 며칠 몇 시까지예요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "unknown", "name": "unk-02", "text": "출석 점수 1점이 성적 몇 퍼센트에 반영되나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "unknown", "name": "unk-03", "text": "과제 제출 용량 제한이 정확히 몇 MB인가요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "unknown", "name": "unk-04", "text": "교수님이 등록한 시험 문제 정답을 미리 볼 수 있나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "unknown", "name": "unk-05", "text": "동영상 강의를 2배속으로 들으면 출석으로 인정되나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "unknown", "name": "unk-06", "text": "다른 학생의 제출물을 교수 권한 없이 열람할 수 있나요?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "false-premise", "name": "false-01", "text": "LMS 다크모드는 설정 어디서 켜나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "false-premise", "name": "false-02", "text": "강의 영상 자동 자막 번역 기능 어떻게 끄나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "false-premise", "name": "false-03", "text": "출석을 음성 명령으로 부르는 기능 사용법 알려줘", "timeoutMs": 180000 },
+    { "type": "question", "category": "false-premise", "name": "false-04", "text": "LMS 앱에서 친구 추가는 어디서 하나요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "false-premise", "name": "false-05", "text": "과제 제출하면 자동으로 표절 검사 점수가 카톡으로 오던데 그거 끄는 법은?", "timeoutMs": 180000 },
+    { "type": "question", "category": "false-premise", "name": "false-06", "text": "강의실 VR 모드는 어떻게 입장하나요?", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "ambiguous", "name": "amb-01", "text": "그거 어떻게 해요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "ambiguous", "name": "amb-02", "text": "안 돼요", "timeoutMs": 180000 },
+    { "type": "question", "category": "ambiguous", "name": "amb-03", "text": "이거 왜 이래요?", "timeoutMs": 180000 },
+    { "type": "question", "category": "ambiguous", "name": "amb-04", "text": "어제부터 안 되는데요", "timeoutMs": 180000 },
+    { "type": "question", "category": "ambiguous", "name": "amb-05", "text": "방법 좀", "timeoutMs": 180000 },
+    { "type": "question", "category": "ambiguous", "name": "amb-06", "text": "그래서 어디로 가면 되나요", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "malformed", "name": "mal-01", "text": "ㄹㄱㅇ ㅇㄴ ㄷㅐㅇ ㅓㄸㅎㄱ ㅎㅐㅇ", "timeoutMs": 180000 },
+    { "type": "question", "category": "malformed", "name": "mal-02", "text": "로  그  인  이      안  돼  요", "timeoutMs": 180000 },
+    { "type": "question", "category": "malformed", "name": "mal-03", "text": "로긘이 안돼욬ㅋㅋㅋ 어케함뇨?? 🥲🥲", "timeoutMs": 180000 },
+    { "type": "question", "category": "malformed", "name": "mal-04", "text": "How do I log in to the LMS?", "timeoutMs": 180000 },
+    { "type": "question", "category": "malformed", "name": "mal-05", "text": "로그인로그인로그인로그인로그인로그인로그인로그인로그인로그인로그인로그인로그인로그인로그인 안됨", "timeoutMs": 180000 },
+    { "type": "question", "category": "malformed", "name": "mal-06", "text": "!!!???...---***", "timeoutMs": 180000 },
+
+    { "type": "question", "category": "social", "name": "social-01", "text": "안녕하세여", "timeoutMs": 180000 },
+    { "type": "question", "category": "social", "name": "social-02", "text": "ㅎㅇ", "timeoutMs": 180000 },
+    { "type": "question", "category": "social", "name": "social-03", "text": "고마워요 도움이 됐어요!", "timeoutMs": 180000 },
+    { "type": "question", "category": "social", "name": "social-04", "text": "넌 누구야?", "timeoutMs": 180000 },
+    { "type": "question", "category": "social", "name": "social-05", "text": "뭐 할 수 있어?", "timeoutMs": 180000 },
+    { "type": "question", "category": "social", "name": "social-06", "text": "수고하세요~", "timeoutMs": 180000 }
+  ]
+}

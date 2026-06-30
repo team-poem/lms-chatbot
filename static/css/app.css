@@ -1,0 +1,175 @@
+  /* ===== Ai-X-Lab 디자인 테마 (동서대 크림슨 + Pretendard) — 색상/폰트/반경만 적용,
+     구조·기능은 변경 없음 ===== */
+  :root {
+    --bg: #fbf9f9;
+    --surface: #ffffff;
+    --text: #17191A;
+    --text-muted: #666666;
+    --border: #dddddd;
+    --border-strong: #cccccc;
+    --primary: #c51130;
+    --primary-hover: #9b021d;
+    --note: #fff8c5;
+    --radius: 8px;
+    --radius-sm: 4px;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Pretendard Variable', Pretendard, -apple-system, "Apple SD Gothic Neo", sans-serif; margin: 0; background: var(--bg); color: var(--text); font-size: 16px; }
+  /* e-Class 상단 크림슨 바 (로고 위, 전체폭) */
+  .topbar { height: 6px; background: var(--primary); width: 100%; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
+  h1 { font-size: 18px; margin: 0 0 16px; }
+  .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 10; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--primary); border-radius: var(--radius); padding: 24px; max-width: 540px; width: 90%; max-height: 90vh; overflow-y: auto; }
+  .modal h2 { font-size: 16px; margin: 0 0 12px; }
+  .modal section { border-top: 1px solid var(--border); padding: 10px 0; }
+  .modal section h3 { margin: 0 0 4px; font-size: 13px; color: var(--text-muted); }
+  .modal section p { margin: 0; font-size: 14px; }
+  .modal .accent { background: var(--note); padding: 8px 10px; border-radius: var(--radius-sm); margin: 8px 0; font-size: 13px; }
+  .modal .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+  button { padding: 8px 14px; border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; transition: background .2s, border-color .2s; }
+  button.primary { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 700; }
+  button.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+  /* 대화창: 로그인 박스와 동일한 색감 — 흰 카드 + 1px 회색 + 상단 4px 크림슨 */
+  .log { background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--primary); border-radius: var(--radius); padding: 16px; min-height: 320px; max-height: 60vh; overflow-y: auto; }
+  .turn { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px dashed var(--border); }
+  .turn:last-child { border-bottom: none; }
+  /* 질문 = 우측 크림슨 말풍선(보낸 메시지). .turn 직계 .q 만 — 피드백 .q 는 제외 */
+  .turn > .q {
+    display: block; width: fit-content; max-width: 80%;
+    margin: 0 0 12px auto;
+    background: var(--primary); color: #fff;
+    font-size: 16px; line-height: 1.5;
+    padding: 9px 14px;
+    border-radius: 16px 16px 4px 16px;
+  }
+  .a { white-space: pre-wrap; line-height: 1.7; min-height: 24px; font-size: 16px; }
+  .a a { color: var(--primary); text-decoration: underline; }
+  .loading { display: inline-flex; gap: 4px; align-items: center; padding: 4px 0; }
+  .loading .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    animation: lms-bounce 1.3s infinite ease-in-out both;
+  }
+  .loading .dot:nth-child(2) { animation-delay: 0.15s; }
+  .loading .dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes lms-bounce {
+    0%, 80%, 100% { opacity: 0.25; transform: scale(0.7); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+  .src { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .src h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--text); }
+  .src h4 svg { color: var(--text-muted); }
+  .src ul { list-style: none; padding: 0; margin: 0; }
+  .src li { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 14px; }
+  .src li svg { color: var(--primary); flex-shrink: 0; }
+  .src li a { color: var(--text); text-decoration: none; }
+  .src li a:hover { color: var(--primary); text-decoration: underline; }
+  .src li.no-link { color: var(--text); }
+  .imgs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .imgs img {
+    width: 100%;
+    height: auto;
+    aspect-ratio: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: zoom-in;
+    display: block;
+    background: var(--bg);
+    transition: transform 0.12s ease;
+  }
+  .imgs img:hover { transform: scale(1.01); }
+  #lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.88);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    cursor: zoom-out;
+    padding: 24px;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox img {
+    max-width: 95vw;
+    max-height: 95vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  }
+  #lightbox .hint {
+    position: fixed;
+    bottom: 16px;
+    color: #fff;
+    font-size: 12px;
+    opacity: 0.7;
+  }
+  .fb { margin-top: 14px; display: flex; gap: 10px; align-items: center; font-size: 14px; flex-wrap: wrap; }
+  .fb .q { color: var(--text-muted); }
+  .fb button { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; cursor: pointer; }
+  .fb button:hover { background: var(--bg); border-color: var(--border-strong); }
+  .fb button svg { color: var(--text-muted); }
+  .fb button.yes:hover svg { color: #1a7f37; }
+  .fb button.no:hover svg { color: var(--primary); }
+  .fb .thanks { color: #1a7f37; font-size: 13px; }
+  .input { display: flex; gap: 8px; margin-top: 16px; }
+  .input input { flex: 1; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 16px; }
+  .input input:focus { outline: none; border-color: var(--primary); }
+  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .top h1 { margin: 0; line-height: 0; }
+  .top h1 img { height: 28px; width: auto; display: block; }
+  .top .label { font-size: 12px; color: var(--text-muted); }
+  .empty { color: var(--text-muted); font-size: 13px; }
+  .faq .faq-intro { color: var(--text-muted); font-size: 14px; margin: 0 0 14px; line-height: 1.6; }
+  .faq .faq-row { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  /* 추천 질문 = 둥근 알약 말풍선(내용 너비, 크림슨 테두리, hover 채움) */
+  .faq .faq-chip {
+    text-align: left; width: fit-content; max-width: 100%;
+    background: var(--surface); border: 1px solid var(--primary); color: var(--primary);
+    border-radius: 18px; padding: 9px 16px; font-size: 16px; cursor: pointer;
+    transition: background .2s, color .2s;
+  }
+  .faq .faq-chip:hover { background: var(--primary); color: #fff; }
+  /* 가이드 네비게이션: 대분류(카테고리) 칩 + 하위 문서 칩 */
+  .faq .cat-section { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--border); }
+  .faq .cat-intro { color: var(--text-muted); font-size: 14px; margin: 0 0 12px; line-height: 1.6; }
+  .faq .manual-block { margin-bottom: 14px; }
+  .faq .manual-block:last-child { margin-bottom: 0; }
+  .faq .manual-label { display: inline-block; font-size: 12px; font-weight: 700; color: var(--primary); margin: 0 0 8px; letter-spacing: .02em; }
+  .faq .chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .faq .cat-chip {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 18px; padding: 8px 14px; font-size: 15px; cursor: pointer;
+    transition: background .2s, color .2s, border-color .2s;
+  }
+  .faq .cat-chip:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .faq .cat-chip .arrow { color: var(--text-muted); margin-left: 6px; }
+  .faq .cat-chip:hover .arrow { color: #fff; }
+  /* 하단 푸터 (e-Class 풍: 개인정보처리방침 + 동서대학교 교육혁신처 + copyright) */
+  .site-footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 12px; line-height: 1.9; }
+  .site-footer a { color: var(--text-muted); text-decoration: none; }
+  .site-footer a:hover { color: var(--primary); text-decoration: underline; }
+  .site-footer .copy { margin: 6px 0 0; color: #9b9d9f; }
+
+/* ── 선택형 상담 플로우 ── */
+.welcome-card { background:#f1f5ff; border:1px solid #d6e0ff; border-radius:12px;
+  padding:14px 16px; margin-bottom:14px; line-height:1.6; color:#1f2d4d; }
+.cat-block { margin:6px 0; }
+.cat-docs { margin:8px 0 12px 8px; }
+.a.card { background:#fff; border:1px solid #e6e8ec; border-radius:12px;
+  padding:14px 16px; line-height:1.7; white-space:pre-wrap; }
+.related { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.rel-chip, .back-chip { font-size:13px; }
+.back-chip { background:#f0f1f3; }
+.links, .quick-links { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.link-chip { display:inline-block; padding:8px 12px; border-radius:18px;
+  background:#0b66ff; color:#fff; text-decoration:none; font-size:13px; }
+.link-chip:hover { background:#0a5ae0; }

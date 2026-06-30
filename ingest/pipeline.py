@@ -9,7 +9,7 @@ from config import AppConfig
 from index.bm25 import build_bm25, save_bm25
 from index.embed import load_embedder
 from index.vector_store import get_chroma_client, reset_collection, upsert_chunks
-from ingest.chunk import (chunk_csv_file, chunk_markdown_file, _derive_title,
+from ingest.chunk import (chunk_csv_file, chunk_markdown_file, derive_title,
                           is_contentful)
 from ingest.extract import (collect_csv, collect_images, collect_markdown,
                             copy_assets, unzip_all_recursive)
@@ -46,7 +46,7 @@ def _is_index_page(md_path: Path) -> bool:
     있으면, 그 .md 본문은 하위 페이지 링크 목록이라 답변 가치가 없고 거의 모든
     질문에 얕게 매칭돼 검색·출처를 오염시킨다(루트 'LMS 매뉴얼' 링크 누수). 인덱싱
     에서 제외한다."""
-    sibling = md_path.parent / _derive_title(md_path)
+    sibling = md_path.parent / derive_title(md_path)
     return sibling.is_dir() and any(sibling.rglob("*.md"))
 
 

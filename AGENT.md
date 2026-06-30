@@ -26,13 +26,14 @@
 ## 검색 정책
 - 청크 기본 단위: .md 1개 파일(=Notion 1개 페이지). 2,000 토큰 초과 시 H2 기준 분할.
 - CSV 행 단위: 1행 = 1청크 (FAQ 질문 + 메타 태그).
-- 하이브리드 점수: `BM25_norm * 0.4 + embed_sim * 0.6`. top-5 가 LLM 컨텍스트로 들어감.
-- 임계값(현재 0.25, 정성 평가 후 조정): 1위 점수가 미만이면 LLM 호출 안 함.
+- 하이브리드 점수: `BM25_norm * 0.4 + embed_sim * 0.6`. 점수 1위 문서의 청크만 최대 5개가 LLM 컨텍스트로 들어감 (1 질문 : 1 문서).
+- 검색·게이트·LLM 옵션의 모든 수치는 `tuning.py` 에서 단일 관리 (실측 근거 주석 포함).
+- 게이트 순서: 메타 질문 가드 → 임베딩 절대 바닥(ABS_EMBED_FLOOR)·정규화 임계(SCORE_THRESHOLD) → 애매 구간(< ABS_EMBED_CONFIDENT)만 LLM 관련성 게이트 → FAQ 문서면 원문 직출력, 가이드 문서면 LLM 생성.
 
 ## 이미지 동반 정책
-- 응답 페이로드: `{ text, images: [{path, caption}], sources: [titles] }`.
-- 검색된 상위 5개 청크의 `image_refs` 합집합 중, 상위 청크에서 먼저 등장한 순으로 최대 5장.
-- 캡션은 원문 .md 의 이미지 인접 텍스트(직전·직후 80자) 에서 추출.
+- 응답은 SSE 이벤트 스트림: `text`(델타) → `text_final`(정제 전문) → `done`(images, sources, score) → `turn_id`.
+- 이미지: 답변에 쓴 1순위 문서의 전 섹션 `image_refs` 를 seq 순으로 최대 5장(`tuning.MAX_IMAGES`). 조회 실패 시 컨텍스트 청크 이미지로 폴백. 폴백 답변에는 이미지·출처를 붙이지 않음.
+- 출처: 1 질문 : 1 문서 — 문서 단위 제목·노션 링크 한 건만 노출 ('FAQ —' 접두 문서는 제외).
 
 ## 로깅과 개인정보
 - SQLite (`data/chat_logs.db`): sessions / turns / feedback.
@@ -44,17 +45,23 @@
 
 ## 개발 워크플로
 - 가이드 업데이트 시: 새 export 를 `data/raw/` 에 넣고 `python -m ingest.cli` 재실행 (idempotent).
-- 모델 교체: `.env` 의 `OLLAMA_MODEL` 변경. `generation/pipeline.py` 코드 수정 불필요.
+- 모델 교체: `.env` 의 `OLLAMA_MODEL` 변경. 코드 수정 불필요 (`generation/stream.py` 는 RagState 경유로만 모델명을 받음).
+- 품질 튜닝(임계값·가중치·LLM 옵션): `tuning.py` 만 수정.
 - 추후 GPU 서버 이전: `.env` 의 `OLLAMA_HOST` 만 변경.
 - 새 의존성 추가 시 `requirements.txt` 갱신 후 PR 에 이유 명시.
 
 ## 디렉터리 맵
+- `config.py` 배포 환경 설정 (env 단일 진입점, AppConfig)
+- `tuning.py` 품질 튜닝 노브 단일 관리 (임계값·가중치·LLM 옵션)
+- `app_types.py` 횡단 데이터 타입 (Chunk, Retrieval, ChatEvent …)
 - `ingest/` 정제된 청크까지. 임베딩은 하지 않음
 - `index/` 임베딩 + BM25 인덱스 빌드/저장
-- `retrieval/` 인덱스에서 검색만
-- `generation/` 검색 결과 + LLM 결합 + 후처리
+- `retrieval/` 인덱스에서 검색만 (hybrid_search, doc_image_refs)
+- `generation/` 검색 결과 + LLM 결합 + 후처리 (ollama.py 가 HTTP 클라이언트)
+- `rag/` RagState 정의·로드 (서버가 기동 시 1회)
 - `db/` SQLite 스키마와 DAO
+- `qa/devtools-profiles/` LMS 전용 DevTools QA 프로파일 (`devtools-qa-runner`는 `file:../devtools-qa-runner` 패키지로 소비)
 - `backend.py` FastAPI 얇은 wrapper
-- `static/index.html` 동의 모달 + 채팅 UI + 피드백
+- `static/` index.html(마크업) + css/app.css + js/{api,ui,main}.js (통신/렌더/배선)
 - `docs/` spec, plans, privacy
 - `tests/` 순수 함수 위주 pytest

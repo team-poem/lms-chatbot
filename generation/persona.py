@@ -41,3 +41,20 @@ def build_prompt(query: str, contexts: list[dict]) -> list[dict]:
         {"role": "system", "content": PERSONA_SYSTEM},
         {"role": "user", "content": f"다음 가이드 발췌를 근거로 답하십시오.\n\n{ctx_text}\n\n질문: {query}"},
     ]
+
+
+# 폴백 답변(매뉴얼 밖) 식별 표지 — 게이트·생성(규칙 5 문구) 양쪽 폴백에 공통으로
+# 들어간다. 답변에 이 문구가 있으면 이미지·출처를 붙이지 않는다.
+FALLBACK_MARK = "확인되지 않는 질문입니다"
+
+
+def qna_fallback_msg(qna_contact: str = "") -> str:
+    """매뉴얼(준비된 답변)에서 근거를 못 찾은 질문에 대한 안내. 위 PERSONA_SYSTEM
+    규칙 5의 문장과 동일하게 맞춘다(게이트·생성 양쪽 폴백이 같은 문구 — 같은 파일에
+    둬서 동기화를 배치로 보장). 'e-Class QnA 게시판' 문구는 프론트가 게시판 URL
+    하이퍼링크로 렌더하므로 여기엔 URL을 넣지 않는다."""
+    contact = f"{qna_contact} 또는 " if qna_contact else ""
+    return (
+        "준비된 매뉴얼 답변에서 확인되지 않는 질문입니다. "
+        f"{contact}e-Class QnA 게시판으로 문의 부탁드립니다."
+    )

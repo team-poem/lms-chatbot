@@ -24,6 +24,7 @@ def _make_config(raw_dir: Path, tmp: Path) -> AppConfig:
         logs_db_path=tmp / "logs.db",
         assets_dir=tmp / "assets",
         raw_dir=raw_dir,
+        nodes_overlay_path=tmp / "nodes.overlay.json",
         port=8080,
     )
 

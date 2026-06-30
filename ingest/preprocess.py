@@ -24,6 +24,9 @@ _ASIDE_OPEN = re.compile(r"<aside>\s*", flags=re.IGNORECASE)
 _ASIDE_CLOSE = re.compile(r"\s*</aside>", flags=re.IGNORECASE)
 _HR_LINE = re.compile(r"^\s*-{3,}\s*$", flags=re.MULTILINE)
 _MULTI_BLANK = re.compile(r"\n{3,}")
+# 파일명·목차 라벨에서 장식 이모지가 제거되고 남는 빈 괄호 '()' 제거용.
+# chunk(derive_title)와 generation/catalog(_clean_doc_label)가 공유한다.
+_EMPTY_PARENS_RE = re.compile(r"\s*\(\s*\)\s*")
 # FAQ DATABASE md 전용 메타헤더 4종(메뉴명/시기/연번/태그)을 라인 단위로 제거.
 # 이 라벨들은 data/raw 전체에서 FAQ DATABASE 폴더의 본문 상단에만 라인 시작으로
 # 존재함이 확인됨. 본문에 들어가면 답변 대신 분류용 메타데이터가 노출된다(#24).
@@ -34,6 +37,10 @@ _META_HEADER_RE = re.compile(
 
 def strip_emoji(text: str) -> str:
     return _EMOJI_RE.sub("", text)
+
+
+def strip_empty_parens(text: str) -> str:
+    return _EMPTY_PARENS_RE.sub(" ", text)
 
 
 def clean_markdown(src: str) -> str:

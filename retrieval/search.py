@@ -5,11 +5,7 @@ from index.bm25 import query_bm25
 from index.vector_store import get_collection, query_embed
 from rag.state import RagState
 from retrieval.hybrid import combine_scores
-
-
-TOP_K = 5
-EMBED_K = 20
-BM25_K = 20
+from tuning import BM25_K, EMBED_K, TOP_K
 
 
 def _chunk_from_meta(cid: str, doc: str, meta: dict) -> Chunk:
@@ -54,3 +50,26 @@ def hybrid_search(
         doc, meta = meta_by_id[cid]
         items.append(ScoredChunk(chunk=_chunk_from_meta(cid, doc, meta), score=score))
     return Retrieval(items=tuple(items), top_score=merged[0][1], max_embed_sim=max_embed_sim)
+
+
+def doc_image_refs(state: RagState, doc_title: str, *, manual: str = "") -> tuple[str, ...]:
+    """문서(doc_title)의 모든 섹션 image_refs 를 seq 순으로 모은다(중복 제거).
+    manual 지정 시 동명 문서가 다른 매뉴얼에 있어도 섞이지 않게 함께 필터한다.
+    조회 실패/빈 doc_title 이면 빈 튜플 — 컨텍스트 청크 이미지로의 폴백은 호출부
+    (generation) 책임."""
+    refs: list[str] = []
+    try:
+        if doc_title:
+            where = {"doc_title": doc_title}
+            if manual:
+                where = {"$and": [{"doc_title": doc_title}, {"manual": manual}]}
+            res = get_collection(state.chroma).get(where=where, include=["metadatas"])
+            metas = list(res.get("metadatas") or [])
+            metas.sort(key=lambda m: int(m.get("seq", 0) or 0))
+            for m in metas:
+                for img in (m.get("image_refs") or "").split(","):
+                    if img and img not in refs:
+                        refs.append(img)
+    except Exception:
+        return ()
+    return tuple(refs)

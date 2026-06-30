@@ -6,6 +6,8 @@ from pathlib import Path
 import pandas as pd
 
 from app_types import Chunk, DocSet
+from ingest.preprocess import strip_emoji, strip_empty_parens
+from tuning import CHUNK_MAX_CHARS, CHUNK_OVERLAP
 
 
 # 이미지 경로에 괄호가 들어갈 수 있다 — Notion 폴더명 '... (📄)' 가 URL 인코딩돼도
@@ -15,8 +17,6 @@ _IMG_RE = re.compile(r"!\[[^\]]*\]\(((?:[^()]|\([^()]*\))*)\)")
 # H2·H3 헤딩으로 섹션 분할. H1(#)은 페이지 제목이라 분할 대상이 아니다.
 _HEADING_RE = re.compile(r"^(#{2,3})\s+(.+)$", flags=re.MULTILINE)
 _H1_LINE_RE = re.compile(r"^#\s+.*$", flags=re.MULTILINE)
-_MAX_CHARS = 3000  # 임베더(BGE-M3, max_seq=1024)에 안전하게 들어가는 한국어 청크 상한
-_OVERLAP = 200    # 분할 시 청크간 겹침
 
 
 def _hash_id(*parts: str) -> str:
@@ -60,39 +60,37 @@ def _has_meaningful_preamble(preamble: str) -> bool:
 
 
 def _split_long(text: str) -> list[str]:
-    """문자 길이 _MAX_CHARS 를 넘는 본문을 약간 겹침을 주며 분할."""
-    if len(text) <= _MAX_CHARS:
+    """문자 길이 CHUNK_MAX_CHARS 를 넘는 본문을 약간 겹침을 주며 분할."""
+    if len(text) <= CHUNK_MAX_CHARS:
         return [text]
     parts: list[str] = []
     start = 0
     while start < len(text):
-        end = min(start + _MAX_CHARS, len(text))
+        end = min(start + CHUNK_MAX_CHARS, len(text))
         # 줄바꿈 경계에서 자르기
         if end < len(text):
             nl = text.rfind("\n", start, end)
-            if nl > start + _MAX_CHARS // 2:
+            if nl > start + CHUNK_MAX_CHARS // 2:
                 end = nl
         parts.append(text[start:end])
         if end >= len(text):
             break
-        start = max(end - _OVERLAP, start + 1)
+        start = max(end - CHUNK_OVERLAP, start + 1)
     return parts
 
 
-_EMPTY_PARENS_RE = re.compile(r"\s*\(\s*\)\s*")
 _PAGE_ID_RE = re.compile(r"\s([0-9a-f]{32})$")
 
 
-def _derive_title(path: Path) -> str:
+def derive_title(path: Path) -> str:
     name = path.stem
     parts = name.rsplit(" ", 1)
     if len(parts) == 2 and len(parts[1]) >= 16:
         name = parts[0]
     # 파일명에 있던 (📄) 같은 장식 이모지가 preprocess 단계에서 사라지고
     # () 빈 괄호만 남는 경우가 흔함 — 제거하고 공백 정리.
-    from ingest.preprocess import strip_emoji
     name = strip_emoji(name)
-    name = _EMPTY_PARENS_RE.sub(" ", name)
+    name = strip_empty_parens(name)
     return name.strip()
 
 
@@ -113,7 +111,7 @@ def chunk_markdown_file(
     section_path: list[str],
 ) -> list[Chunk]:
     text = path.read_text(encoding="utf-8")
-    title = _derive_title(path)
+    title = derive_title(path)
     source = str(path)
     notion_url = _extract_notion_url(path)
 
@@ -145,7 +143,7 @@ def chunk_markdown_file(
 
     matches = list(_HEADING_RE.finditer(text))
     # 헤딩이 2개 미만이면 분할하지 않는다(단순 페이지 과편화 방지).
-    # 본문이 _MAX_CHARS 를 넘으면 _emit 내부의 _split_long 이 글자 기준으로 처리.
+    # 본문이 CHUNK_MAX_CHARS 를 넘으면 _emit 내부의 _split_long 이 글자 기준으로 처리.
     if len(matches) < 2:
         return _emit("0", title, text)
 
@@ -165,7 +163,7 @@ def chunk_markdown_file(
 def chunk_csv_file(path: Path, *, doc_set: DocSet) -> list[Chunk]:
     df = pd.read_csv(path)
     source = str(path)
-    base_title = f"FAQ — {_derive_title(path)}"
+    base_title = f"FAQ — {derive_title(path)}"
     notion_url = _extract_notion_url(path)
     chunks: list[Chunk] = []
     for i, row in df.iterrows():

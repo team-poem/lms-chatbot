@@ -5,7 +5,7 @@ import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict, is_dataclass
 
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -15,44 +15,35 @@ from config import load_config
 from db import store
 from generation.catalog import build_catalog
 from generation.faq import sample_for_entry, sample_questions
+from generation.nodes import build_registry, card_of, entry_payload, find_related
 from generation.stream import stream_response
 from rag.state import RagState, load_rag_state
+from retrieval.search import hybrid_search
 
 
 CONSENT_VERSION = "2026-05-26-v1"
 
 config = load_config()
-store.init_schema(config.logs_db_path)
-_state: RagState | None = None
 
 
 def _serialize_sse(evt: ChatEvent | dict) -> str:
-    """ChatEvent | dict → SSE 라인."""
-    if is_dataclass(evt):
-        payload: dict = {}
-        for k, v in asdict(evt).items():
-            if k == "sources":
-                payload[k] = [asdict(s) if is_dataclass(s) else s for s in evt.sources]
-            elif k == "images":
-                payload[k] = list(evt.images)
-            else:
-                payload[k] = v
-    else:
-        payload = evt
+    """ChatEvent | dict → SSE 라인. asdict 가 중첩 dataclass·tuple 을 재귀
+    변환하고 json.dumps 가 tuple 을 배열로 직렬화한다 (tests/test_sse.py 로 고정)."""
+    payload = asdict(evt) if is_dataclass(evt) else evt
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
-
-
-def _build_state_sync() -> None:
-    global _state
-    _state = load_rag_state(config)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    store.init_schema(config.logs_db_path)
     print("[startup] RagState 사전 로드 시작 (BGE-M3, 약 10~20초)...", flush=True)
     t0 = time.time()
-    await asyncio.to_thread(_build_state_sync)
+    app.state.rag = await asyncio.to_thread(load_rag_state, config)
     print(f"[startup] RagState 준비 완료 ({time.time() - t0:.1f}s)", flush=True)
+    app.state.nodes = await asyncio.to_thread(
+        build_registry, app.state.rag, overlay_path=config.nodes_overlay_path
+    )
+    print(f"[startup] 노드 레지스트리 {len(app.state.nodes.by_id)}개", flush=True)
     yield
 
 
@@ -109,6 +100,38 @@ def catalog():
     }
 
 
+@app.get("/entry")
+def entry(request: Request):
+    """첫 화면: 환영 + 카테고리 + 추천 FAQ + 빠른 링크. 공개(세션 불필요)."""
+    reg = getattr(request.app.state, "nodes", None)
+    if reg is None:
+        raise HTTPException(status_code=503, detail="서버 초기화 중입니다")
+    return entry_payload(reg, build_catalog())
+
+
+@app.get("/answer/{node_id}")
+def answer(node_id: str, request: Request):
+    """노드의 확정 답변 카드. 재검색·게이트·LLM 없음. 미존재 404."""
+    reg = getattr(request.app.state, "nodes", None)
+    if reg is None:
+        raise HTTPException(status_code=503, detail="서버 초기화 중입니다")
+    node = reg.by_id.get(node_id)
+    if node is None:
+        raise HTTPException(status_code=404, detail="없는 항목입니다")
+    return asdict(card_of(node))
+
+
+@app.get("/search")
+def search(request: Request, q: str = Query(..., min_length=1)):
+    """자유 입력 → 가장 가까운 노드 추천(생성 없음). 공개."""
+    reg = getattr(request.app.state, "nodes", None)
+    state = getattr(request.app.state, "rag", None)
+    if reg is None or state is None:
+        raise HTTPException(status_code=503, detail="서버 초기화 중입니다")
+    refs = find_related(hybrid_search(state, q).items, reg.by_id)
+    return {"candidates": [{"id": r.id, "label": r.label} for r in refs]}
+
+
 class ConsentBody(BaseModel):
     user_label: str | None = None
 
@@ -132,22 +155,23 @@ class ChatBody(BaseModel):
 
 
 @app.post("/chat")
-async def chat(body: ChatBody):
+async def chat(body: ChatBody, request: Request):
     if not store.get_session(config.logs_db_path, body.session_id):
         raise HTTPException(status_code=403, detail="동의 후 사용 가능합니다")
-    if _state is None:
+    state = getattr(request.app.state, "rag", None)
+    if state is None:
         raise HTTPException(status_code=503, detail="서버 초기화 중입니다")
-    return StreamingResponse(_chat_sse(body), media_type="text/event-stream")
+    return StreamingResponse(_chat_sse(state, body), media_type="text/event-stream")
 
 
-async def _chat_sse(body: ChatBody):
+async def _chat_sse(state: RagState, body: ChatBody):
     started = time.time()
     final_text = ""
     sources: tuple[Source, ...] = ()
     score = 0.0
     text_parts: list[str] = []
 
-    async for evt in stream_response(_state, body.query, manual=body.manual):
+    async for evt in stream_response(state, body.query, manual=body.manual):
         if evt.type == "text":
             text_parts.append(evt.delta)
         elif evt.type == "text_final":

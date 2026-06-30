@@ -16,6 +16,7 @@ class AppConfig:
     logs_db_path: Path
     assets_dir: Path
     raw_dir: Path
+    nodes_overlay_path: Path
     port: int
     admin_token: str | None = None
     qna_board_url: str = ""
@@ -33,6 +34,9 @@ def load_config() -> AppConfig:
         logs_db_path=Path(os.environ.get("LOGS_DB_PATH", "./data/logs/chat_logs.db")),
         assets_dir=Path(os.environ.get("ASSETS_DIR", "./data/assets")),
         raw_dir=Path(os.environ.get("RAW_DIR", "./data/raw")),
+        nodes_overlay_path=Path(
+            os.environ.get("NODES_OVERLAY_PATH", "./data/nodes.overlay.json")
+        ),
         port=int(os.environ.get("PORT", "8080")),
         # 관리자 로그 조회 토큰. 미설정이면 /admin/logs 는 비활성(404).
         admin_token=os.environ.get("ADMIN_TOKEN") or None,

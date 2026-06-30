@@ -1,0 +1,48 @@
+{
+  "name": "lms-chatbot",
+  "description": "LearningX LMS chatbot UI profile",
+  "selectors": {
+    "chatInput": {
+      "role": "textbox",
+      "nameIncludes": "질문을 입력하십시오"
+    },
+    "consentAgreeButton": {
+      "role": "button",
+      "nameIncludes": "동의하고 시작"
+    },
+    "consentLabelInput": {
+      "role": "textbox",
+      "excludeNameIncludes": ["질문을 입력하십시오"]
+    },
+    "answerDoneText": "이 응답이 도움이 되었습니까?"
+  },
+  "quality": {
+    "ignoreSeo": true,
+    "ignoreFavicon404": true,
+    "lighthouseFailBelow": 0.8,
+    "lighthouseWarnBelow": 0.9
+  },
+  "scenarios": [
+    {
+      "type": "consent",
+      "name": "consent-flow",
+      "label": "qa-devtools"
+    },
+    {
+      "type": "question",
+      "name": "basic-question",
+      "text": "퀴즈 출제하는 방법을 알려줘"
+    },
+    {
+      "type": "empty-input",
+      "name": "empty-input-guard",
+      "text": "   "
+    },
+    {
+      "type": "question",
+      "name": "mobile-basic-question",
+      "text": "모바일에서 출석 확인 방법 알려줘",
+      "viewport": "390x844x2,mobile,touch"
+    }
+  ]
+}

@@ -1,11 +1,7 @@
 from pathlib import Path
 
-from generation.faq import (
-    ENTRY_MAX,
-    ENTRY_MIN,
-    parse_questions,
-    pick,
-)
+from generation.faq import faq_answer, parse_questions, pick
+from tuning import FAQ_ENTRY_MAX, FAQ_ENTRY_MIN
 
 
 def _write_csv(tmp_path: Path, rows: str) -> Path:
@@ -54,4 +50,18 @@ def test_pick_empty_pool():
 
 
 def test_entry_range_is_sane():
-    assert 1 <= ENTRY_MIN <= ENTRY_MAX
+    assert 1 <= FAQ_ENTRY_MIN <= FAQ_ENTRY_MAX
+
+
+def test_faq_answer_extracts_answer_only():
+    text = "# 블루프린트 동기화가 안돼요?\n\n **답변** : 연결된 주차 삭제 시 동기화가 안 됩니다. 복원하세요.\n"
+    assert faq_answer(text) == "연결된 주차 삭제 시 동기화가 안 됩니다. 복원하세요."
+
+
+def test_faq_answer_strips_image_and_keeps_link_phrase():
+    text = ("# 문의는 어디에?\n\n **답변** : 문의는 Q&A 게시판으로 남겨주세요.\n\n"
+            "- 메인 페이지 : Q&A 바로가기\n\n![image.png](/assets/x.png)\n")
+    out = faq_answer(text)
+    assert "![" not in out
+    assert "Q&A 바로가기" in out
+    assert out.startswith("문의는 Q&A 게시판으로 남겨주세요.")

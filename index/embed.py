@@ -3,14 +3,13 @@ import os
 
 from sentence_transformers import SentenceTransformer
 
-
-_MAX_SEQ_LEN = 1024  # CPU 추론 안전선 (BGE-M3 spec은 8192이나 메모리 폭주 방지)
+from tuning import EMBED_MAX_SEQ_LEN
 
 
 def load_embedder(model_name: str | None = None) -> SentenceTransformer:
     name = model_name or os.environ.get("EMBED_MODEL", "BAAI/bge-m3")
     model = SentenceTransformer(name)
-    model.max_seq_length = _MAX_SEQ_LEN
+    model.max_seq_length = EMBED_MAX_SEQ_LEN
     return model
 
 
