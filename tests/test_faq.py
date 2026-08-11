@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from generation.faq import faq_answer, parse_questions, pick
+from generation.faq import _find_faq_csv, faq_answer, parse_questions, pick
 from tuning import FAQ_ENTRY_MAX, FAQ_ENTRY_MIN
 
 
@@ -65,3 +65,24 @@ def test_faq_answer_strips_image_and_keeps_link_phrase():
     assert "![" not in out
     assert "Q&A 바로가기" in out
     assert out.startswith("문의는 Q&A 게시판으로 남겨주세요.")
+
+
+def test_find_faq_csv_prefers_all_suffix(tmp_path):
+    """뷰별 CSV 는 필터가 걸린 부분집합일 수 있어 전체(_all)가 우선이다."""
+    (tmp_path / "LMS FAQ DATABASE view.csv").write_text("FAQ\n일부\n", encoding="utf-8-sig")
+    (tmp_path / "LMS FAQ DATABASE abc_all.csv").write_text("FAQ\n전체\n", encoding="utf-8-sig")
+    assert _find_faq_csv(tmp_path).name.endswith("_all.csv")
+
+
+def test_find_faq_csv_falls_back_without_all_suffix(tmp_path):
+    """HTML export 에는 `_all.csv` 가 없다. 폴백이 없으면 첫 진입 FAQ 칩이
+    조용히 통째로 비어버린다(실제로 겪은 회귀)."""
+    (tmp_path / "LMS FAQ DATABASE 3560163e.csv").write_text("FAQ\n질문\n", encoding="utf-8-sig")
+    found = _find_faq_csv(tmp_path)
+    assert found is not None
+    assert parse_questions(found) == ("질문",)
+
+
+def test_find_faq_csv_returns_none_when_absent(tmp_path):
+    # 없으면 첫 진입 제안만 graceful 하게 생략된다(예외 아님).
+    assert _find_faq_csv(tmp_path) is None

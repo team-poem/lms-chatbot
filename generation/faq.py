@@ -15,7 +15,12 @@ from tuning import FAQ_ENTRY_MAX, FAQ_ENTRY_MIN
 # FAQ DATABASE CSV 의 질문 컬럼명(Notion export 헤더).
 _FAQ_COLUMN = "FAQ"
 # Notion export 파일명은 재export 시 해시가 바뀌므로 고정 경로 대신 패턴으로 찾는다.
-_FAQ_CSV_GLOB = "**/*FAQ DATABASE*_all.csv"
+# '_all' 쪽을 먼저 본다 — Notion 이 데이터베이스를 내보내면 뷰별 CSV(필터가 걸린
+# 부분집합)와 전체 행이 담긴 `_all.csv` 가 함께 나오므로 전체 쪽이 옳다.
+# 다만 **HTML export 에는 `_all.csv` 가 없다**(그 이름은 "Markdown & CSV" 형식에서만
+# 나온다). 못 찾으면 `_all` 없는 CSV 로 물러선다 — 이 폴백이 없으면 HTML export 로
+# 인덱싱한 배포에서 첫 진입 FAQ 칩이 조용히 통째로 비어버린다.
+_FAQ_CSV_GLOBS = ("**/*FAQ DATABASE*_all.csv", "**/*FAQ DATABASE*.csv")
 
 
 _FAQ_LABEL_RE = re.compile(r"\*{0,2}\s*답변\s*\*{0,2}\s*[:：]\s*")
@@ -47,8 +52,11 @@ def parse_questions(csv_path: Path) -> tuple[str, ...]:
 
 
 def _find_faq_csv(raw_dir: Path) -> Path | None:
-    matches = sorted(raw_dir.glob(_FAQ_CSV_GLOB))
-    return matches[0] if matches else None
+    for pattern in _FAQ_CSV_GLOBS:
+        matches = sorted(raw_dir.glob(pattern))
+        if matches:
+            return matches[0]
+    return None
 
 
 @lru_cache(maxsize=1)
