@@ -13,6 +13,7 @@ from ingest.chunk import (chunk_csv_file, chunk_markdown_file, derive_title,
                           is_contentful)
 from ingest.extract import (collect_csv, collect_images, collect_markdown,
                             copy_assets, unzip_all_recursive)
+from ingest.html_to_md import convert_html_files
 from ingest.preprocess import clean_markdown
 
 
@@ -115,6 +116,12 @@ def run_ingest(config: AppConfig, *, log: Callable[[str], None] = print) -> Inge
 
     log(f"[1/5] zip 재귀 풀기: {raw_dir}")
     unzip_all_recursive(raw_dir)
+    # Notion 이 HTML 로 내보낸 export 를 md 로 맞춰 둔다. 같은 이름의 .md 가 이미
+    # 있으면(=진짜 Markdown export) 건드리지 않으므로, 두 형식이 섞여 있어도
+    # 원본 쪽이 항상 이긴다. 이 뒤 단계는 형식을 알 필요가 없다.
+    converted = convert_html_files(raw_dir)
+    if converted:
+        log(f"    HTML → Markdown 변환: {converted}개")
 
     log("[2/5] assets 복사 + [3/5] 청크 생성")
     all_chunks = collect_chunks(config, log=log)
