@@ -25,16 +25,36 @@ _FAQ_CSV_GLOBS = ("**/*FAQ DATABASE*_all.csv", "**/*FAQ DATABASE*.csv")
 
 _FAQ_LABEL_RE = re.compile(r"\*{0,2}\s*답변\s*\*{0,2}\s*[:：]\s*")
 _MD_IMG_RE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
+_MD_BOLD_RE = re.compile(r"\*\*")
 
 
-def faq_answer(text: str) -> str:
-    """FAQ 문서 본문에서 '답변' 텍스트만 추출한다. FAQ 는 사람이 작성한 정답이라
-    gemma 로 재생성하면 질문 되풀이·원인 누락 등 손실이 생겨, 원문을 그대로 쓴다.
-    제목('# 질문') 줄·'답변 :' 라벨·이미지 마크다운(이미지는 별도 영역)을 제거한다."""
+def plain_answer(text: str) -> str:
+    """문서 본문을 화면에 그대로 띄울 평문으로 정리한다.
+
+    프론트는 마크다운을 파싱하지 않는다 — `ui.setAnswerText` 가 escapeHtml 후
+    innerHTML 에 넣으므로, 남은 마커는 렌더링되지 않고 **문자 그대로** 보인다.
+    그래서 표시에 기여하지 않는 마커는 여기서 걷어낸다.
+
+      - 제목('# …') 줄: 카드가 question 을 따로 보여줘 중복이다
+      - 이미지 마크다운: 이미지는 card.images 로 별도 렌더된다. 남기면
+        '![](/assets/Untitled.png)' 가 본문에 문자로 노출된다
+      - 강조 '**': 평문 화면에선 별표 두 개로만 보인다
+
+    표 구분자('|')는 남긴다 — 평문으로도 열 구분이 읽히고, 대안(공백 정렬)이
+    더 낫다는 근거가 없다."""
     body = "\n".join(
         ln for ln in text.splitlines() if not ln.lstrip().startswith("#")
     )
     body = _MD_IMG_RE.sub("", body)
+    body = _MD_BOLD_RE.sub("", body)
+    return re.sub(r"\n{3,}", "\n\n", body).strip()
+
+
+def faq_answer(text: str) -> str:
+    """FAQ 본문에서 '답변' 텍스트만 뽑는다. FAQ 는 사람이 쓴 정답이라 LLM 으로
+    재생성하면 질문 되풀이·원인 누락 등 손실이 생겨 원문을 그대로 쓴다.
+    평문 정리(plain_answer)에 더해 '답변 :' 라벨 한 번을 떼어낸다."""
+    body = plain_answer(text)
     body = _FAQ_LABEL_RE.sub("", body, count=1)
     return re.sub(r"\n{3,}", "\n\n", body).strip()
 

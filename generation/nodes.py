@@ -12,7 +12,7 @@ from typing import Iterable
 
 from app_types import AnswerCard, Chunk, NodeLink, NodeRef, ScoredChunk, Source
 from generation.catalog import Manual, build_catalog
-from generation.faq import faq_answer
+from generation.faq import faq_answer, plain_answer
 from index.vector_store import get_collection
 from ingest.preprocess import strip_emoji
 from rag.state import RagState
@@ -110,7 +110,9 @@ def build_nodes(chunks: list[Chunk], catalog: tuple[Manual, ...]) -> dict[str, N
                     id=nid, category=cat.name, category_id=cid,
                     manual=manual.name, doc_set="guide",
                     label=doc["doc_title"], doc_title=doc["doc_title"],
-                    answer=doc["text"], images=doc["images"],
+                    # 원문 그대로 두면 '#'·'**'·'![](…)' 가 화면에 문자로 노출된다
+                    # — 프론트가 마크다운을 파싱하지 않는다(faq.plain_answer 참조).
+                    answer=plain_answer(doc["text"]), images=doc["images"],
                     sources=(Source(title=doc["doc_title"], url=doc["notion_url"]),),
                     parent=NodeRef(id=cid, label=cat.name),
                 )
