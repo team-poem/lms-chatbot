@@ -177,13 +177,16 @@ class ChatBody(BaseModel):
 async def chat(body: ChatBody, request: Request):
     if not store.get_session(config.logs_db_path, body.session_id):
         raise HTTPException(status_code=403, detail="동의 후 사용 가능합니다")
-    # 세션 확인 뒤, 스트림을 열기 전에 상한을 본다 — 여기를 통과하면 Gemini 과금이다.
-    decision = limiter.check_chat(body.session_id)
-    if not decision.allowed:
-        raise _too_many(decision)
+    # 503(초기화 중)을 상한보다 먼저 본다 — 여기서 돌려보내는 요청은 Gemini 를
+    # 한 번도 부르지 않으므로 쿼터를 깎으면 안 된다. 부팅 직후 요청이 몰리면
+    # 헛되이 일일 상한을 태우게 된다.
     state = getattr(request.app.state, "rag", None)
     if state is None:
         raise HTTPException(status_code=503, detail="서버 초기화 중입니다")
+    # 이 지점을 통과하면 실제로 Gemini 과금이 일어난다.
+    decision = limiter.check_chat(body.session_id)
+    if not decision.allowed:
+        raise _too_many(decision)
     return StreamingResponse(_chat_sse(state, body), media_type="text/event-stream")
 
 
