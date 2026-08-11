@@ -1,5 +1,10 @@
-from rag.state import RagState
-from config import load_config
+from pathlib import Path
+
+import pytest
+
+from config import AppConfig, load_config
+from generation.llm import GEMINI, LLMConfig
+from rag.state import RagState, build_llm_config
 
 
 def test_qna_board_url_from_env(monkeypatch):
@@ -30,6 +35,42 @@ def test_qna_contact_defaults_empty_no_phone(monkeypatch):
 def test_ragstate_carries_qna_contact():
     st = RagState(
         embedder=None, chroma=None, bm25=None,
-        ollama_host="h", ollama_model="m", qna_contact="c",
+        llm=LLMConfig(provider="ollama", model="m", host="h"), qna_contact="c",
     )
     assert st.qna_contact == "c"
+
+
+def test_llm_provider_defaults_to_gemini(monkeypatch):
+    monkeypatch.delenv("LLM_PROVIDER", raising=False)
+    monkeypatch.setattr("config.load_dotenv", lambda *a, **k: None)
+    assert load_config().llm_provider == GEMINI
+
+
+def _config(**kw) -> AppConfig:
+    base = dict(
+        ollama_host="http://localhost:11434", ollama_model="gemma3:4b",
+        embed_model="BAAI/bge-m3", chroma_dir=Path("."), bm25_path=Path("."),
+        logs_db_path=Path("."), assets_dir=Path("."), raw_dir=Path("."),
+        nodes_overlay_path=Path("."), port=8080,
+    )
+    return AppConfig(**{**base, **kw})
+
+
+def test_build_llm_config_picks_gemini_model():
+    cfg = build_llm_config(
+        _config(llm_provider=GEMINI, gemini_api_key="k", gemini_model="gemini-2.5-flash")
+    )
+    assert (cfg.provider, cfg.model, cfg.api_key) == (GEMINI, "gemini-2.5-flash", "k")
+
+
+def test_build_llm_config_picks_ollama_model():
+    cfg = build_llm_config(_config(llm_provider="ollama"))
+    assert (cfg.provider, cfg.model, cfg.host) == (
+        "ollama", "gemma3:4b", "http://localhost:11434"
+    )
+
+
+def test_build_llm_config_rejects_gemini_without_key():
+    # 부팅 때 잡지 않으면 첫 질문에서 401 → 게이트가 예외를 삼켜 '답이 빈다'로만 보인다.
+    with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
+        build_llm_config(_config(llm_provider=GEMINI, gemini_api_key=""))

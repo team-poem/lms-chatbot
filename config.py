@@ -21,6 +21,12 @@ class AppConfig:
     admin_token: str | None = None
     qna_board_url: str = ""
     qna_contact: str = ""
+    # 생성 백엔드 선택. 'gemini' 면 gemini_*, 'ollama' 면 ollama_* 를 쓴다.
+    # 임베딩은 이 값과 무관하게 항상 embed_model(로컬 BGE-M3)이다 — 벡터 공간을
+    # 바꾸면 기존 chroma 인덱스가 통째로 무효화되므로 생성만 교체한다.
+    llm_provider: str = "gemini"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
 
 
 def load_config() -> AppConfig:
@@ -49,4 +55,10 @@ def load_config() -> AppConfig:
         # 폴백 안내에 함께 노출할 문의처. 기본값은 비움 — 안내는 e-Class QnA 게시판만
         # 한다(전화번호 미노출). 필요 시 QNA_CONTACT 로 연락처를 덧붙일 수 있다.
         qna_contact=os.environ.get("QNA_CONTACT", ""),
+        # 기본은 gemini. 로컬 Ollama 로 되돌리려면 LLM_PROVIDER=ollama.
+        # 키 유무 검증은 여기서 하지 않는다 — 부팅 경로(rag.state.load_rag_state)에서
+        # 한 번에 잡는다. load_config 는 테스트가 환경변수만 보고 부르는 순수 로더다.
+        llm_provider=os.environ.get("LLM_PROVIDER", "gemini"),
+        gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
+        gemini_model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
     )

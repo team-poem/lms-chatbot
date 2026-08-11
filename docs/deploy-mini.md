@@ -5,14 +5,18 @@ LMS 챗봇을 맥미니에 도커로 배포하고 운영하는 절차서.
 ## 아키텍처
 ```
 [Mac mini]
-├── Ollama (native, brew install)   ← Metal GPU 가속
-│   └── gemma3:4b
 └── Docker
     └── lms-chatbot 컨테이너
         ├── FastAPI (port 8080)
-        ├── BGE-M3 임베딩 (이미지에 baked)
+        ├── BGE-M3 임베딩 (이미지에 baked, 로컬 추론)
+        ├── 답변 생성 → Gemini API (외부 호출)
         └── 데이터 디렉터리는 호스트에서 볼륨 마운트
 ```
+
+답변 생성이 Gemini API 로 넘어가면서 맥미니에 Ollama 를 띄울 필요가 없어졌다
+(2.1 절 삭제). 임베딩은 여전히 컨테이너 안에서 로컬로 돈다 — 인덱스 벡터 공간을
+바꾸지 않기 위해서다. 되돌리려면 `.env` 에 `LLM_PROVIDER=ollama` 를 넣고 아래
+"부록: Ollama 로 되돌리기" 를 따른다.
 
 ## 1회만 — 개발 머신 셋업
 
@@ -42,12 +46,9 @@ docker buildx version
 
 ## 1회만 — 맥미니 셋업
 
-### 2.1 Ollama
-```bash
-brew install ollama
-brew services start ollama
-ollama pull gemma3:4b      # 3.3GB, 1회만
-```
+### 2.1 Gemini API 키
+https://aistudio.google.com/apikey 에서 발급받아 2.4 의 `.env` 에 넣는다.
+맥미니에 별도 설치할 런타임은 없다.
 
 ### 2.2 Docker Desktop
 ```bash
@@ -76,6 +77,12 @@ mkdir -p ~/lms-chatbot && cd ~/lms-chatbot
 # 맥미니에서 빈 SQLite 로그 파일 생성:
 mkdir -p data
 touch data/chat_logs.db
+
+# compose 가 읽을 .env — 키는 이미지에 굽지 않고 여기서 주입한다
+cat > .env <<'EOF'
+GEMINI_API_KEY=<발급받은 키>
+EOF
+chmod 600 .env
 ```
 
 ### 2.5 실행
@@ -134,9 +141,23 @@ docker rmi ghcr.io/team-poem/lms-chatbot:latest  # 이미지 삭제
 
 | 증상 | 원인 / 해결 |
 |------|-------------|
-| `/chat` 호출 후 5분 무응답 + 404 | Ollama 가 안 떠 있음. `ollama list` 로 확인, `brew services restart ollama` |
-| `Connection refused` to ollama | `host.docker.internal` 매핑 실패. compose 의 `extra_hosts` 항목 유지 필요 |
+| 부팅 즉시 크래시 + `GEMINI_API_KEY 가 비어 있습니다` | `.env` 의 키 누락. compose 는 호스트 `.env` 를 읽는다 (`docker compose config` 로 주입 확인) |
+| 답변이 계속 비고 폴백 문구만 나옴 | Gemini 401/429. `docker compose logs` 확인 — 관련성 게이트는 예외를 삼키므로(통과 정책) 증상이 빈 답변으로만 보인다 |
 | 첫 부팅 후 `/health` 503 | BGE-M3 로드 중 (최대 2분). `start_period: 180s` 동안 unhealthy 정상 |
-| 응답이 느림 (>30초) | gemma3:4b 콜드 스타트. Ollama 의 `keep_alive` 기본 5분이라 이후엔 빠름 |
+| 응답이 느림 (>30초) | 네트워크 또는 Gemini 지연. `LLM_PROVIDER=ollama` 로 돌린 상태면 gemma3:4b 콜드 스타트(`keep_alive` 기본 5분) |
 | 디스크 부족 | `docker system prune -a -f` 로 옛 이미지 정리 |
 | 이미지 푸시 실패 (denied) | `docker login -u amazon7737` 재로그인. Docker Hub 계정 활성 상태 확인 |
+
+## 부록: Ollama 로 되돌리기
+
+외부 API 를 못 쓰는 상황(망 분리·비용)에서의 탈출구. 이미지 재빌드는 필요 없다.
+
+```bash
+brew install ollama && brew services start ollama
+ollama pull gemma3:4b                      # 3.3GB
+echo 'LLM_PROVIDER=ollama' >> ~/lms-chatbot/.env
+docker compose up -d
+```
+
+compose 의 `extra_hosts: host.docker.internal` 매핑이 이 경로에서만 쓰인다 — Gemini
+로 운영하더라도 항목은 지우지 말 것.

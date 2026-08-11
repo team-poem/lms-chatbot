@@ -25,7 +25,7 @@ _META_PATTERNS = [
     r"(?:모델|LLM|AI|인공지능)\s*(?:은|는|이|가)?\s*(?:어떻게\s*되|뭐(?:야|냐|예요|입니까)|무엇|뭣)",
     # 챗봇 사용법 묻기 ("LMS 챗봇은 어떻게 쓰", "이 챗봇 사용법" — 정작 대답할 가이드 없음)
     r"(?:이|본|해당|LMS)?\s*챗봇.{0,8}(?:어떻게\s*(?:쓰|사용|이용)|사용법|이용\s*방법)",
-    r"(?:gemma|gpt|claude|llama|qwen|ollama|RAG|벡터|임베딩|chroma)",
+    r"(?:gemma|gemini|제미나이|gpt|claude|llama|qwen|ollama|RAG|벡터|임베딩|chroma)",
     r"(?:학습\s*데이터|훈련\s*데이터|training\s*data)",
     r"(?:내부|동작|구조|원리|알고리즘|아키텍처).{0,10}(?:공개|알려|설명|보여|어떻게|뭐|무엇)",
     # jailbreak 시도

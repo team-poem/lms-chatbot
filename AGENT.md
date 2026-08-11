@@ -45,8 +45,14 @@
 
 ## 개발 워크플로
 - 가이드 업데이트 시: 새 export 를 `data/raw/` 에 넣고 `python -m ingest.cli` 재실행 (idempotent).
-- 모델 교체: `.env` 의 `OLLAMA_MODEL` 변경. 코드 수정 불필요 (`generation/stream.py` 는 RagState 경유로만 모델명을 받음).
-- 품질 튜닝(임계값·가중치·LLM 옵션): `tuning.py` 만 수정.
+- 모델 교체: `.env` 의 `GEMINI_MODEL`(또는 `OLLAMA_MODEL`) 변경. 코드 수정 불필요
+  (`generation/stream.py` 는 RagState 경유로 LLMConfig 만 받음).
+- 백엔드 교체: `.env` 의 `LLM_PROVIDER=gemini|ollama`. 분기는 `generation/llm.py` 한 곳.
+  백엔드를 추가하려면 어댑터 모듈(같은 시그니처의 `chat`/`chat_stream`) + `_adapter` 한 줄.
+- **임베딩은 백엔드와 무관하게 항상 로컬 `EMBED_MODEL`(BGE-M3)**. 바꾸면 벡터 공간이
+  달라져 기존 chroma 인덱스가 무효가 되므로 전체 재인덱싱이 강제된다.
+- 품질 튜닝(임계값·가중치·LLM 옵션): `tuning.py` 만 수정. 옵션 키는 Ollama 기준으로
+  두고 Gemini 쪽 변환은 `generation/gemini.to_generation_config` 가 맡는다.
 - 추후 GPU 서버 이전: `.env` 의 `OLLAMA_HOST` 만 변경.
 - 새 의존성 추가 시 `requirements.txt` 갱신 후 PR 에 이유 명시.
 
@@ -57,7 +63,8 @@
 - `ingest/` 정제된 청크까지. 임베딩은 하지 않음
 - `index/` 임베딩 + BM25 인덱스 빌드/저장
 - `retrieval/` 인덱스에서 검색만 (hybrid_search, doc_image_refs)
-- `generation/` 검색 결과 + LLM 결합 + 후처리 (ollama.py 가 HTTP 클라이언트)
+- `generation/` 검색 결과 + LLM 결합 + 후처리 (`llm.py` 가 백엔드 분기,
+  `gemini.py`·`ollama.py` 가 HTTP 클라이언트 — 시그니처 동일)
 - `rag/` RagState 정의·로드 (서버가 기동 시 1회)
 - `db/` SQLite 스키마와 DAO
 - `qa/devtools-profiles/` LMS 전용 DevTools QA 프로파일 (`devtools-qa-runner`는 `file:../devtools-qa-runner` 패키지로 소비)

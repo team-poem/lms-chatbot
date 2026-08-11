@@ -75,7 +75,9 @@ COPY static ./static
 
 RUN mkdir -p data/raw data/assets data/chroma data/logs
 
-ENV OLLAMA_HOST=http://host.docker.internal:11434 \
+ENV LLM_PROVIDER=gemini \
+    GEMINI_MODEL=gemini-2.5-flash \
+    OLLAMA_HOST=http://host.docker.internal:11434 \
     OLLAMA_MODEL=gemma3:4b \
     EMBED_MODEL=BAAI/bge-m3 \
     CHROMA_DIR=/app/data/chroma \

@@ -5,7 +5,7 @@ from app_types import ChatEvent, Source
 from generation.faq import faq_answer
 from generation.filters import clean_response, streaming_clean
 from generation.guardrail import is_meta_question
-from generation.ollama import chat_stream
+from generation.llm import chat_stream
 from generation.persona import FALLBACK_MARK, build_prompt, qna_fallback_msg
 from generation.relevance import doc_answers_question
 from rag.state import RagState
@@ -103,19 +103,20 @@ async def stream_response(
     # 관련성 게이트: 점수 1위가 정규화상 높아도 매뉴얼 밖 질문일 수 있다(예: '주차장'이
     # '과목 복사' 문서에 0.57로 매칭). 임베딩 바닥으론 못 거른다. 단 강한 매칭
     # (임베딩 ≥ ABS_EMBED_CONFIDENT)은 검색이 확실히 맞춘 것이라 게이트를 건너뛴다 —
-    # 애매 구간에서만 1위 문서가 실제로 답하는지 gemma 이진 판정을 받아 '아니오'면
+    # 애매 구간에서만 1위 문서가 실제로 답하는지 LLM 이진 판정을 받아 '아니오'면
     # 폴백한다. (LLM 오류 시 None → 통과: 답을 막지 않는다.)
     primary = relevant[0].chunk
     if retrieval.max_embed_sim < ABS_EMBED_CONFIDENT and await doc_answers_question(
-        state.ollama_host, state.ollama_model, query, primary.title, primary.text
+        state.llm, query, primary.title, primary.text
     ) is False:
         for evt in fallback_events(qna_fallback_msg(state.qna_contact), score=top_score):
             yield evt
         return
 
-    # FAQ 직출력: 추천 질문 등 FAQ 문서는 사람이 쓴 정답을 그대로 내보낸다(gemma
+    # FAQ 직출력: 추천 질문 등 FAQ 문서는 사람이 쓴 정답을 그대로 내보낸다(LLM
     # 우회). gemma:4b 가 짧은 FAQ 정답을 질문 되풀이·원인 누락으로 망가뜨리던 문제를
-    # 차단한다. 가이드 문서는 길어 종전대로 gemma 가 생성한다.
+    # 차단한다. 사람이 쓴 정답을 다시 쓸 이유가 없으므로 백엔드와 무관하게 유지한다.
+    # 가이드 문서는 길어 종전대로 LLM 이 생성한다.
     if primary.doc_set == "faq":
         answer = faq_answer(primary.text)
         yield ChatEvent(type="text", delta=answer)
@@ -136,8 +137,7 @@ async def stream_response(
 
     raw_buf = ""
     async for delta in chat_stream(
-        state.ollama_host,
-        state.ollama_model,
+        state.llm,
         messages,
         options=GEN_OPTIONS,
         timeout=GEN_TIMEOUT_S,
