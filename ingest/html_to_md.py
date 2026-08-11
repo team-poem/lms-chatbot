@@ -48,6 +48,15 @@ class _NotionHTMLParser(HTMLParser):
 
     # ── 출력 헬퍼 ──────────────────────────────────────────────────────
     def _emit(self, text: str) -> None:
+        # 불릿 마커는 '첫 출력 직전'에 flush 한다. handle_data 에서만 붙이면
+        # <li><strong>… 처럼 태그가 먼저 열리는 항목에서 '**' 가 마커보다 앞서
+        # 나가 '**- 굵게**' 가 된다(실제 12개 문서에서 발생).
+        if self._pending_marker is not None:
+            marker, self._pending_marker = self._pending_marker, None
+            if self._cell is not None:
+                self._cell.append(marker)
+            else:
+                self.out.append(marker)
         if self._cell is not None:
             self._cell.append(text)
         else:
@@ -156,6 +165,9 @@ class _NotionHTMLParser(HTMLParser):
                 self._ol_index.pop()
             self._newline()
         elif tag == "li":
+            # 내용이 비어 마커가 안 나갔으면 여기서 버린다. 안 그러면 리스트가
+            # 닫힌 뒤 다음 문단에 붙어 바깥 문단이 불릿으로 둔갑한다.
+            self._pending_marker = None
             self._newline()
         elif tag in _BLOCKS:
             self._newline(2)
@@ -177,9 +189,6 @@ class _NotionHTMLParser(HTMLParser):
             if self._cell is not None and data.strip() == "" and data:
                 self._cell.append(" ")
             return
-        if self._pending_marker is not None:
-            self._emit(self._pending_marker)
-            self._pending_marker = None
         self._emit(data)
 
     def handle_startendtag(self, tag: str, attrs) -> None:

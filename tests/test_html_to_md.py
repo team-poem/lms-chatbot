@@ -124,3 +124,20 @@ def test_italic_marker_dropped_to_avoid_literal_asterisk_clash():
 
     # ** 는 faq_answer 가 '답변' 라벨을 떼는 데 쓰므로 살아 있어야 한다.
     assert "**답변**" in html_to_markdown("<p><strong>답변</strong></p>")
+
+
+def test_bullet_marker_precedes_inline_tags():
+    """<li><strong>… 처럼 태그가 먼저 열리는 항목에서 마커가 강조 안으로 들어가면
+    안 된다('**- 굵게**'). 실제 12개 문서에서 나던 형태다."""
+    assert html_to_markdown("<ul><li><strong>굵게</strong> 뒤</li></ul>").strip() == "- **굵게** 뒤"
+
+
+def test_empty_list_item_does_not_leak_marker():
+    """마커가 살아남으면 리스트 밖 문단이 불릿으로 둔갑한다."""
+    assert html_to_markdown("<ul><li></li></ul><p>바깥 문단</p>").strip() == "바깥 문단"
+    assert html_to_markdown("<ul><li>   </li></ul><p>바깥 문단</p>").strip() == "바깥 문단"
+    assert html_to_markdown('<ol start="3"><li></li></ol><p>다음</p>').strip() == "다음"
+
+
+def test_nested_list_indentation_preserved():
+    assert html_to_markdown("<ul><li>상위<ul><li>하위</li></ul></li></ul>").strip() == "- 상위\n  - 하위"
