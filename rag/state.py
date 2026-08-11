@@ -1,18 +1,18 @@
 from __future__ import annotations
 from dataclasses import dataclass
 
-from sentence_transformers import SentenceTransformer
-
 from config import AppConfig
 from generation.llm import GEMINI, LLMConfig
 from index.bm25 import BM25Pack, load_bm25
-from index.embed import load_embedder
+from index.embed import Embedder, build_embed_config, load_embedder
 from index.vector_store import get_chroma_client
 
 
 @dataclass(frozen=True)
 class RagState:
-    embedder: SentenceTransformer
+    # SentenceTransformer 로 좁히지 않는다 — gemini 임베딩 백엔드에선 torch 가
+    # 아예 올라오지 않는데, 여기서 그 타입을 참조하면 임포트가 되살아난다.
+    embedder: Embedder
     chroma: object  # chromadb.api.ClientAPI — 외부 타입 직접 노출 회피
     bm25: BM25Pack
     llm: LLMConfig
@@ -44,7 +44,11 @@ def build_llm_config(config: AppConfig) -> LLMConfig:
 
 def load_rag_state(config: AppConfig) -> RagState:
     return RagState(
-        embedder=load_embedder(config.embed_model),
+        # EMBED_PROVIDER 로 갈린다. 기본 local(BGE-M3)이라 기존 배포는 그대로다.
+        # 모델명은 build_embed_config 가 백엔드별로 알맞은 환경변수(EMBED_MODEL /
+        # GEMINI_EMBED_MODEL)에서 읽는다 — config.embed_model 을 넘기면 gemini
+        # 모드에서 모델명이 'BAAI/bge-m3' 로 덮인다.
+        embedder=load_embedder(build_embed_config()),
         chroma=get_chroma_client(config.chroma_dir),
         bm25=load_bm25(config.bm25_path),
         llm=build_llm_config(config),

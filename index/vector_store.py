@@ -2,10 +2,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import chromadb
-from sentence_transformers import SentenceTransformer
 
 from app_types import Chunk
-from index.embed import encode_texts
+from index.embed import DOCUMENT, QUERY, Embedder, encode_texts
 
 
 _COLLECTION = "lms_chunks"
@@ -48,27 +47,28 @@ def _chunk_meta(c: Chunk) -> dict:
     }
 
 
-def upsert_chunks(client, model: SentenceTransformer, chunks: list[Chunk]) -> None:
+def upsert_chunks(client, model: Embedder, chunks: list[Chunk]) -> None:
     if not chunks:
         return
     coll = get_collection(client)
     ids = [c.chunk_id for c in chunks]
     docs = [c.text for c in chunks]
     metas = [_chunk_meta(c) for c in chunks]
-    vecs = encode_texts(model, docs)
+    vecs = encode_texts(model, docs, kind=DOCUMENT)
     coll.upsert(ids=ids, documents=docs, metadatas=metas, embeddings=vecs)
 
 
 def query_embed(
     client,
-    model: SentenceTransformer,
+    model: Embedder,
     query: str,
     k: int = 20,
     *,
     manual: str | None = None,
 ) -> list[tuple[str, float]]:
     coll = get_collection(client)
-    qvec = encode_texts(model, [query])[0]
+    # 질의는 kind=QUERY — 비대칭 모델(gemini)에서 문서와 다른 지시문으로 인코딩된다.
+    qvec = encode_texts(model, [query], kind=QUERY)[0]
     # manual 지정 시 해당 매뉴얼 청크만 후보로(LMS↔CMS 하드 격리).
     where = {"manual": manual} if manual else None
     res = coll.query(query_embeddings=[qvec], n_results=k, where=where)
