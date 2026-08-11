@@ -100,3 +100,31 @@ def test_client_ip_prefers_forwarded_header():
     assert client_ip(_Req({"x-forwarded-for": "5.5.5.5, 10.0.0.1"})) == "5.5.5.5"
     assert client_ip(_Req()) == "9.9.9.9"
     assert client_ip(_Req(host="")) == "unknown"
+
+
+def test_counters_do_not_grow_without_bound():
+    """상시 가동 서버에서 세션 카운터가 무한히 쌓이면 안 된다. /purge 로만
+    정리되던 구조에서는 30일에 6000개가 남았다(대부분 사용자는 purge 를 부르지
+    않는다)."""
+    rl = RateLimiter(Limits(chat_per_session=100, consent_per_ip_hour=0, chat_per_day=0))
+    for day in range(30):
+        t = T0 + timedelta(days=day)
+        for i in range(200):
+            rl.check_chat(f"d{day}-s{i}", t)
+    assert len(rl._session_chats) == 200          # 마지막 하루치만
+
+    rl2 = RateLimiter(Limits(chat_per_session=0, consent_per_ip_hour=1000, chat_per_day=0))
+    for h in range(48):
+        t = T0 + timedelta(hours=h)
+        for i in range(50):
+            rl2.check_consent(f"10.0.0.{i}", t)
+    assert len(rl2._ip_consents) == 50            # 마지막 한 시간치만
+
+
+def test_session_cap_resets_next_day():
+    """버킷을 비우는 대가 — 하루 넘긴 세션은 카운터가 초기화된다. 돈을 지키는
+    것은 3층(일일 전체 상한)이므로 무방하다."""
+    rl = RateLimiter(Limits(chat_per_session=1, consent_per_ip_hour=0, chat_per_day=0))
+    assert rl.check_chat("s1", T0).allowed
+    assert not rl.check_chat("s1", T0).allowed
+    assert rl.check_chat("s1", T0 + timedelta(days=1)).allowed

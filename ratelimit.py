@@ -57,8 +57,13 @@ class RateLimiter:
     def __init__(self, limits: Limits | None = None):
         self.limits = limits or Limits()
         self._lock = threading.Lock()
+        # 카운터는 전부 시각 버킷에 묶어 두고, 버킷이 넘어가는 순간 옛것을 버린다.
+        # 이렇게 하지 않으면 상시 가동 서버에서 무한히 쌓인다 — 세션 카운터는
+        # /purge 를 부르는 사용자만 정리되는데 대부분 부르지 않는다.
         self._session_chats: dict[str, int] = {}
-        self._ip_consents: dict[tuple[str, str], int] = {}   # (ip, 시각버킷) → 수
+        self._session_day = ""                               # 위 dict 가 속한 KST 날짜
+        self._ip_consents: dict[str, int] = {}               # ip → 수
+        self._ip_hour = ""                                   # 위 dict 가 속한 시각 버킷
         self._day_chats: tuple[str, int] = ("", 0)           # (KST 날짜, 수)
 
     # ── 조회(부작용 없음) ─────────────────────────────────────────────
@@ -78,17 +83,19 @@ class RateLimiter:
         if self.limits.consent_per_ip_hour <= 0:
             return Decision(True)
         now = now or datetime.now(timezone.utc)
-        key = (ip, _hour_bucket(now))
+        bucket = _hour_bucket(now)
         with self._lock:
-            used = self._ip_consents.get(key, 0)
+            if bucket != self._ip_hour:      # 시각이 넘어갔다 — 통째로 버린다
+                self._ip_consents = {}
+                self._ip_hour = bucket
+            used = self._ip_consents.get(ip, 0)
             if used >= self.limits.consent_per_ip_hour:
                 return Decision(
                     False,
                     "잠시 후 다시 시도해 주세요. (동일 네트워크에서 접속이 많습니다)",
                     retry_after=_seconds_to_next_hour(now),
                 )
-            self._ip_consents[key] = used + 1
-            self._sweep_ip_buckets(key[1])
+            self._ip_consents[ip] = used + 1
         return Decision(True)
 
     def check_chat(self, session_id: str, now: datetime | None = None) -> Decision:
@@ -106,7 +113,11 @@ class RateLimiter:
                     retry_after=_seconds_to_next_kst_midnight(now),
                 )
 
-            # 1층: 세션당 질문 수
+            # 1층: 세션당 질문 수. 날짜가 넘어가면 통째로 버린다 — 하루를 넘긴
+            # 세션은 카운터가 초기화되지만, 돈을 지키는 것은 3층이라 무방하다.
+            if today != self._session_day:
+                self._session_chats = {}
+                self._session_day = today
             used = self._session_chats.get(session_id, 0)
             if self.limits.chat_per_session > 0 and used >= self.limits.chat_per_session:
                 return Decision(
@@ -122,16 +133,6 @@ class RateLimiter:
         """세션 삭제(/purge) 시 카운터도 정리한다."""
         with self._lock:
             self._session_chats.pop(session_id, None)
-
-    # ── 내부 ─────────────────────────────────────────────────────────
-    def _sweep_ip_buckets(self, current_bucket: str) -> None:
-        """지난 시각 버킷을 버린다. 호출부가 락을 잡은 상태에서만 부른다.
-        (버킷 키에 시각이 들어 있어 오래된 것은 다시 쓰이지 않는다.)"""
-        if len(self._ip_consents) < 10_000:
-            return
-        for key in [k for k in self._ip_consents if k[1] != current_bucket]:
-            del self._ip_consents[key]
-
 
 def _seconds_to_next_hour(now: datetime) -> int:
     nxt = (now.astimezone(KST) + timedelta(hours=1)).replace(
