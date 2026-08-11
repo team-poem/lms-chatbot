@@ -94,3 +94,33 @@ def test_convert_is_idempotent(tmp_path):
     (tmp_path / "a.html").write_text("<p>본문</p>", encoding="utf-8")
     assert convert_html_files(tmp_path) == 1
     assert convert_html_files(tmp_path) == 0
+
+
+def test_ordered_list_respects_notion_start_attribute():
+    """Notion 은 번호 항목마다 <ol start="N"> 을 따로 낸다. 무시하면 절차 문서의
+    단계 번호가 전부 '1.' 로 뭉개진다."""
+    html = (
+        '<ol start="1"><li>첫째</li></ol>'
+        '<ol start="2"><li>둘째</li></ol>'
+        '<ol start="3"><li>셋째</li></ol>'
+    )
+    md = html_to_markdown(html)
+    assert "1. 첫째" in md
+    assert "2. 둘째" in md
+    assert "3. 셋째" in md
+
+
+def test_ordered_list_without_start_begins_at_one():
+    md = html_to_markdown("<ol><li>가</li><li>나</li></ol>")
+    assert "1. 가" in md
+    assert "2. 나" in md
+
+
+def test_italic_marker_dropped_to_avoid_literal_asterisk_clash():
+    """본문에 확장자 표기('*vtt')처럼 리터럴 '*' 가 있으면 이탤릭 마커와 짝이
+    어긋나 문장이 깨진다. <em> 은 텍스트만 남기고, <strong> 은 유지한다."""
+    md = html_to_markdown("<p><em>※ 유형: *vtt, *srt</em></p>")
+    assert md.strip() == "※ 유형: *vtt, *srt"
+
+    # ** 는 faq_answer 가 '답변' 라벨을 떼는 데 쓰므로 살아 있어야 한다.
+    assert "**답변**" in html_to_markdown("<p><strong>답변</strong></p>")

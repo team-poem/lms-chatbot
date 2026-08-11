@@ -84,13 +84,25 @@ class _NotionHTMLParser(HTMLParser):
         elif tag in ("strong", "b"):
             self._emit("**")
         elif tag in ("em", "i"):
-            self._emit("*")
+            # 이탤릭 마커는 붙이지 않고 텍스트만 남긴다. 본문에 확장자 표기('*vtt,
+            # *smi, *srt')처럼 리터럴 '*' 가 섞여 있어 마커를 감싸면 짝이 어긋나
+            # 오히려 문장이 깨진다. 강조 자체는 답변 내용에 기여하지 않는다.
+            # <strong>(**)은 유지한다 — generation/faq.faq_answer 가 '**답변**'
+            # 라벨을 정규식으로 떼어내는 데 쓴다.
+            pass
         elif tag == "code":
             self._emit("`")
         elif tag in ("ul", "ol"):
             self._list_stack.append(tag)
             if tag == "ol":
-                self._ol_index.append(0)
+                # Notion 은 번호 항목을 하나씩 별개의 <ol> 로 감싸고 순번을 start 로
+                # 넘긴다(start="1", start="2", …). 이걸 무시하면 모든 항목이 '1.' 이
+                # 되어 절차 문서의 단계 번호가 통째로 뭉개진다.
+                try:
+                    start = int(attrs.get("start") or 1)
+                except ValueError:
+                    start = 1
+                self._ol_index.append(start - 1)
             self._newline()
         elif tag == "li":
             depth = max(0, len(self._list_stack) - 1)
@@ -134,7 +146,7 @@ class _NotionHTMLParser(HTMLParser):
         elif tag in ("strong", "b"):
             self._emit("**")
         elif tag in ("em", "i"):
-            self._emit("*")
+            pass  # 여는 쪽과 대칭 — 이탤릭 마커는 내지 않는다.
         elif tag == "code":
             self._emit("`")
         elif tag in ("ul", "ol"):
