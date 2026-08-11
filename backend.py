@@ -18,12 +18,28 @@ from generation.faq import sample_for_entry, sample_questions
 from generation.nodes import build_registry, card_of, entry_payload, find_related
 from generation.stream import stream_response
 from rag.state import RagState, load_rag_state
+from ratelimit import Limits, RateLimiter, client_ip
 from retrieval.search import hybrid_search
 
 
 CONSENT_VERSION = "2026-05-26-v1"
 
 config = load_config()
+
+# /chat 은 호출마다 Gemini 과금이고 /consent 는 인증 없이 세션을 발급한다.
+# 공개 배포에서 이 상한이 유일한 비용 방어선이다(설계 근거는 ratelimit.py).
+limiter = RateLimiter(
+    Limits(
+        chat_per_session=config.rl_chat_per_session,
+        consent_per_ip_hour=config.rl_consent_per_ip_hour,
+        chat_per_day=config.rl_chat_per_day,
+    )
+)
+
+
+def _too_many(decision) -> HTTPException:
+    headers = {"Retry-After": str(decision.retry_after)} if decision.retry_after else None
+    return HTTPException(status_code=429, detail=decision.reason, headers=headers)
 
 
 def _serialize_sse(evt: ChatEvent | dict) -> str:
@@ -137,7 +153,10 @@ class ConsentBody(BaseModel):
 
 
 @app.post("/consent")
-def consent(body: ConsentBody):
+def consent(body: ConsentBody, request: Request):
+    decision = limiter.check_consent(client_ip(request))
+    if not decision.allowed:
+        raise _too_many(decision)
     sid = store.new_session(
         config.logs_db_path,
         consent_version=CONSENT_VERSION,
@@ -158,6 +177,10 @@ class ChatBody(BaseModel):
 async def chat(body: ChatBody, request: Request):
     if not store.get_session(config.logs_db_path, body.session_id):
         raise HTTPException(status_code=403, detail="동의 후 사용 가능합니다")
+    # 세션 확인 뒤, 스트림을 열기 전에 상한을 본다 — 여기를 통과하면 Gemini 과금이다.
+    decision = limiter.check_chat(body.session_id)
+    if not decision.allowed:
+        raise _too_many(decision)
     state = getattr(request.app.state, "rag", None)
     if state is None:
         raise HTTPException(status_code=503, detail="서버 초기화 중입니다")
@@ -248,6 +271,17 @@ def admin_logs(
     }
 
 
+@app.get("/admin/usage")
+def admin_usage(
+    x_admin_token: str | None = Header(default=None),
+    token: str | None = Query(default=None),
+):
+    """오늘의 /chat 호출 수와 상한. 상한만 걸어두고 소진 여부를 볼 수단이 없으면
+    비용 사고를 사후에도 모른다. 카운터는 메모리라 재시작하면 0 이다."""
+    _require_admin(x_admin_token or token)
+    return limiter.snapshot()
+
+
 class PurgeBody(BaseModel):
     session_id: str
 
@@ -255,4 +289,5 @@ class PurgeBody(BaseModel):
 @app.post("/purge")
 def purge(body: PurgeBody):
     store.purge_session(config.logs_db_path, body.session_id)
+    limiter.forget_session(body.session_id)
     return {"ok": True}

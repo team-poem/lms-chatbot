@@ -27,6 +27,11 @@ class AppConfig:
     llm_provider: str = "gemini"
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
+    # 요청 상한(ratelimit.py). 0 = 해당 층 비활성. /chat 은 매번 Gemini 과금이라
+    # 공개 배포에서 이 값들이 유일한 비용 방어선이다.
+    rl_chat_per_session: int = 100
+    rl_consent_per_ip_hour: int = 100
+    rl_chat_per_day: int = 3000
 
 
 def load_config() -> AppConfig:
@@ -61,4 +66,9 @@ def load_config() -> AppConfig:
         llm_provider=os.environ.get("LLM_PROVIDER", "gemini"),
         gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
         gemini_model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+        # 캠퍼스망은 NAT 뒤에 다수 사용자가 있어 IP 상한을 빡빡하게 잡으면 강의동
+        # 하나가 통째로 막힌다. 기본값은 넉넉하게 두고 운영에서 조인다.
+        rl_chat_per_session=int(os.environ.get("RL_CHAT_PER_SESSION", "100")),
+        rl_consent_per_ip_hour=int(os.environ.get("RL_CONSENT_PER_IP_HOUR", "100")),
+        rl_chat_per_day=int(os.environ.get("RL_CHAT_PER_DAY", "3000")),
     )
