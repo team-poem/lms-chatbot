@@ -5,6 +5,7 @@
 단일 문서 예/아니오 판정은 신뢰도가 높았다(실측 분리 양호). 판정 난이도가 낮아
 백엔드를 Gemini 로 바꿔도 같은 임계값을 그대로 쓴다."""
 from __future__ import annotations
+import sys
 
 from generation import llm
 from generation.llm import LLMConfig
@@ -40,6 +41,14 @@ async def doc_answers_question(
         reply = await llm.chat(
             cfg, messages, options=RELEVANCE_OPTIONS, timeout=timeout
         )
-    except Exception:
+    except Exception as e:
+        # 통과(None)는 그대로 두되 이유는 남긴다. 이 게이트가 조용히 항상 열리면
+        # 무관한 문서에도 답하게 되는데(= 환각 방어선이 사라짐), 증상만 봐서는
+        # 원인을 알 수 없다 (docs/2026-08-12-model-alias-decision.md).
+        print(
+            f"[relevance] 게이트 실패 → 통과 처리. {type(e).__name__}: {str(e)[:200]}",
+            file=sys.stderr,
+            flush=True,
+        )
         return None
     return parse_verdict(reply)

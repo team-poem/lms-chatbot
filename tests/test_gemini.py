@@ -178,3 +178,48 @@ def test_chat_returns_text_and_raises_on_error(monkeypatch):
         asyncio.run(
             gemini.chat("K", "m", [{"role": "user", "content": "q"}], options={}, timeout=5.0)
         )
+
+
+def test_stream_logs_http_error_but_keeps_empty_fallback(monkeypatch, capsys):
+    """에러 응답은 여전히 델타 없이 끝나되(폴백 유지), 원인은 stderr 에 남아야 한다.
+
+    2026-08-12: 모델 별칭이 thinkingBudget=0 을 거부해 400 이 났는데, 로그가 없어
+    '답변이 빈다'로만 보였다. 그 진단 불가 상태를 막기 위한 회귀 표적이다."""
+    _mock_httpx(
+        monkeypatch,
+        lambda req: httpx.Response(400, json={"error": {"message": "invalid argument"}}),
+    )
+
+    async def collect():
+        return [
+            d async for d in gemini.chat_stream(
+                "K", "some-model", [{"role": "user", "content": "q"}],
+                options={}, timeout=5,
+            )
+        ]
+
+    assert asyncio.run(collect()) == []          # 폴백 동작 불변
+    err = capsys.readouterr().err
+    assert "HTTP 400" in err
+    assert "some-model" in err
+    assert "invalid argument" in err
+
+
+def test_stream_success_path_logs_nothing(monkeypatch, capsys):
+    _mock_httpx(
+        monkeypatch,
+        lambda req: httpx.Response(
+            200,
+            text='data: {"candidates":[{"content":{"parts":[{"text":"안녕"}]}}]}\n\n',
+        ),
+    )
+
+    async def collect():
+        return [
+            d async for d in gemini.chat_stream(
+                "K", "m", [{"role": "user", "content": "q"}], options={}, timeout=5
+            )
+        ]
+
+    assert asyncio.run(collect()) == ["안녕"]
+    assert capsys.readouterr().err == ""

@@ -12,6 +12,7 @@ Ollama 와 프로토콜이 세 군데 다르고, 그 차이를 이 모듈이 전
 """
 from __future__ import annotations
 import json
+import sys
 from typing import AsyncIterator
 
 import httpx
@@ -93,18 +94,35 @@ def _headers(api_key: str) -> dict:
     return {"x-goog-api-key": api_key, "Content-Type": "application/json"}
 
 
+def _log_http_error(where: str, model: str, status: int, body: str) -> None:
+    """폴백 동작은 그대로 두되 원인만 남긴다. 본문은 앞부분만 — 키가 섞일 일은
+    없지만 로그를 길게 오염시키지 않기 위해서다."""
+    print(
+        f"[{where}] HTTP {status} model={model} :: {body[:300].strip()}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 async def chat_stream(
     api_key: str, model: str, messages: list[dict], *, options: dict, timeout: float
 ) -> AsyncIterator[str]:
     """스트리밍 chat. 텍스트 델타(비어 있지 않은 것만)를 그대로 흘린다.
 
     ollama.chat_stream 과 마찬가지로 raise_for_status 를 부르지 않는다 — 에러 응답은
-    델타 없이 자연 종료되고, 호출부(stream.py)는 빈 답변을 폴백으로 처리한다."""
+    델타 없이 자연 종료되고, 호출부(stream.py)는 빈 답변을 폴백으로 처리한다.
+    다만 **이유는 로그로 남긴다**: 폴백만 있고 흔적이 없으면 모델·스키마 비호환이
+    '답변이 빈다'로만 나타나 진단이 불가능하다(2026-08-12 모델 별칭 사고 —
+    docs/2026-08-12-model-alias-decision.md)."""
     url = f"{API_ROOT}/{model}:streamGenerateContent?alt=sse"
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
         async with client.stream(
             "POST", url, json=build_payload(messages, options), headers=_headers(api_key)
         ) as resp:
+            if resp.status_code >= 400:
+                body = (await resp.aread()).decode("utf-8", "replace")
+                _log_http_error("gemini.chat_stream", model, resp.status_code, body)
+                return
             async for line in resp.aiter_lines():
                 obj = parse_sse_line(line)
                 if obj is None:

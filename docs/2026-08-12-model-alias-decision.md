@@ -79,8 +79,26 @@ curl -s -H "x-goog-api-key: $GEMINI_API_KEY" -H 'Content-Type: application/json'
 `-latest` 별칭이 아예 없다(2026-08-12 기준 `gemini-embedding-001`,
 `gemini-embedding-2`, `gemini-embedding-2-preview` 셋뿐).
 
-## 남은 과제
+## 후속 조치 — 조용한 실패 봉쇄 (완료)
 
-- **조용한 실패 봉쇄**: `chat_stream` 이 에러 응답을 삼키는 구조는 이번 같은 사고를
-  진단 불가능하게 만든다. 상태 코드가 2xx 가 아니면 최소한 로그라도 남기는 편이
-  낫다. 폴백 동작 자체는 유지하되 원인이 보이게 하는 것이 목적이다. (미착수)
+이번 사고를 진단 불가능하게 만든 구조를 손봤다. **폴백 동작은 그대로 두고 원인만
+로그로 남긴다.**
+
+- `generation/gemini.py` · `generation/ollama.py` 의 `chat_stream`: 응답이 4xx/5xx 면
+  본문 앞부분과 모델명을 stderr 에 남기고 델타 없이 종료한다(종전과 동일한 빈 답변
+  폴백).
+- `generation/relevance.py`: 게이트 실패 시 `None`(통과)은 유지하되 예외 종류와
+  메시지를 남긴다. 이 게이트가 조용히 항상 열리면 환각 방어선이 사라지는데,
+  증상만으로는 알 수 없었다.
+
+실제 재현으로 확인했다:
+
+```
+[gemini.chat_stream] HTTP 400 model=gemini-flash-latest :: {
+  "error": { "code": 400, "message": "Request contains an invalid argument.", ... }
+}
+```
+
+회귀 테스트는 `tests/test_gemini.py` 의
+`test_stream_logs_http_error_but_keeps_empty_fallback` 와 성공 경로가 조용한지 보는
+`test_stream_success_path_logs_nothing`.
