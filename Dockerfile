@@ -64,7 +64,7 @@ COPY --from=builder /opt/hf /opt/hf
 # 애플리케이션 코드
 # 루트 레벨 모듈(app_types/config/tuning)·rag 패키지 누락 시 backend import 단계에서
 # ModuleNotFoundError 로 컨테이너가 부팅 즉시 크래시함. 런타임 import 폐포 전체를 복사.
-COPY backend.py app_types.py config.py tuning.py ./
+COPY backend.py app_types.py config.py tuning.py ratelimit.py ./
 COPY ingest ./ingest
 COPY index ./index
 COPY retrieval ./retrieval
