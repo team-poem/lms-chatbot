@@ -28,7 +28,7 @@ import pandas as pd  # noqa: E402
 
 from config import load_config  # noqa: E402
 from index.embed import build_embed_config, load_embedder  # noqa: E402
-from index.vector_store import get_chroma_client, query_embed  # noqa: E402
+from index.vector_store import get_chroma_client  # noqa: E402
 
 # 매뉴얼 밖 질문. LMS/CMS 매뉴얼이 답할 수 없는 것들로, 가드레일이 걸러야 한다.
 # tuning.py 주석의 실측 사례('주차장' 0.57)를 포함한다.
@@ -55,9 +55,24 @@ def load_in_scope(csv_path: Path, limit: int | None) -> list[str]:
     return qs[:limit] if limit else qs
 
 
-def top_score(client, embedder, query: str) -> float:
-    hits = query_embed(client, embedder, query, k=1)
-    return hits[0][1] if hits else 0.0
+def top_scores(client, embedder, queries: list[str]) -> list[float]:
+    """질문 전부를 **한 번에** 임베딩한 뒤 chroma 를 조회한다.
+
+    질문마다 encode 를 부르면 API 백엔드에서 요청이 질문 수만큼 나가 분당 제한에
+    정면으로 걸린다(92질문 = 92요청). 임베딩은 배치로 묶고, 조회는 로컬이라
+    공짜다."""
+    from index.embed import QUERY, encode_texts
+    from index.vector_store import get_collection
+
+    vecs = encode_texts(embedder, queries, kind=QUERY)
+    coll = get_collection(client)
+    out: list[float] = []
+    for vec in vecs:
+        res = coll.query(query_embeddings=[vec], n_results=1)
+        dists = res["distances"][0]
+        # vector_store.query_embed 와 같은 환산: cosine 거리(0~2) → 유사도(0~1)
+        out.append(max(0.0, 1.0 - dists[0] / 2.0) if dists else 0.0)
+    return out
 
 
 def summarize(name: str, scores: list[float]) -> dict:
@@ -96,8 +111,10 @@ def main(argv: list[str] | None = None) -> int:
     client = get_chroma_client(config.chroma_dir)
 
     in_qs = load_in_scope(csv_path, args.limit)
-    in_scores = [top_score(client, embedder, q) for q in in_qs]
-    out_scores = [top_score(client, embedder, q) for q in OUT_OF_SCOPE]
+    # 두 묶음을 한 번에 임베딩한다 — API 백엔드에서 요청 수가 질문 수만큼 늘지 않게.
+    all_scores = top_scores(client, embedder, in_qs + list(OUT_OF_SCOPE))
+    in_scores = all_scores[: len(in_qs)]
+    out_scores = all_scores[len(in_qs) :]
 
     result = {
         "provider": embed_cfg.provider,

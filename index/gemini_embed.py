@@ -21,6 +21,8 @@ HTTP 는 맨 아래 한 함수에만 둔다.
 """
 from __future__ import annotations
 import math
+import sys
+import time
 
 import httpx
 
@@ -28,6 +30,21 @@ API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
 
 # 요청 하나에 담을 최대 문서 수. 상한에 딱 붙이지 않고 여유를 둔다.
 BATCH_LIMIT = 100
+
+# 무료 티어는 **분당** 요청 수 제한이 빡빡해 인덱싱 중 429(RESOURCE_EXHAUSTED)가
+# 흔하다. 재시도가 없으면 162청크 인덱싱이 첫 배치에서 통째로 죽는다.
+#
+# 제한이 분 단위이므로 백오프 상한도 1분을 넘겨야 한다 — 2·4·8·16초(총 30초)로는
+# 창이 안 넘어가 그대로 실패한다(2026-08-12 실측). 상한을 90초까지 두고 시도 횟수를
+# 늘려, 최악의 경우 몇 분 걸리더라도 인덱싱이 완주하는 쪽을 택했다.
+MAX_RETRIES = 7
+BACKOFF_BASE_S = 5.0
+BACKOFF_CAP_S = 90.0
+RETRYABLE = {429, 500, 502, 503, 504}
+
+# 배치 요청 사이 간격. 요청 수 자체가 적어도(162청크 = 2요청) 연속으로 쏘면 분당
+# 창에 함께 걸린다. 0 이면 대기 없음(테스트·유료 티어용).
+INTER_BATCH_DELAY_S = 6.0
 
 DOCUMENT = "document"
 QUERY = "query"
@@ -77,6 +94,45 @@ def _batches(texts: list[str], size: int = BATCH_LIMIT):
         yield texts[i : i + size]
 
 
+def retry_delay(attempt: int, retry_after: str | None) -> float:
+    """대기 시간. 서버가 Retry-After 를 주면 그쪽을 따르고, 없으면 지수 백오프.
+    상한(BACKOFF_CAP_S)을 두되 분당 창을 넘길 만큼은 기다린다."""
+    if retry_after:
+        try:
+            return max(0.0, float(retry_after))
+        except ValueError:
+            pass
+    return min(BACKOFF_CAP_S, BACKOFF_BASE_S * (2 ** attempt))
+
+
+def _post_with_retry(client: httpx.Client, url: str, payload: dict, headers: dict):
+    """429·5xx 는 백오프 후 재시도한다. 그 외 상태는 그대로 raise.
+
+    무료 티어의 분당 제한은 잠깐 기다리면 풀리므로, 여기서 삼키지 않으면 인덱싱
+    전체가 실패한다. 반대로 400(스키마 오류) 같은 것은 재시도해도 소용없으므로
+    즉시 올린다."""
+    last: httpx.Response | None = None
+    for attempt in range(MAX_RETRIES):
+        resp = client.post(url, json=payload, headers=headers)
+        if resp.status_code not in RETRYABLE:
+            resp.raise_for_status()
+            return resp
+        last = resp
+        if attempt == MAX_RETRIES - 1:
+            break
+        delay = retry_delay(attempt, resp.headers.get("retry-after"))
+        print(
+            f"[gemini_embed] HTTP {resp.status_code} — {delay:.1f}s 후 재시도 "
+            f"({attempt + 1}/{MAX_RETRIES - 1})",
+            file=sys.stderr,
+            flush=True,
+        )
+        time.sleep(delay)
+    assert last is not None
+    last.raise_for_status()
+    return last
+
+
 def embed_batch(
     api_key: str,
     model: str,
@@ -96,11 +152,12 @@ def embed_batch(
     headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
     out: list[list[float]] = []
     with httpx.Client(timeout=httpx.Timeout(timeout)) as client:
-        for batch in _batches(texts):
-            resp = client.post(
-                url, json=build_payload(model, batch, kind, dim), headers=headers
+        for i, batch in enumerate(_batches(texts)):
+            if i and INTER_BATCH_DELAY_S:
+                time.sleep(INTER_BATCH_DELAY_S)   # 분당 창에 몰아치지 않도록
+            resp = _post_with_retry(
+                client, url, build_payload(model, batch, kind, dim), headers
             )
-            resp.raise_for_status()
             vecs = extract_embeddings(resp.json())
             if len(vecs) != len(batch):
                 raise RuntimeError(

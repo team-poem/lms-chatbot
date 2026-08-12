@@ -82,6 +82,7 @@ def test_zero_vector_survives_normalization():
 
 
 def test_batches_split_and_preserve_order(monkeypatch):
+    monkeypatch.setattr(gemini_embed.time, "sleep", lambda s: None)
     seen: list[int] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -130,6 +131,8 @@ def test_count_mismatch_raises(monkeypatch):
 
 
 def test_http_error_propagates(monkeypatch):
+    # 429 는 재시도 대상이라 sleep 을 막지 않으면 백오프만큼 실제로 잠든다.
+    monkeypatch.setattr(gemini_embed.time, "sleep", lambda s: None)
     _mock_httpx(monkeypatch, lambda req: httpx.Response(429, json={"error": "quota"}))
     with pytest.raises(httpx.HTTPStatusError):
         gemini_embed.embed_batch("k", "m", ["a"])
@@ -215,3 +218,60 @@ def test_encode_texts_forwards_kind():
     embed.encode_texts(spy, ["a"], kind=QUERY)
     embed.encode_texts(spy, ["b"])
     assert spy.kinds == [QUERY, DOCUMENT]
+
+
+def test_retry_delay_prefers_server_hint():
+    assert gemini_embed.retry_delay(0, "7") == 7.0
+    assert gemini_embed.retry_delay(0, None) == gemini_embed.BACKOFF_BASE_S
+    assert gemini_embed.retry_delay(2, None) == gemini_embed.BACKOFF_BASE_S * 4
+    # 분당 창을 넘기되 무한정 늘지는 않는다
+    assert gemini_embed.retry_delay(20, None) == gemini_embed.BACKOFF_CAP_S
+    assert gemini_embed.BACKOFF_CAP_S > 60  # 분 단위 제한을 넘길 수 있어야 한다
+    assert gemini_embed.retry_delay(0, "쓰레기") == gemini_embed.BACKOFF_BASE_S
+
+
+def test_429_is_retried_then_succeeds(monkeypatch):
+    """무료 티어는 분당 제한이 빡빡해 인덱싱 중 429 가 흔하다. 재시도가 없으면
+    162청크 인덱싱이 첫 배치에서 통째로 죽는다."""
+    monkeypatch.setattr(gemini_embed.time, "sleep", lambda s: None)
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] < 3:
+            return httpx.Response(429, json={"error": {"status": "RESOURCE_EXHAUSTED"}})
+        return httpx.Response(200, json={"embeddings": [{"values": [1.0, 0.0]}]})
+
+    _mock_httpx(monkeypatch, handler)
+    out = gemini_embed.embed_batch("k", "m", ["a"])
+    assert calls["n"] == 3
+    assert out == [[1.0, 0.0]]
+
+
+def test_400_is_not_retried(monkeypatch):
+    """스키마 오류는 재시도해도 소용없다 — 즉시 올린다."""
+    monkeypatch.setattr(gemini_embed.time, "sleep", lambda s: None)
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(400, json={"error": {"message": "bad"}})
+
+    _mock_httpx(monkeypatch, handler)
+    with pytest.raises(httpx.HTTPStatusError):
+        gemini_embed.embed_batch("k", "m", ["a"])
+    assert calls["n"] == 1
+
+
+def test_gives_up_after_max_retries(monkeypatch):
+    monkeypatch.setattr(gemini_embed.time, "sleep", lambda s: None)
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(429, json={"error": {}})
+
+    _mock_httpx(monkeypatch, handler)
+    with pytest.raises(httpx.HTTPStatusError):
+        gemini_embed.embed_batch("k", "m", ["a"])
+    assert calls["n"] == gemini_embed.MAX_RETRIES
