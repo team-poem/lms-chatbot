@@ -33,7 +33,7 @@
 - 구현 계획: `docs/superpowers/plans/2026-05-26-lms-chatbot-phase1.md` (Task 1~17)
 - 메타 지시: `AGENT.md`
 - 코드: 인덱싱 → 하이브리드 검색 → RAG 파이프라인 → FastAPI 백엔드 → 동의 모달 UI → 처리방침 모두 구현
-- 테스트: 188 passed (2026-08-11 기준)
+- 테스트: 217 passed (2026-08-12 기준)
 - 162개 청크 인덱싱 완료 — Notion export(LMS FAQ DATABASE + CMS 매뉴얼)의 **페이지
   본문** 기준이다. FAQ CSV 는 질문과 분류 메타만 있고 답변이 없어 인덱싱하지 않는다
   (`ingest/pipeline.collect_chunks` 참조 — `chunk_csv_file` 은 테스트 전용 경로)

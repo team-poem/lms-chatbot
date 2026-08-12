@@ -223,3 +223,29 @@ def test_stream_success_path_logs_nothing(monkeypatch, capsys):
 
     assert asyncio.run(collect()) == ["안녕"]
     assert capsys.readouterr().err == ""
+
+
+def test_broken_sse_line_is_skipped_not_fatal(capsys):
+    """깨진 줄에 예외를 올리면 스트림 도중 터져 그때까지의 델타까지 날아간다."""
+    assert gemini.parse_sse_line('data: {깨진')  is None
+    assert "SSE 파싱 실패" in capsys.readouterr().err
+
+
+def test_stream_survives_broken_line_and_keeps_rest(monkeypatch, capsys):
+    body = (
+        'data: {"candidates":[{"content":{"parts":[{"text":"앞"}]}}]}\n\n'
+        'data: {깨진json}\n\n'
+        'data: {"candidates":[{"content":{"parts":[{"text":"뒤"}]}}]}\n\n'
+    )
+    _mock_httpx(monkeypatch, lambda req: httpx.Response(200, text=body))
+
+    async def collect():
+        return [
+            d async for d in gemini.chat_stream(
+                "K", "m", [{"role": "user", "content": "q"}], options={}, timeout=5
+            )
+        ]
+
+    # 한 줄만 잃고 나머지는 살아남는다.
+    assert asyncio.run(collect()) == ["앞", "뒤"]
+    assert "SSE 파싱 실패" in capsys.readouterr().err

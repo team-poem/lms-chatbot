@@ -81,13 +81,25 @@ def extract_text(obj: dict) -> str:
 
 
 def parse_sse_line(line: str) -> dict | None:
-    """SSE 한 줄 → JSON 오브젝트. 데이터 줄이 아니거나 종료 신호면 None."""
+    """SSE 한 줄 → JSON 오브젝트. 데이터 줄이 아니거나 종료 신호면 None.
+
+    깨진 줄도 None 이다 — 예외를 올리면 스트림 도중 터져서 **그때까지 흘린 델타까지
+    포함해 답변 전체가 날아간다**. 한 줄 손실이 답변 전체 손실보다 낫다는 판단이며,
+    빈 답변 폴백을 두는 이 모듈의 철학과도 맞다. 대신 조용히 넘기지 않고 남긴다."""
     if not line.startswith("data:"):
         return None
     body = line[len("data:"):].strip()
     if not body or body == "[DONE]":
         return None
-    return json.loads(body)
+    try:
+        return json.loads(body)
+    except json.JSONDecodeError as e:
+        print(
+            f"[gemini.parse_sse_line] SSE 파싱 실패(해당 줄만 버림). {e} :: {body[:120]}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return None
 
 
 def _headers(api_key: str) -> dict:
