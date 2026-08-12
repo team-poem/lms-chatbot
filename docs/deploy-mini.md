@@ -81,9 +81,47 @@ touch data/chat_logs.db
 # compose 가 읽을 .env — 키는 이미지에 굽지 않고 여기서 주입한다
 cat > .env <<'EOF'
 GEMINI_API_KEY=<발급받은 키>
+# 관리자 토큰. 비우면 /admin/logs 와 /admin/usage 가 404 라 **오늘 얼마나 쓰였는지
+# 볼 수단이 없다.** 요청 상한을 걸어두고 소진 여부를 못 보면 비용 사고를 사후에도
+# 모른다. 운영에서는 반드시 강한 값으로 채울 것 — openssl rand -hex 24
+ADMIN_TOKEN=<강한 무작위 문자열>
 EOF
 chmod 600 .env
 ```
+
+### 2.4-b 운영 스위치 (선택 — 기본값으로도 동작한다)
+
+`.env` 에 추가하면 compose 가 컨테이너로 넘긴다. 값을 넣지 않으면 괄호 안 기본값이다.
+
+| 변수 | 기본 | 용도 |
+|---|---|---|
+| `RL_CHAT_PER_SESSION` | 100 | 한 세션이 보낼 수 있는 질문 수 |
+| `RL_CONSENT_PER_IP_HOUR` | 100 | IP당 시간당 세션 발급 수 |
+| `RL_CHAT_PER_DAY` | 3000 | **전체 일일 질문 수 — 비용 최종 방어선** |
+| `EMBED_PROVIDER` | `local` | 임베딩 백엔드. 아래 경고 참조 |
+| `GEMINI_MODEL` | `gemini-2.5-flash` | 생성 모델. `-latest` 별칭 금지 |
+| `QNA_BOARD_URL` | (내장) | 매뉴얼 밖 질문 안내용 게시판 |
+
+`/chat` 은 호출마다 Gemini 과금이고 `/consent` 는 인증 없이 세션을 발급한다. 공개
+노출 시 위 `RL_*` 이 유일한 비용 방어선이다. 캠퍼스망은 NAT 뒤에 여러 사용자가 한
+IP 를 쓰므로 `RL_CONSENT_PER_IP_HOUR` 를 빡빡하게 조이면 강의동 하나가 통째로 막힌다.
+
+오늘 사용량 확인:
+
+```bash
+curl -s -H "X-Admin-Token: <ADMIN_TOKEN>" http://localhost:8080/admin/usage
+# {"chat_today": 42, "chat_per_day": 3000, "sessions_tracked": 7}
+```
+
+> ⚠️ **`EMBED_PROVIDER` 를 바꾸면 `data/chroma` 를 반드시 같은 백엔드로 재인덱싱해야
+> 한다.** 인덱스와 조회 백엔드가 어긋나면 검색이 실패하는 게 아니라 **엉뚱한 문서를
+> 자신 있게 찾아온다 — 에러도 로그도 없다.** `tuning.py` 의 유사도 임계값도 함께
+> 재보정해야 한다(`docs/baselines/` 와 `scripts/embed_baseline.py` 참조).
+> 현재 배포 이미지는 `local`(BGE-M3) 기준이다.
+
+> **모델 버전은 고정한다.** `GEMINI_MODEL` 에 `-latest` 별칭을 넣지 말 것 —
+> 2026-08-12 확인 결과 별칭이 넘어가면서 API 계약까지 바뀌어 생성이 통째로 실패했다
+> (`docs/2026-08-12-model-alias-decision.md`).
 
 ### 2.5 실행
 ```bash
