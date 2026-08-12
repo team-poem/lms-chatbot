@@ -14,10 +14,19 @@
     --radius-sm: 4px;
   }
   * { box-sizing: border-box; }
-  body { font-family: 'Pretendard Variable', Pretendard, -apple-system, "Apple SD Gothic Neo", sans-serif; margin: 0; background: var(--bg); color: var(--text); font-size: 16px; }
+  /* 화면(또는 임베드 iframe)의 세로를 끝까지 채운다.
+     Notion embed 처럼 높이가 바깥에서 정해지는 자리에 넣으면 고정 vh 로는 남는
+     세로가 그대로 빈다 — iframe 안에서 vh 는 화면이 아니라 **iframe 자체 높이**
+     기준이라, 블록을 아무리 키워도 정해진 비율만 쓰기 때문이다. 높이를 100% 로
+     물려받고 .log 가 남는 공간을 먹게 해서 어느 높이에도 맞춘다. */
+  html { height: 100%; }
+  body { font-family: 'Pretendard Variable', Pretendard, -apple-system, "Apple SD Gothic Neo", sans-serif; margin: 0; background: var(--bg); color: var(--text); font-size: 16px;
+         height: 100%; display: flex; flex-direction: column; }
   /* e-Class 상단 크림슨 바 (로고 위, 전체폭) */
-  .topbar { height: 6px; background: var(--primary); width: 100%; }
-  .wrap { max-width: 900px; margin: 0 auto; padding: 24px 16px 80px; }
+  .topbar { height: 6px; background: var(--primary); width: 100%; flex: none; }
+  /* min-height:0 이 없으면 자식(.log)이 내용 높이만큼 부풀어 flex 축소가 안 먹는다. */
+  .wrap { max-width: 900px; width: 100%; margin: 0 auto; padding: 24px 16px 24px;
+          flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   h1 { font-size: 18px; margin: 0 0 16px; }
   .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 10; }
   .modal { background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--primary); border-radius: var(--radius); padding: 24px; max-width: 540px; width: 90%; max-height: 90vh; overflow-y: auto; }
@@ -31,7 +40,10 @@
   button.primary { background: var(--primary); color: #fff; border-color: var(--primary); font-weight: 700; }
   button.primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
   /* 대화창: 로그인 박스와 동일한 색감 — 흰 카드 + 1px 회색 + 상단 4px 크림슨 */
-  .log { background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--primary); border-radius: var(--radius); padding: 16px; min-height: 320px; max-height: 60vh; overflow-y: auto; }
+  /* 남는 세로를 전부 먹는다. max-height 를 두지 않는 이유는 위 body 주석 참조 —
+     임베드 높이가 얼마든 채워야 한다. min-height 는 아주 낮은 iframe 에서 대화창이
+     사라지지 않을 최소치. */
+  .log { background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--primary); border-radius: var(--radius); padding: 16px; min-height: 160px; flex: 1 1 auto; overflow-y: auto; }
   .turn { margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px dashed var(--border); }
   .turn:last-child { border-bottom: none; }
   /* 질문 = 우측 크림슨 말풍선(보낸 메시지). .turn 직계 .q 만 — 피드백 .q 는 제외 */
@@ -120,10 +132,10 @@
   .fb button.yes:hover svg { color: #1a7f37; }
   .fb button.no:hover svg { color: var(--primary); }
   .fb .thanks { color: #1a7f37; font-size: 13px; }
-  .input { display: flex; gap: 8px; margin-top: 16px; }
+  .input { display: flex; gap: 8px; margin-top: 16px; flex: none; }
   .input input { flex: 1; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 16px; }
   .input input:focus { outline: none; border-color: var(--primary); }
-  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex: none; }
   .top h1 { margin: 0; line-height: 0; }
   .top h1 img { height: 28px; width: auto; display: block; }
   .top .label { font-size: 12px; color: var(--text-muted); }
@@ -154,7 +166,7 @@
   .faq .cat-chip .arrow { color: var(--text-muted); margin-left: 6px; }
   .faq .cat-chip:hover .arrow { color: #fff; }
   /* 하단 푸터 (e-Class 풍: 개인정보처리방침 + 동서대학교 교육혁신처 + copyright) */
-  .site-footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 12px; line-height: 1.9; }
+  .site-footer { flex: none; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 12px; line-height: 1.9; }
   .site-footer a { color: var(--text-muted); text-decoration: none; }
   .site-footer a:hover { color: var(--primary); text-decoration: underline; }
   .site-footer .copy { margin: 6px 0 0; color: #9b9d9f; }
