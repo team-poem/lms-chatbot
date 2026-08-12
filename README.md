@@ -43,6 +43,13 @@
 ## 답변 생성 백엔드
 
 기본은 **Gemini API** (`LLM_PROVIDER=gemini`, 기본 모델 `gemini-2.5-flash`)다.
+
+> **모델 버전은 고정한다. `-latest` 별칭을 쓰지 않는다.**
+> 2026-08-12 확인: `gemini-flash-latest` 가 `gemini-3.6-flash` 를 가리키면서
+> `thinkingBudget=0` 을 거부(HTTP 400)해 생성이 통째로 실패했다. 별칭은 모델뿐
+> 아니라 **API 계약까지** 바꾼다. 경위와 재검토 절차는
+> `docs/2026-08-12-model-alias-decision.md`.
+
 로컬 Ollama + gemma3:4b 로 되돌리려면 `.env` 에 `LLM_PROVIDER=ollama` 만 넣으면 된다
 (gemma 시절 코드는 `archive/gemma-llm-version` 브랜치에도 보존).
 

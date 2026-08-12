@@ -22,10 +22,15 @@ class AppConfig:
     qna_board_url: str = ""
     qna_contact: str = ""
     # 생성 백엔드 선택. 'gemini' 면 gemini_*, 'ollama' 면 ollama_* 를 쓴다.
-    # 임베딩은 이 값과 무관하게 항상 embed_model(로컬 BGE-M3)이다 — 벡터 공간을
-    # 바꾸면 기존 chroma 인덱스가 통째로 무효화되므로 생성만 교체한다.
+    # 임베딩 백엔드는 이 값과 독립이다 — EMBED_PROVIDER 로 따로 고른다
+    # (index/embed.py). 생성만 gemini 로 쓰고 임베딩은 로컬로 두는 것이 기본값이다.
     llm_provider: str = "gemini"
     gemini_api_key: str = ""
+    # **버전을 고정한다. `-latest` 별칭을 쓰지 않는다.**
+    # 2026-08-12 실측: gemini-flash-latest 는 gemini-3.6-flash 를 가리켰고, 이 모델은
+    # thinkingBudget=0 을 HTTP 400 으로 거부한다(2.5-flash 는 허용). 우리 코드는 그
+    # 필드를 항상 넣으므로 별칭을 켜는 순간 모든 생성 호출이 실패한다. 자세한 경위와
+    # 재검토 절차는 docs/2026-08-12-model-alias-decision.md 참조.
     gemini_model: str = "gemini-2.5-flash"
     # 요청 상한(ratelimit.py). 0 = 해당 층 비활성. /chat 은 매번 Gemini 과금이라
     # 공개 배포에서 이 값들이 유일한 비용 방어선이다.
