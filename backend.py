@@ -22,7 +22,10 @@ from ratelimit import Limits, RateLimiter, client_ip
 from retrieval.search import hybrid_search
 
 
-CONSENT_VERSION = "2026-05-26-v1"
+# 라이브 배포본(2026-07-16)과 맞춘다 — 프론트가 이 값을 localStorage 에 저장해
+# 동의 여부를 판단하므로, 낮추면 이미 동의한 사용자가 모달을 다시 보게 된다.
+# v2 = Gemini API 처리위탁·국외이전 고지 반영본(static/privacy.html 5항).
+CONSENT_VERSION = "2026-07-16-v2"
 
 config = load_config()
 
