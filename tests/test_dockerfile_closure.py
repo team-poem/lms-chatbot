@@ -65,3 +65,20 @@ def test_dockerignore_does_not_exclude_shipped_code():
     shipped = {p.name for p in ROOT.glob("*.py")} - NOT_SHIPPED
     collide = sorted(shipped & ignored)
     assert not collide, f".dockerignore 가 런타임 모듈을 제외한다: {collide}"
+
+
+def test_build_sha_is_wired_end_to_end():
+    """배포된 것이 어느 커밋인지 /health 로 알 수 있어야 한다.
+
+    2026-08-12: 라이브 코드가 레포의 어느 브랜치와도 일치하지 않는 것을 발견했는데,
+    이 정보가 없어서 공개 엔드포인트를 하나씩 찔러 계보를 추정해야 했다. 배선이
+    한 군데라도 끊기면 값이 'unknown' 으로 조용히 떨어지므로 세 지점을 함께 본다."""
+    dockerfile = DOCKERFILE.read_text(encoding="utf-8")
+    assert "ARG GIT_SHA" in dockerfile
+    assert "ENV BUILD_SHA=$GIT_SHA" in dockerfile
+
+    script = (ROOT / "scripts" / "build-and-push.sh").read_text(encoding="utf-8")
+    assert "--build-arg" in script and "GIT_SHA=" in script
+
+    backend = (ROOT / "backend.py").read_text(encoding="utf-8")
+    assert 'os.environ.get("BUILD_SHA"' in backend

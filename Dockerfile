@@ -75,6 +75,12 @@ COPY static ./static
 
 RUN mkdir -p data/raw data/assets data/chroma data/logs
 
+# 배포된 것이 어느 커밋인지 /health 로 확인할 수 있게 빌드 시 주입한다.
+# scripts/build-and-push.sh 가 --build-arg GIT_SHA 로 넘긴다.
+ARG GIT_SHA=unknown
+ENV BUILD_SHA=$GIT_SHA
+LABEL org.opencontainers.image.revision=$GIT_SHA
+
 ENV LLM_PROVIDER=gemini \
     GEMINI_MODEL=gemini-2.5-flash \
     OLLAMA_HOST=http://host.docker.internal:11434 \

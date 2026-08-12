@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import json
+import os
 import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict, is_dataclass
@@ -88,6 +89,11 @@ def health():
     # 걸 때 쓴다(로드 시 1회 조회).
     return {
         "ok": True,
+        # 배포된 것이 어느 커밋인지 밖에서 바로 확인할 수 있게 한다.
+        # 2026-08-12: 라이브 코드가 레포의 어느 브랜치와도 일치하지 않는 것을
+        # 발견했는데, 이 값이 없어서 공개 엔드포인트를 하나씩 찔러 계보를 추정해야
+        # 했다(/entry 404 → PR#15 이전). 빌드 시 주입되며 없으면 "unknown".
+        "build": os.environ.get("BUILD_SHA", "unknown"),
         "consent_version": CONSENT_VERSION,
         "qna_board_url": config.qna_board_url,
     }
