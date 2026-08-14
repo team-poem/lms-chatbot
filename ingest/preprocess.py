@@ -9,6 +9,12 @@ _EMOJI_RE = re.compile(
     "\U0001F1E6-\U0001F1FF"
     "\U0001F900-\U0001F9FF"
     "\U0001FA70-\U0001FAFF"
+    # 결합 문자들 — 이게 빠지면 '⚠️' 에서 기호(U+26A0)만 지워지고 variation
+    # selector(U+FE0F)가 남아, 화면에는 보이지 않는 문자가 줄 첫머리에 떠서
+    # 빈 줄처럼 보인다. ZWJ·keycap 도 같은 이유로 함께 턴다.
+    "︎️"      # variation selector-15/16
+    "‍"            # zero-width joiner
+    "⃣"            # combining enclosing keycap
     "]+",
     flags=re.UNICODE,
 )

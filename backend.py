@@ -1,6 +1,7 @@
 from __future__ import annotations
 import asyncio
 import json
+import os
 import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict, is_dataclass
@@ -18,12 +19,31 @@ from generation.faq import sample_for_entry, sample_questions
 from generation.nodes import build_registry, card_of, entry_payload, find_related
 from generation.stream import stream_response
 from rag.state import RagState, load_rag_state
+from ratelimit import Limits, RateLimiter, client_ip
 from retrieval.search import hybrid_search
 
 
-CONSENT_VERSION = "2026-05-26-v1"
+# 라이브 배포본(2026-07-16)과 맞춘다 — 프론트가 이 값을 localStorage 에 저장해
+# 동의 여부를 판단하므로, 낮추면 이미 동의한 사용자가 모달을 다시 보게 된다.
+# v2 = Gemini API 처리위탁·국외이전 고지 반영본(static/privacy.html 5항).
+CONSENT_VERSION = "2026-07-16-v2"
 
 config = load_config()
+
+# /chat 은 호출마다 Gemini 과금이고 /consent 는 인증 없이 세션을 발급한다.
+# 공개 배포에서 이 상한이 유일한 비용 방어선이다(설계 근거는 ratelimit.py).
+limiter = RateLimiter(
+    Limits(
+        chat_per_session=config.rl_chat_per_session,
+        consent_per_ip_hour=config.rl_consent_per_ip_hour,
+        chat_per_day=config.rl_chat_per_day,
+    )
+)
+
+
+def _too_many(decision) -> HTTPException:
+    headers = {"Retry-After": str(decision.retry_after)} if decision.retry_after else None
+    return HTTPException(status_code=429, detail=decision.reason, headers=headers)
 
 
 def _serialize_sse(evt: ChatEvent | dict) -> str:
@@ -69,6 +89,11 @@ def health():
     # 걸 때 쓴다(로드 시 1회 조회).
     return {
         "ok": True,
+        # 배포된 것이 어느 커밋인지 밖에서 바로 확인할 수 있게 한다.
+        # 2026-08-12: 라이브 코드가 레포의 어느 브랜치와도 일치하지 않는 것을
+        # 발견했는데, 이 값이 없어서 공개 엔드포인트를 하나씩 찔러 계보를 추정해야
+        # 했다(/entry 404 → PR#15 이전). 빌드 시 주입되며 없으면 "unknown".
+        "build": os.environ.get("BUILD_SHA", "unknown"),
         "consent_version": CONSENT_VERSION,
         "qna_board_url": config.qna_board_url,
     }
@@ -137,7 +162,10 @@ class ConsentBody(BaseModel):
 
 
 @app.post("/consent")
-def consent(body: ConsentBody):
+def consent(body: ConsentBody, request: Request):
+    decision = limiter.check_consent(client_ip(request))
+    if not decision.allowed:
+        raise _too_many(decision)
     sid = store.new_session(
         config.logs_db_path,
         consent_version=CONSENT_VERSION,
@@ -158,9 +186,16 @@ class ChatBody(BaseModel):
 async def chat(body: ChatBody, request: Request):
     if not store.get_session(config.logs_db_path, body.session_id):
         raise HTTPException(status_code=403, detail="동의 후 사용 가능합니다")
+    # 503(초기화 중)을 상한보다 먼저 본다 — 여기서 돌려보내는 요청은 Gemini 를
+    # 한 번도 부르지 않으므로 쿼터를 깎으면 안 된다. 부팅 직후 요청이 몰리면
+    # 헛되이 일일 상한을 태우게 된다.
     state = getattr(request.app.state, "rag", None)
     if state is None:
         raise HTTPException(status_code=503, detail="서버 초기화 중입니다")
+    # 이 지점을 통과하면 실제로 Gemini 과금이 일어난다.
+    decision = limiter.check_chat(body.session_id)
+    if not decision.allowed:
+        raise _too_many(decision)
     return StreamingResponse(_chat_sse(state, body), media_type="text/event-stream")
 
 
@@ -248,6 +283,17 @@ def admin_logs(
     }
 
 
+@app.get("/admin/usage")
+def admin_usage(
+    x_admin_token: str | None = Header(default=None),
+    token: str | None = Query(default=None),
+):
+    """오늘의 /chat 호출 수와 상한. 상한만 걸어두고 소진 여부를 볼 수단이 없으면
+    비용 사고를 사후에도 모른다. 카운터는 메모리라 재시작하면 0 이다."""
+    _require_admin(x_admin_token or token)
+    return limiter.snapshot()
+
+
 class PurgeBody(BaseModel):
     session_id: str
 
@@ -255,4 +301,5 @@ class PurgeBody(BaseModel):
 @app.post("/purge")
 def purge(body: PurgeBody):
     store.purge_session(config.logs_db_path, body.session_id)
+    limiter.forget_session(body.session_id)
     return {"ok": True}

@@ -6,6 +6,7 @@ httpx 로 호출하던 중복을 모은다. 예외 처리는 호출부 정책에
 """
 from __future__ import annotations
 import json
+import sys
 from typing import AsyncIterator
 
 import httpx
@@ -18,10 +19,21 @@ async def chat_stream(
 
     의도적으로 raise_for_status 를 호출하지 않는다 — HTTP 에러 응답(JSON 본문)은
     델타 없이 자연 종료되는 것이 종전 stream.py 동작이며, 추가하면 행동이 바뀐다.
-    클라이언트도 요청마다 새로 연다(커넥션 풀 미사용) — 종전 동작 보존."""
+    클라이언트도 요청마다 새로 연다(커넥션 풀 미사용) — 종전 동작 보존.
+    다만 에러 응답의 **이유는 로그로 남긴다**(gemini 쪽과 같은 판단): 폴백만 있고
+    흔적이 없으면 '답변이 빈다'로만 나타나 진단이 불가능하다."""
     payload = {"model": model, "messages": messages, "stream": True, "options": options}
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
         async with client.stream("POST", f"{host}/api/chat", json=payload) as resp:
+            if resp.status_code >= 400:
+                body = (await resp.aread()).decode("utf-8", "replace")
+                print(
+                    f"[ollama.chat_stream] HTTP {resp.status_code} model={model} "
+                    f":: {body[:300].strip()}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                return
             async for line in resp.aiter_lines():
                 if not line.strip():
                     continue

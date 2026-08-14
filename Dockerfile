@@ -64,7 +64,7 @@ COPY --from=builder /opt/hf /opt/hf
 # 애플리케이션 코드
 # 루트 레벨 모듈(app_types/config/tuning)·rag 패키지 누락 시 backend import 단계에서
 # ModuleNotFoundError 로 컨테이너가 부팅 즉시 크래시함. 런타임 import 폐포 전체를 복사.
-COPY backend.py app_types.py config.py tuning.py ./
+COPY backend.py app_types.py config.py tuning.py ratelimit.py ./
 COPY ingest ./ingest
 COPY index ./index
 COPY retrieval ./retrieval
@@ -75,7 +75,15 @@ COPY static ./static
 
 RUN mkdir -p data/raw data/assets data/chroma data/logs
 
-ENV OLLAMA_HOST=http://host.docker.internal:11434 \
+# 배포된 것이 어느 커밋인지 /health 로 확인할 수 있게 빌드 시 주입한다.
+# scripts/build-and-push.sh 가 --build-arg GIT_SHA 로 넘긴다.
+ARG GIT_SHA=unknown
+ENV BUILD_SHA=$GIT_SHA
+LABEL org.opencontainers.image.revision=$GIT_SHA
+
+ENV LLM_PROVIDER=gemini \
+    GEMINI_MODEL=gemini-2.5-flash \
+    OLLAMA_HOST=http://host.docker.internal:11434 \
     OLLAMA_MODEL=gemma3:4b \
     EMBED_MODEL=BAAI/bge-m3 \
     CHROMA_DIR=/app/data/chroma \

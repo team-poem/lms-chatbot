@@ -111,3 +111,11 @@ def test_strip_empty_parens_removes_and_pads():
     assert strip_empty_parens("그대로") == "그대로"
     # 내용 있는 괄호는 보존 — 실제 제목의 괄호를 건드리면 안 된다
     assert strip_empty_parens("출결 상태 수동 변경(학습 인정 처리)") == "출결 상태 수동 변경(학습 인정 처리)"
+
+
+def test_strip_emoji_removes_variation_selector_residue():
+    """'⚠️' 는 기호(U+26A0)+VS16(U+FE0F) 이다. VS 를 안 털면 보이지 않는 문자가
+    줄 첫머리에 남아 빈 줄처럼 보인다."""
+    assert strip_emoji("⚠️경고") == "경고"
+    assert strip_emoji("1️⃣ 단계") == "1 단계"
+    assert strip_emoji("정상 텍스트") == "정상 텍스트"

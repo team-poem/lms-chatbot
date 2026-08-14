@@ -11,12 +11,28 @@ services:
       - "host.docker.internal:host-gateway"
 
     environment:
+      # 답변 생성 백엔드. gemini 면 아래 OLLAMA_* 와 host.docker.internal 경유가
+      # 모두 불필요해진다(맥미니에 Ollama 를 띄우지 않아도 됨).
+      LLM_PROVIDER: ${LLM_PROVIDER:-gemini}
+      # 이미지에 굽지 않는다 — 호스트 .env 에서 주입. 비어 있으면 앱이 부팅 때
+      # 잡는다(LLM_PROVIDER=ollama 로 쓰는 경우까지 compose 가 막지 않도록 :- 사용).
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       OLLAMA_HOST: http://host.docker.internal:11434
       OLLAMA_MODEL: gemma3:4b
       # 관리자 로그 조회 토큰(/admin/logs). 비우면 비활성(404). 운영 시 강한 값으로 설정.
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       # 매뉴얼에 근거 없는 질문 안내용 QnA 게시판 URL
       QNA_BOARD_URL: ${QNA_BOARD_URL:-}
+      # 임베딩 백엔드. local(기본, BGE-M3) | gemini. **바꾸면 전체 재인덱싱과
+      # tuning.py 임계값 재보정이 함께 필요하다** — 마운트된 인덱스와 조회 백엔드가
+      # 어긋나면 검색이 에러 없이 조용히 망가진다.
+      EMBED_PROVIDER: ${EMBED_PROVIDER:-local}
+      # 요청 상한(비용 방어선). 0 = 해당 층 비활성. 캠퍼스망 NAT 를 고려해 IP 상한은
+      # 넉넉히 잡혀 있다. 오늘 사용량은 GET /admin/usage (ADMIN_TOKEN 필요).
+      RL_CHAT_PER_SESSION: ${RL_CHAT_PER_SESSION:-100}
+      RL_CONSENT_PER_IP_HOUR: ${RL_CONSENT_PER_IP_HOUR:-100}
+      RL_CHAT_PER_DAY: ${RL_CHAT_PER_DAY:-3000}
 
     # 가이드/이미지/인덱스/로그는 호스트에서 관리. 컨테이너 재시작해도 보존.
     # 인덱싱은 호스트의 별도 작업으로 수행하거나 docker compose run 으로 진입.

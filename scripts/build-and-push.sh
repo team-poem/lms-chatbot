@@ -20,8 +20,15 @@ PLATFORM="${PLATFORM:-linux/arm64}"
 TAG="${1:-latest}"
 
 echo "==> 빌드: $IMAGE:$TAG ($PLATFORM)"
+GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
+  GIT_SHA="$GIT_SHA-dirty"   # 커밋 안 된 변경이 섞였음을 이미지에 남긴다
+fi
+echo "==> 커밋: $GIT_SHA"
+
 docker buildx build \
   --platform "$PLATFORM" \
+  --build-arg "GIT_SHA=$GIT_SHA" \
   --tag "$IMAGE:$TAG" \
   --push \
   .

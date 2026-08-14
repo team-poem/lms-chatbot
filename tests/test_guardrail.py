@@ -5,6 +5,9 @@ def test_blocks_what_model_question():
     assert is_meta_question("어떤 모델을 사용하나요?")
     assert is_meta_question("너 어떤 LLM이야?")
     assert is_meta_question("gemma 기반인가요?")
+    # 백엔드를 바꾸면 사용자가 부르는 이름도 바뀐다 — 새 모델명도 같이 막아야 한다.
+    assert is_meta_question("gemini 쓰나요?")
+    assert is_meta_question("제미나이인가요?")
 
 
 def test_blocks_prompt_extraction():
