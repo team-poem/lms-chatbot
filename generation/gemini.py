@@ -17,6 +17,8 @@ from typing import AsyncIterator
 
 import httpx
 
+from gemini_keys import KeyRing, as_ring
+
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
@@ -106,6 +108,19 @@ def _headers(api_key: str) -> dict:
     return {"x-goog-api-key": api_key, "Content-Type": "application/json"}
 
 
+# 쿼터 소진. 이 상태에서만 키를 바꾼다 — 5xx 는 키를 바꿔도 그대로다.
+QUOTA_STATUS = 429
+
+
+def _log_rotate(where: str, ring: KeyRing) -> None:
+    """어떤 키로 넘어갔는지 번호만 남긴다. 키 값은 절대 찍지 않는다."""
+    print(
+        f"[{where}] 429 — 다음 키로 전환 (키 #{ring.position() + 1}/{len(ring)})",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 def _log_http_error(where: str, model: str, status: int, body: str) -> None:
     """폴백 동작은 그대로 두되 원인만 남긴다. 본문은 앞부분만 — 키가 섞일 일은
     없지만 로그를 길게 오염시키지 않기 위해서다."""
@@ -117,7 +132,7 @@ def _log_http_error(where: str, model: str, status: int, body: str) -> None:
 
 
 async def chat_stream(
-    api_key: str, model: str, messages: list[dict], *, options: dict, timeout: float
+    keys: str | KeyRing, model: str, messages: list[dict], *, options: dict, timeout: float
 ) -> AsyncIterator[str]:
     """스트리밍 chat. 텍스트 델타(비어 있지 않은 것만)를 그대로 흘린다.
 
@@ -126,32 +141,47 @@ async def chat_stream(
     다만 **이유는 로그로 남긴다**: 폴백만 있고 흔적이 없으면 모델·스키마 비호환이
     '답변이 빈다'로만 나타나 진단이 불가능하다(2026-08-12 모델 별칭 사고 —
     docs/2026-08-12-model-alias-decision.md)."""
+    ring = as_ring(keys)
     url = f"{API_ROOT}/{model}:streamGenerateContent?alt=sse"
+    payload = build_payload(messages, options)
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
-        async with client.stream(
-            "POST", url, json=build_payload(messages, options), headers=_headers(api_key)
-        ) as resp:
-            if resp.status_code >= 400:
-                body = (await resp.aread()).decode("utf-8", "replace")
-                _log_http_error("gemini.chat_stream", model, resp.status_code, body)
+        # 429 는 그 키의 쿼터가 말랐다는 뜻이라 같은 키로 다시 쏴봐야 소용없다.
+        # 남은 키를 한 바퀴까지 즉시 시도하고, 전부 마르면 델타 없이 끝낸다(폴백).
+        for _ in range(len(ring) or 1):
+            async with client.stream(
+                "POST", url, json=payload, headers=_headers(ring.current())
+            ) as resp:
+                if resp.status_code >= 400:
+                    body = (await resp.aread()).decode("utf-8", "replace")
+                    _log_http_error("gemini.chat_stream", model, resp.status_code, body)
+                    if resp.status_code == QUOTA_STATUS and ring.rotate():
+                        _log_rotate("gemini.chat_stream", ring)
+                        continue
+                    return
+                async for line in resp.aiter_lines():
+                    obj = parse_sse_line(line)
+                    if obj is None:
+                        continue
+                    delta = extract_text(obj)
+                    if delta:
+                        yield delta
                 return
-            async for line in resp.aiter_lines():
-                obj = parse_sse_line(line)
-                if obj is None:
-                    continue
-                delta = extract_text(obj)
-                if delta:
-                    yield delta
 
 
 async def chat(
-    api_key: str, model: str, messages: list[dict], *, options: dict, timeout: float
+    keys: str | KeyRing, model: str, messages: list[dict], *, options: dict, timeout: float
 ) -> str:
     """단발 chat. 응답 본문 텍스트만 반환. HTTP 오류는 예외로 전파."""
+    ring = as_ring(keys)
     url = f"{API_ROOT}/{model}:generateContent"
+    payload = build_payload(messages, options)
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
-        resp = await client.post(
-            url, json=build_payload(messages, options), headers=_headers(api_key)
-        )
-        resp.raise_for_status()
+        for _ in range(len(ring) or 1):
+            resp = await client.post(url, json=payload, headers=_headers(ring.current()))
+            if resp.status_code == QUOTA_STATUS and ring.rotate():
+                _log_rotate("gemini.chat", ring)
+                continue
+            resp.raise_for_status()
+            return extract_text(resp.json())
+        resp.raise_for_status()   # 모든 키가 429 — 마지막 응답을 그대로 올린다
         return extract_text(resp.json())

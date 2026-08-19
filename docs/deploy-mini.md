@@ -81,6 +81,10 @@ touch data/chat_logs.db
 # compose 가 읽을 .env — 키는 이미지에 굽지 않고 여기서 주입한다
 cat > .env <<'EOF'
 GEMINI_API_KEY=<발급받은 키>
+# 예비 키(선택). 무료 티어 제한은 키마다 따로 차므로, 앞 키가 429 면 기다리지 않고
+# 다음 키로 넘어간다. 학기 초처럼 몰리는 구간에서 폴백 문구가 뜨는 것을 줄인다.
+GEMINI_API_KEY2=
+GEMINI_API_KEY3=
 # 관리자 토큰. 비우면 /admin/logs 와 /admin/usage 가 404 라 **오늘 얼마나 쓰였는지
 # 볼 수단이 없다.** 요청 상한을 걸어두고 소진 여부를 못 보면 비용 사고를 사후에도
 # 모른다. 운영에서는 반드시 강한 값으로 채울 것 — openssl rand -hex 24
@@ -179,7 +183,8 @@ docker rmi ghcr.io/team-poem/lms-chatbot:latest  # 이미지 삭제
 
 | 증상 | 원인 / 해결 |
 |------|-------------|
-| 부팅 즉시 크래시 + `GEMINI_API_KEY 가 비어 있습니다` | `.env` 의 키 누락. compose 는 호스트 `.env` 를 읽는다 (`docker compose config` 로 주입 확인) |
+| 부팅 즉시 크래시 + `GEMINI_API_KEY 가 비어 있습니다` | `.env` 의 키 누락. compose 는 호스트 `.env` 를 읽는다 (`docker compose config` 로 주입 확인). `GEMINI_API_KEY2·3` 은 선택이라 비어도 된다 |
+| 로그에 `429 — 다음 키로 전환 (키 #2/3)` | 1번 키 쿼터 소진. 정상 동작이다(자동 전환). 자주 보이면 키를 늘리거나 `RL_*` 상한을 조인다 |
 | 답변이 계속 비고 폴백 문구만 나옴 | Gemini 401/429. `docker compose logs` 확인 — 관련성 게이트는 예외를 삼키므로(통과 정책) 증상이 빈 답변으로만 보인다 |
 | 첫 부팅 후 `/health` 503 | BGE-M3 로드 중 (최대 2분). `start_period: 180s` 동안 unhealthy 정상 |
 | 응답이 느림 (>30초) | 네트워크 또는 Gemini 지연. `LLM_PROVIDER=ollama` 로 돌린 상태면 gemma3:4b 콜드 스타트(`keep_alive` 기본 5분) |

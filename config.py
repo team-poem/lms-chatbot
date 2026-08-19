@@ -5,6 +5,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+import gemini_keys
+
 
 @dataclass(frozen=True)
 class AppConfig:
@@ -25,7 +27,8 @@ class AppConfig:
     # 임베딩 백엔드는 이 값과 독립이다 — EMBED_PROVIDER 로 따로 고른다
     # (index/embed.py). 생성만 gemini 로 쓰고 임베딩은 로컬로 두는 것이 기본값이다.
     llm_provider: str = "gemini"
-    gemini_api_key: str = ""
+    # 순서가 우선순위. 앞의 키부터 쓰고 429 면 다음 키로 넘어간다(gemini_keys.py).
+    gemini_api_keys: tuple[str, ...] = ()
     # **버전을 고정한다. `-latest` 별칭을 쓰지 않는다.**
     # 2026-08-12 실측: gemini-flash-latest 는 gemini-3.6-flash 를 가리켰고, 이 모델은
     # thinkingBudget=0 을 HTTP 400 으로 거부한다(2.5-flash 는 허용). 우리 코드는 그
@@ -69,7 +72,7 @@ def load_config() -> AppConfig:
         # 키 유무 검증은 여기서 하지 않는다 — 부팅 경로(rag.state.load_rag_state)에서
         # 한 번에 잡는다. load_config 는 테스트가 환경변수만 보고 부르는 순수 로더다.
         llm_provider=os.environ.get("LLM_PROVIDER", "gemini"),
-        gemini_api_key=os.environ.get("GEMINI_API_KEY", ""),
+        gemini_api_keys=gemini_keys.from_env().keys,
         gemini_model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
         # 캠퍼스망은 NAT 뒤에 다수 사용자가 있어 IP 상한을 빡빡하게 잡으면 강의동
         # 하나가 통째로 막힌다. 기본값은 넉넉하게 두고 운영에서 조인다.

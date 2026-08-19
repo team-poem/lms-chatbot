@@ -17,6 +17,7 @@ import os
 from dataclasses import dataclass
 from typing import Protocol
 
+from gemini_keys import KeyRing, as_ring, from_env
 from index.gemini_embed import DOCUMENT, QUERY, embed_batch
 from tuning import EMBED_MAX_SEQ_LEN
 
@@ -28,7 +29,8 @@ GEMINI = "gemini"
 class EmbedConfig:
     provider: str
     model: str
-    api_key: str = ""   # gemini 전용
+    # gemini 전용. 순서가 우선순위이며 429 면 다음 키로 넘어간다(gemini_keys.py).
+    api_keys: tuple[str, ...] = ()
     dim: int = 768      # gemini 전용 (출력 차원)
 
 
@@ -63,19 +65,24 @@ class LocalEmbedder:
 class GeminiEmbedder:
     """Gemini Embedding API. 문서/질문을 다르게 인코딩한다."""
 
-    def __init__(self, api_key: str, model: str, dim: int):
-        self._api_key = api_key
+    def __init__(self, keys: str | KeyRing | tuple[str, ...], model: str, dim: int):
+        # 링을 한 번만 만들어 들고 있는다 — 커서(어느 키가 살아 있는지)가 요청
+        # 사이에 유지돼야 마른 키에 매번 왕복을 버리지 않는다.
+        self._ring = as_ring(keys)
         self._model = model
         self._dim = dim
 
     def encode(self, texts: list[str], kind: str = DOCUMENT) -> list[list[float]]:
         return embed_batch(
-            self._api_key, self._model, texts, kind=kind, dim=self._dim
+            self._ring, self._model, texts, kind=kind, dim=self._dim
         )
 
 
 def build_embed_config(
-    *, provider: str | None = None, model: str | None = None, api_key: str | None = None
+    *,
+    provider: str | None = None,
+    model: str | None = None,
+    api_key: str | None = None,
 ) -> EmbedConfig:
     """환경변수에서 임베딩 설정을 읽는다. 인자를 주면 그쪽이 이긴다(테스트용).
 
@@ -86,7 +93,9 @@ def build_embed_config(
         return EmbedConfig(
             provider=GEMINI,
             model=model or os.environ.get("GEMINI_EMBED_MODEL", "gemini-embedding-2"),
-            api_key=api_key if api_key is not None else os.environ.get("GEMINI_API_KEY", ""),
+            # api_key 인자는 테스트용 단일 키 주입구다. 실제 배포는 환경변수
+            # GEMINI_API_KEY / …2 / …3 을 순서대로 읽는다.
+            api_keys=(api_key,) if api_key is not None else from_env().keys,
             dim=int(os.environ.get("EMBED_DIM", "768")),
         )
     if prov == LOCAL:
@@ -103,12 +112,12 @@ def load_embedder(cfg: EmbedConfig | str | None = None) -> Embedder:
     if cfg is None or isinstance(cfg, str):
         cfg = build_embed_config(provider=LOCAL, model=cfg)
     if cfg.provider == GEMINI:
-        if not cfg.api_key:
+        if not cfg.api_keys:
             raise RuntimeError(
                 "EMBED_PROVIDER=gemini 인데 GEMINI_API_KEY 가 비어 있습니다. "
                 ".env 에 키를 넣거나 EMBED_PROVIDER=local 로 되돌리십시오."
             )
-        return GeminiEmbedder(cfg.api_key, cfg.model, cfg.dim)
+        return GeminiEmbedder(cfg.api_keys, cfg.model, cfg.dim)
     return LocalEmbedder(cfg.model)
 
 

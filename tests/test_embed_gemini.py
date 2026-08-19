@@ -194,7 +194,7 @@ def test_gemini_path_does_not_import_torch(monkeypatch):
 
     _mock_httpx(monkeypatch, _ok())
     embedder = load_embedder(
-        EmbedConfig(provider="gemini", model="gemini-embedding-2", api_key="k", dim=4)
+        EmbedConfig(provider="gemini", model="gemini-embedding-2", api_keys=("k",), dim=4)
     )
     out = embed.encode_texts(embedder, ["안녕"], kind=QUERY)
 
