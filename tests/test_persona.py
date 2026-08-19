@@ -4,14 +4,14 @@ from generation.persona import FALLBACK_MARK, qna_fallback_msg
 def test_qna_fallback_includes_contact_and_board_phrase():
     msg = qna_fallback_msg("교육혁신처 051-320-0000")
     assert "교육혁신처 051-320-0000" in msg
-    assert "e-Class QnA 게시판" in msg   # 프론트가 하이퍼링크로 거는 문구
-    assert "문의 부탁드립니다" in msg
+    assert "Q&A 게시판" in msg   # 프론트가 이 문구를 보고 게시판 버튼을 붙인다
+    assert "문의해 주세요" in msg
 
 
 def test_qna_fallback_without_contact():
     # 기본(연락처 없음): QnA 게시판만 안내, 전화번호 일절 없음.
     msg = qna_fallback_msg("")
-    assert msg == "준비된 매뉴얼 답변에서 확인되지 않는 질문입니다. e-Class QnA 게시판으로 문의 부탁드립니다."
+    assert msg == "요청하신 내용에 대한 답변을 찾지 못했습니다.\n자세한 안내는 Q&A 게시판으로 문의해 주세요."
     assert "051" not in msg and "☎" not in msg and "또는" not in msg
 
 

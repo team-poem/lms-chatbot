@@ -6,7 +6,9 @@ export function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;",
 
 // 답변 텍스트를 렌더한다(평문). 단 게시판 문구('e-Class QnA 게시판', 'Q&A 바로가기'
 // 등)는 게시판 하이퍼링크로 건다 — 안내 시 게시판으로 바로 이동할 수 있게.
-const QNA_LINK_PHRASES = ["e-Class QnA 게시판", "Q&A 바로가기", "Q&A 게시판"];
+// 답변에 이 문구가 보이면 본문에 링크를 심는 대신 아래에 게시판 이동 버튼을
+// 붙인다(2026-08-19 결정 — 인라인 하이퍼링크보다 버튼이 누르기 쉽다).
+const QNA_PHRASES = ["Q&A 게시판", "e-Class QnA 게시판", "Q&A 바로가기"];
 
 // 게시판 URL 은 모듈이 들고 있는다. 호출부마다 넘기게 두면 넘기는 걸 잊은 곳만
 // 조용히 맨 텍스트가 된다 — 실제로 상담 카드(renderAnswerCard)가 빈 문자열을
@@ -29,14 +31,17 @@ function linkifyUrls(html) {
 }
 
 export function setAnswerText(el, text) {
-  let html = linkifyUrls(escapeHtml(text));
-  if (qnaBoardUrl) {
-    QNA_LINK_PHRASES.forEach(phrase => {
-      const a = `<a href="${escapeHtml(qnaBoardUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(phrase)}</a>`;
-      html = html.split(escapeHtml(phrase)).join(a);
-    });
+  el.innerHTML = linkifyUrls(escapeHtml(text));
+  if (qnaBoardUrl && QNA_PHRASES.some(p => text.includes(p))) {
+    const wrap = document.createElement("div");
+    wrap.className = "qna-btn-row";
+    const a = document.createElement("a");
+    a.className = "qna-btn";
+    a.href = qnaBoardUrl; a.target = "_blank"; a.rel = "noopener noreferrer";
+    a.textContent = "Q&A 게시판 ›";
+    wrap.appendChild(a);
+    el.appendChild(wrap);
   }
-  el.innerHTML = html;
 }
 
 const ICON_PAPERCLIP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 1 1-8.49-8.49l8.57-8.57A4 4 0 1 1 17.93 8.8L9.41 17.32a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
@@ -275,7 +280,7 @@ export function renderEntry(questions, catalogSectionEl, onAsk) {
   wrap.className = "faq";
   const intro = document.createElement("p");
   intro.className = "faq-intro";
-  intro.textContent = "자주하는 질문(FAQ) TOP 5";
+  intro.textContent = "학기 초 자주하는 질문(FAQ)";
   wrap.appendChild(intro);
   if (questions.length) wrap.appendChild(faqRowOf(questions, onAsk));
   if (catalogSectionEl) wrap.appendChild(catalogSectionEl);
