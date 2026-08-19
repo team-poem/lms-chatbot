@@ -198,3 +198,59 @@ def test_entry_payload_recommended_is_random_faq_subset():
     # (c) every recommended entry has both id and label keys
     for item in payload["recommended"]:
         assert "id" in item and "label" in item
+
+
+# ── 카탈로그 자동 핀 (2026-08-19) ──────────────────────────────────
+def _chunk_for(manual, title, text, doc_set="guide", seq=0):
+    from app_types import Chunk
+    return Chunk(chunk_id=f"{manual}-{title}-{seq}", text=text, source=title,
+                 doc_set=doc_set, title=title, doc_title=title, seq=seq,
+                 manual=manual)
+
+
+def test_norm_folds_slash_to_dash():
+    """노션 제목의 '/' 는 파일명에서 '-' 가 된다. 조인 키에서 안 접으면 슬래시
+    제목 문서의 노드·핀이 조용히 빠진다('로그인 - 대시보드' 핀 사망 실측)."""
+    from generation.nodes import _norm
+    assert _norm("퀴즈/설문 유형") == _norm("퀴즈-설문 유형")      # sync 수집기
+    assert _norm("퀴즈/설문 유형") == _norm("퀴즈 설문 유형")      # 노션 공식 export
+    assert _norm("로그인 / 대시보드 유형 선택") == _norm("로그인 - 대시보드 유형 선택")
+    assert _norm("Cloud Editor란?") == _norm("Cloud Editor란")     # '?' 는 파일명에서 삭제
+    assert _norm("1. 앞/뒷부분 잘라내기") == _norm("1 앞 뒷부분 잘라내기")
+    # TOC 이스케이프('\[')는 삭제로 접는다 — 공백으로 접으면 ']온' 과 어긋난다.
+    assert _norm("\\[피어리뷰\\]온/오프라인") == _norm("[피어리뷰]온-오프라인")
+
+
+def test_catalog_pin_events_cover_short_titles():
+    """'웹링크' 같은 짧은 제목도 핀으로 확정 답변이 나온다 — 검색이 못 찾아
+    폴백 나던 4건의 근본 수정."""
+    from generation.catalog import Category, Manual
+    from generation.nodes import catalog_pin_events
+    chunks = [_chunk_for("CMS", "웹링크", "웹 링크를 콘텐츠로 등록합니다.")]
+    catalog = (Manual(name="CMS", title="CMS 매뉴얼",
+                      categories=(Category(name="콘텐츠 등록하기", docs=("웹링크",)),)),)
+    pins = catalog_pin_events(chunks, catalog)
+    assert "웹링크" in pins
+    kinds = [e.type for e in pins["웹링크"]]
+    assert kinds == ["text", "text_final", "done"]
+    assert pins["웹링크"][2].score == 1.0
+    assert pins["웹링크"][2].sources[0].title == "웹링크"
+
+
+def test_catalog_pin_matches_slash_label_to_dash_title():
+    """카탈로그 라벨('/')과 인덱스 제목('-')이 달라도 같은 문서로 핀된다."""
+    from generation.catalog import Category, Manual
+    from generation.nodes import catalog_pin_events
+    chunks = [_chunk_for("CMS", "타임라인 확대-축소", "타임라인을 확대하거나 축소합니다.")]
+    catalog = (Manual(name="CMS", title="CMS 매뉴얼",
+                      categories=(Category(name="편집 도구", docs=("타임라인 확대/축소",)),)),)
+    pins = catalog_pin_events(chunks, catalog)
+    assert "타임라인 확대/축소" in pins
+
+
+def test_catalog_pin_skips_missing_doc():
+    from generation.catalog import Category, Manual
+    from generation.nodes import catalog_pin_events
+    catalog = (Manual(name="CMS", title="CMS 매뉴얼",
+                      categories=(Category(name="c", docs=("없는 문서",)),)),)
+    assert catalog_pin_events([], catalog) == {}

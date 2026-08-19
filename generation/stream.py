@@ -146,6 +146,12 @@ async def stream_response(
         yield ChatEvent(type="text", delta=streaming_clean(delta))
 
     answer = clean_response(raw_buf)
+    # LLM 이 아무것도 못 내놓은 경우(쿼터 소진·전송 오류 — 원인은 서버 로그에 남는다):
+    # 빈 답변을 그대로 내보내면 사용자는 빈 말풍선을 본다. 폴백으로 돌린다.
+    if not answer.strip():
+        for evt in fallback_events(qna_fallback_msg(state.qna_contact), score=top_score):
+            yield evt
+        return
     yield ChatEvent(type="text_final", text=answer)
 
     # gemma 가 (관련성 게이트를 통과한 문서로도) 답을 못 찾아 폴백 문구를 생성한 경우:

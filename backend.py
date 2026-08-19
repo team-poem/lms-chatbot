@@ -17,8 +17,9 @@ from config import load_config
 from db import store
 from generation.catalog import build_catalog
 from generation.faq import entry_questions, sample_questions
-from generation.nodes import (build_pinned_events, build_registry, card_of,
-                              entry_payload, find_related, fixed_events)
+from generation.nodes import (build_catalog_pins, build_pinned_events,
+                              build_registry, card_of, entry_payload,
+                              find_related, fixed_events)
 from tuning import FAQ_TOP_FIXED, FAQ_TOP_PINS
 from generation.stream import stream_response
 from rag.state import RagState, load_rag_state
@@ -68,9 +69,12 @@ async def lifespan(app: FastAPI):
     )
     print(f"[startup] 노드 레지스트리 {len(app.state.nodes.by_id)}개", flush=True)
     # 고정 TOP 질문의 확정 답변(왜 핀하는지는 tuning.FAQ_TOP_PINS 주석).
-    app.state.pinned = await asyncio.to_thread(
+    # 카탈로그 전 문서 자동 핀(제목 클릭 → 확정 답변). TOP 핀·고정 문안이 겹치면
+    # 그쪽이 이긴다 — 사람이 명시한 핀이 자동 도출보다 우선.
+    app.state.pinned = await asyncio.to_thread(build_catalog_pins, app.state.rag)
+    app.state.pinned.update(await asyncio.to_thread(
         build_pinned_events, app.state.rag, FAQ_TOP_PINS
-    )
+    ))
     # 문서 없이 고정 문안으로 답하는 질문(자료실 링크 안내 등)을 같은 맵에 얹는다.
     app.state.pinned.update(
         {q: fixed_events(text) for q, text in FAQ_TOP_FIXED.items()}
