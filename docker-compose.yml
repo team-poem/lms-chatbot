@@ -17,6 +17,10 @@ services:
       # 이미지에 굽지 않는다 — 호스트 .env 에서 주입. 비어 있으면 앱이 부팅 때
       # 잡는다(LLM_PROVIDER=ollama 로 쓰는 경우까지 compose 가 막지 않도록 :- 사용).
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      # 예비 키(선택). 무료 티어 쿼터는 키마다 따로 차므로, 1번 키가 429 면
+      # 기다리지 않고 다음 키로 넘어간다(gemini_keys.py). 비워도 동작한다.
+      GEMINI_API_KEY2: ${GEMINI_API_KEY2:-}
+      GEMINI_API_KEY3: ${GEMINI_API_KEY3:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       OLLAMA_HOST: http://host.docker.internal:11434
       OLLAMA_MODEL: gemma3:4b

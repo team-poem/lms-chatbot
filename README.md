@@ -55,6 +55,9 @@
 
 - 키: https://aistudio.google.com/apikey → `.env` 의 `GEMINI_API_KEY`.
   gemini 인데 키가 비면 **부팅 시점에** 실패한다(첫 질문까지 미루지 않는다).
+- 키를 `GEMINI_API_KEY2`·`GEMINI_API_KEY3` 까지 넣으면 **로테이션**이 켜진다.
+  무료 티어 제한은 키마다 따로 차므로, 429 를 만나면 기다리지 않고 다음 키로
+  넘어간다(생성·임베딩 공통, `gemini_keys.py`). 살아난 키는 계속 쓴다.
 - 백엔드 분기는 `generation/llm.py` 한 곳. 어댑터는 `generation/gemini.py`,
   `generation/ollama.py` 이고 시그니처가 같다.
 - **임베딩은 생성 백엔드와 독립이다.** 기본은 로컬 BGE-M3(`EMBED_PROVIDER=local`)라

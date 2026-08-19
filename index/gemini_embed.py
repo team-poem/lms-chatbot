@@ -26,6 +26,8 @@ import time
 
 import httpx
 
+from gemini_keys import KeyRing, as_ring
+
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
 
 # 요청 하나에 담을 최대 문서 수. 상한에 딱 붙이지 않고 여유를 둔다.
@@ -41,6 +43,8 @@ MAX_RETRIES = 7
 BACKOFF_BASE_S = 5.0
 BACKOFF_CAP_S = 90.0
 RETRYABLE = {429, 500, 502, 503, 504}
+# 쿼터 소진. 이 상태에서만 키를 바꾼다.
+QUOTA_STATUS = 429
 
 # 배치 요청 사이 간격. 요청 수 자체가 적어도(162청크 = 2요청) 연속으로 쏘면 분당
 # 창에 함께 걸린다. 0 이면 대기 없음(테스트·유료 티어용).
@@ -89,6 +93,10 @@ def extract_embeddings(obj: dict) -> list[list[float]]:
     return [l2_normalize(e.get("values") or []) for e in obj.get("embeddings") or []]
 
 
+def _headers(api_key: str) -> dict:
+    return {"x-goog-api-key": api_key, "Content-Type": "application/json"}
+
+
 def _batches(texts: list[str], size: int = BATCH_LIMIT):
     for i in range(0, len(texts), size):
         yield texts[i : i + size]
@@ -105,18 +113,35 @@ def retry_delay(attempt: int, retry_after: str | None) -> float:
     return min(BACKOFF_CAP_S, BACKOFF_BASE_S * (2 ** attempt))
 
 
-def _post_with_retry(client: httpx.Client, url: str, payload: dict, headers: dict):
+def _post_with_retry(client: httpx.Client, url: str, payload: dict, ring: KeyRing):
     """429·5xx 는 백오프 후 재시도한다. 그 외 상태는 그대로 raise.
 
     무료 티어의 분당 제한은 잠깐 기다리면 풀리므로, 여기서 삼키지 않으면 인덱싱
     전체가 실패한다. 반대로 400(스키마 오류) 같은 것은 재시도해도 소용없으므로
-    즉시 올린다."""
+    즉시 올린다.
+
+    키가 여러 개면 **기다리기 전에 남은 키를 먼저 쓴다**. 제한은 키마다 따로
+    차므로, 키 2·3 이 살아 있는데 90초를 자는 것은 순수한 낭비다. 한 바퀴를 다
+    돌아 전부 429 면 그때 백오프한다."""
     last: httpx.Response | None = None
     for attempt in range(MAX_RETRIES):
-        resp = client.post(url, json=payload, headers=headers)
-        if resp.status_code not in RETRYABLE:
-            resp.raise_for_status()
-            return resp
+        resp = None
+        for _ in range(len(ring) or 1):
+            resp = client.post(url, json=payload, headers=_headers(ring.current()))
+            if resp.status_code not in RETRYABLE:
+                resp.raise_for_status()
+                return resp
+            last = resp
+            # 5xx 는 서버 문제라 키를 바꿔도 같다 — 바로 백오프로 넘어간다.
+            if resp.status_code != QUOTA_STATUS or not ring.rotate():
+                break
+            print(
+                f"[gemini_embed] 429 — 다음 키로 전환 "
+                f"(키 #{ring.position() + 1}/{len(ring)})",
+                file=sys.stderr,
+                flush=True,
+            )
+        assert resp is not None
         last = resp
         if attempt == MAX_RETRIES - 1:
             break
@@ -134,7 +159,7 @@ def _post_with_retry(client: httpx.Client, url: str, payload: dict, headers: dic
 
 
 def embed_batch(
-    api_key: str,
+    keys: str | KeyRing,
     model: str,
     texts: list[str],
     *,
@@ -148,15 +173,15 @@ def embed_batch(
     말없이 불완전해지고, 그건 검색 품질 저하로만 드러나 추적이 어렵다."""
     if not texts:
         return []
+    ring = as_ring(keys)
     url = f"{API_ROOT}/{model}:batchEmbedContents"
-    headers = {"x-goog-api-key": api_key, "Content-Type": "application/json"}
     out: list[list[float]] = []
     with httpx.Client(timeout=httpx.Timeout(timeout)) as client:
         for i, batch in enumerate(_batches(texts)):
             if i and INTER_BATCH_DELAY_S:
                 time.sleep(INTER_BATCH_DELAY_S)   # 분당 창에 몰아치지 않도록
             resp = _post_with_retry(
-                client, url, build_payload(model, batch, kind, dim), headers
+                client, url, build_payload(model, batch, kind, dim), ring
             )
             vecs = extract_embeddings(resp.json())
             if len(vecs) != len(batch):

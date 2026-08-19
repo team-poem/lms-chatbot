@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from config import AppConfig
+from gemini_keys import KeyRing
 from generation.llm import GEMINI, LLMConfig
 from index.bm25 import BM25Pack, load_bm25
 from index.embed import Embedder, build_embed_config, load_embedder
@@ -25,9 +26,10 @@ def build_llm_config(config: AppConfig) -> LLMConfig:
     Gemini 인데 키가 없으면 여기서 즉시 실패시킨다. 그대로 두면 첫 질문이 들어온
     뒤에야 401 로 드러나고, 관련성 게이트는 예외를 삼켜(None=통과) 증상이 '답변이
     빈다'로만 보인다 — 부팅 때 잡는 편이 훨씬 싸다."""
-    if config.llm_provider == GEMINI and not config.gemini_api_key:
+    if config.llm_provider == GEMINI and not config.gemini_api_keys:
         raise RuntimeError(
-            "LLM_PROVIDER=gemini 인데 GEMINI_API_KEY 가 비어 있습니다. "
+            "LLM_PROVIDER=gemini 인데 GEMINI_API_KEY 가 비어 있습니다 "
+            "(GEMINI_API_KEY2·3 은 선택). "
             ".env 에 키를 넣거나 LLM_PROVIDER=ollama 로 되돌리십시오."
         )
     return LLMConfig(
@@ -38,7 +40,7 @@ def build_llm_config(config: AppConfig) -> LLMConfig:
             else config.ollama_model
         ),
         host=config.ollama_host,
-        api_key=config.gemini_api_key,
+        api_key=KeyRing(config.gemini_api_keys),
     )
 
 

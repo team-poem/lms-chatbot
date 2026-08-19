@@ -58,9 +58,10 @@ def _config(**kw) -> AppConfig:
 
 def test_build_llm_config_picks_gemini_model():
     cfg = build_llm_config(
-        _config(llm_provider=GEMINI, gemini_api_key="k", gemini_model="gemini-2.5-flash")
+        _config(llm_provider=GEMINI, gemini_api_keys=("k",), gemini_model="gemini-2.5-flash")
     )
-    assert (cfg.provider, cfg.model, cfg.api_key) == (GEMINI, "gemini-2.5-flash", "k")
+    assert (cfg.provider, cfg.model) == (GEMINI, "gemini-2.5-flash")
+    assert cfg.api_key.current() == "k"
 
 
 def test_build_llm_config_picks_ollama_model():
@@ -73,4 +74,4 @@ def test_build_llm_config_picks_ollama_model():
 def test_build_llm_config_rejects_gemini_without_key():
     # 부팅 때 잡지 않으면 첫 질문에서 401 → 게이트가 예외를 삼켜 '답이 빈다'로만 보인다.
     with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
-        build_llm_config(_config(llm_provider=GEMINI, gemini_api_key=""))
+        build_llm_config(_config(llm_provider=GEMINI, gemini_api_keys=()))
