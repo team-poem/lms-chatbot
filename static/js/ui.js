@@ -14,8 +14,22 @@ const QNA_LINK_PHRASES = ["e-Class QnA 게시판", "Q&A 바로가기", "Q&A 게�
 let qnaBoardUrl = "";
 export function setQnaBoardUrl(url) { qnaBoardUrl = url || ""; }
 
+// 이스케이프 뒤의 텍스트에서 URL 을 링크로 바꾼다. FAQ 답변(사람이 쓴 원문)에
+// 자료 다운로드 링크를 넣으면 그대로 클릭 가능해진다 — 새 자료가 생길 때 코드
+// 수정 없이 노션 FAQ 행 추가만으로 끝나게 하는 연결 고리다.
+// 이스케이프 이후에 돌므로 정규식은 &amp; 가 섞인 형태를 만난다(쿼리스트링).
+// 끝에 붙은 문장부호(.,)·괄호)는 링크에서 뗀다 — "…하세요. https://x)." 방지.
+const URL_RE = /https?:\/\/[^\s<>"']+/g;
+function linkifyUrls(html) {
+  return html.replace(URL_RE, (url) => {
+    const trimmed = url.replace(/[.,)\u3002]+$/, "");
+    const rest = url.slice(trimmed.length);
+    return `<a href="${trimmed}" target="_blank" rel="noopener noreferrer">${trimmed}</a>${rest}`;
+  });
+}
+
 export function setAnswerText(el, text) {
-  let html = escapeHtml(text);
+  let html = linkifyUrls(escapeHtml(text));
   if (qnaBoardUrl) {
     QNA_LINK_PHRASES.forEach(phrase => {
       const a = `<a href="${escapeHtml(qnaBoardUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(phrase)}</a>`;
