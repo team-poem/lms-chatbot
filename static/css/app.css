@@ -57,18 +57,27 @@
   }
   .a { white-space: pre-wrap; line-height: 1.7; min-height: 24px; font-size: 16px; }
   .a a { color: var(--primary); text-decoration: underline; }
-  .loading { display: inline-flex; gap: 4px; align-items: center; padding: 4px 0; }
-  .loading .dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--text-muted);
-    animation: lms-bounce 1.3s infinite ease-in-out both;
+  /* 대기 문구 시머 — 밝은 띠가 글자 위를 훑고 지나간다. 점 3개는 "무언가 돌고
+     있다"만 말했지만, 이건 어느 단계에서 기다리는지(검색/불러오기)를 문구로
+     같이 말한다. ddukddak-hub 의 ShiningText 이식(원본: 21st.dev
+     @preetsuthar17/shining-text) — 배경 그라디언트를 글자 모양으로 잘라낸다. */
+  .loading {
+    display: inline-block;
+    padding: 4px 0;
+    background-image: linear-gradient(110deg, var(--text-muted) 35%, var(--border) 50%, var(--text-muted) 65%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shining-text 2.2s linear infinite;
   }
-  .loading .dot:nth-child(2) { animation-delay: 0.15s; }
-  .loading .dot:nth-child(3) { animation-delay: 0.3s; }
-  @keyframes lms-bounce {
-    0%, 80%, 100% { opacity: 0.25; transform: scale(0.7); }
-    40% { opacity: 1; transform: scale(1); }
+  @keyframes shining-text {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  /* 모션 최소화 설정에서는 훑는 애니메이션을 끄고 평문으로 둔다. */
+  @media (prefers-reduced-motion: reduce) {
+    .loading { animation: none; background-image: none; color: var(--text-muted); }
   }
   .src { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
   .src h4 { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--text); }

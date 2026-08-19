@@ -50,7 +50,9 @@ async function enterMenu() {
 async function selectNode(id) {
   let card = cardCache.get(id);
   if (!card) {
+    const stopLoading = ui.appendLoading(null, "안내를 불러오는 중");  // 캐시 히트는 즉답이라 생략
     card = await api.fetchAnswer(id);
+    stopLoading();
     if (!card) { return; }
     cardCache.set(id, card);
   }
@@ -70,12 +72,14 @@ function goBack() {
 }
 
 async function consultSearch(q) {
+  const stopLoading = ui.appendLoading(q, "관련 항목을 찾는 중");
   const candidates = await api.searchNodes(q);
+  stopLoading();
   ui.appendCandidateBlock(q, candidates, selectNode);
 }
 
 async function ask(query, manual) {
-  const {div, removeLoading} = ui.appendTurnSkeleton(query);
+  const {div, removeLoading} = ui.appendTurnSkeleton(query, "가이드를 찾는 중");
 
   const body = {session_id: session, query};
   // 가이드 네비에서 CMS 문서를 누른 경우만 manual='CMS' 로 스코프 전송. LMS/자유
