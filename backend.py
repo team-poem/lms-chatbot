@@ -68,6 +68,30 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="LMS 챗봇", lifespan=lifespan)
+
+
+# 프론트엔드 자산(HTML/CSS/JS)은 항상 재검증한다.
+#
+# StaticFiles 와 FileResponse 는 ETag·Last-Modified 만 붙이고 Cache-Control 은 붙이지
+# 않는다. Cache-Control 이 없으면 브라우저는 **휴리스틱 캐싱**을 한다 — Last-Modified
+# 로부터 지난 시간의 10% 정도를 임의로 신선하다고 보고 서버에 묻지도 않는다. 그래서
+# 새 이미지를 배포해도 이미 방문한 사용자는 옛 index.html·app.css·main.js 를 계속
+# 쓴다. 빌드 해시(/health 의 build)는 최신인데 화면만 옛것인 상태가 된다.
+#
+# index.html 이 자산을 버전 없는 경로(/static/js/main.js)로 참조하므로 URL 로는 캐시를
+# 깰 수 없다. no-cache 로 매번 재검증하게 한다 — 내용이 같으면 304 라 비용은 조건부
+# 요청 세 번뿐이고, 바뀌면 즉시 새것을 받는다.
+#
+# /assets(매뉴얼 이미지)는 제외한다. 수가 많고 거의 바뀌지 않아 캐시가 이득이다.
+@app.middleware("http")
+async def revalidate_frontend(request: Request, call_next):
+    resp = await call_next(request)
+    path = request.url.path
+    if path in ("/", "/privacy") or path.startswith("/static/"):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 if config.assets_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(config.assets_dir)), name="assets")
