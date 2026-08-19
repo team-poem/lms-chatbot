@@ -53,6 +53,15 @@ class Document:
     blocks: tuple[Block, ...] = field(default_factory=tuple)
 
 
+_WS_RE = re.compile(r"\s+")
+
+
+def normalize(s: str) -> str:
+    """공백 접기. 비교·해시가 **같은 기준**을 써야 한다 — 한쪽만 정규화하면
+    공백만 바뀐 문서가 '내용 변경'으로 잡혀 불필요하게 다시 받아온다."""
+    return _WS_RE.sub(" ", s).strip()
+
+
 # ── markdown → IR ──────────────────────────────────────────────────
 _H_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 _UL_RE = re.compile(r"^\s*[-*+]\s+(.*)$")

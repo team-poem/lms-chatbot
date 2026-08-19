@@ -19,10 +19,9 @@ kordoc(https://github.com/chrisryugj/kordoc, MIT)의 `src/diff` 를 파이썬으
 """
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
-from sync.ir import TABLE, Block, Document
+from sync.ir import TABLE, Block, Document, normalize
 
 SIMILARITY_THRESHOLD = 0.4
 UNCHANGED_THRESHOLD = 0.99
@@ -30,13 +29,6 @@ MAX_PAIRS = 10_000_000
 MAX_LEVENSHTEIN_LEN = 10_000
 
 UNCHANGED, MODIFIED, ADDED, REMOVED = "unchanged", "modified", "added", "removed"
-
-_WS_RE = re.compile(r"\s+")
-
-
-def normalize(s: str) -> str:
-    return _WS_RE.sub(" ", s).strip()
-
 
 def _bigram_counts(s: str) -> dict[str, int]:
     out: dict[str, int] = {}
