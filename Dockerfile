@@ -66,6 +66,7 @@ COPY --from=builder /opt/hf /opt/hf
 # ModuleNotFoundError 로 컨테이너가 부팅 즉시 크래시함. 런타임 import 폐포 전체를 복사.
 COPY backend.py app_types.py config.py tuning.py ratelimit.py gemini_keys.py ./
 COPY ingest ./ingest
+COPY sync ./sync
 COPY index ./index
 COPY retrieval ./retrieval
 COPY generation ./generation
