@@ -34,9 +34,9 @@ export async function* sseEvents(resp) {
   }
 }
 
-export async function fetchFaqQuestions() {
+export async function fetchFaqQuestions(n) {
   try {
-    const r = await fetch("/faq");
+    const r = await fetch(n ? "/faq?n=" + n : "/faq");
     if (r.ok) return (await r.json()).questions || [];
   } catch (e) {}
   return [];

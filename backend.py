@@ -16,7 +16,7 @@ from app_types import ChatEvent, Source
 from config import load_config
 from db import store
 from generation.catalog import build_catalog
-from generation.faq import sample_for_entry, sample_questions
+from generation.faq import entry_questions, sample_questions
 from generation.nodes import build_registry, card_of, entry_payload, find_related
 from generation.stream import stream_response
 from rag.state import RagState, load_rag_state
@@ -145,8 +145,9 @@ def health():
 
 @app.get("/faq")
 def faq(n: int | None = Query(None, ge=1, le=12)):
-    """첫 진입 화면에 노출할 FAQ 질문을 반환한다. n 미지정 시 5개(top 5)."""
-    questions = sample_questions(n) if n is not None else sample_for_entry()
+    """첫 진입 화면에 노출할 FAQ 질문. n 미지정 시 고정 TOP 목록({label, text}),
+    n 명시(리롤) 시 CSV 무작위 샘플(문자열 리스트)."""
+    questions = sample_questions(n) if n is not None else entry_questions()
     return {"questions": questions}
 
 

@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from config import load_config
-from tuning import FAQ_ENTRY_COUNT
+from tuning import FAQ_TOP
 
 # FAQ DATABASE CSV 의 질문 컬럼명(Notion export 헤더).
 _FAQ_COLUMN = "FAQ"
@@ -97,6 +97,7 @@ def sample_questions(n: int) -> list[str]:
     return pick(load_questions(), n)
 
 
-def sample_for_entry() -> list[str]:
-    """첫 진입용: 5개를 뽑는다(개수 고정, 어느 5개인지는 아직 무작위)."""
-    return pick(load_questions(), FAQ_ENTRY_COUNT)
+def entry_questions() -> list[dict[str, str]]:
+    """첫 진입용: tuning.FAQ_TOP 고정 목록. label 은 표시용(메달 이모지 포함),
+    text 가 /chat 으로 보낼 질문 — 리롤(n 명시)만 CSV 무작위 샘플을 유지한다."""
+    return [{"label": label, "text": text} for label, text in FAQ_TOP]

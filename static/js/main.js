@@ -127,7 +127,7 @@ async function ask(query, manual) {
   }
 }
 
-// 첫 진입 화면: 랜덤 FAQ 칩 + 가이드 대분류 네비.
+// 첫 진입 화면: 고정 FAQ TOP 칩 + 가이드 대분류 네비.
 async function showFaqSuggestions() {
   const questions = await api.fetchFaqQuestions();
   const sec = ui.buildCatalogSection(
@@ -140,7 +140,8 @@ async function showFaqSuggestions() {
 
 async function appendRerollSuggestions(userText) {
   ui.appendUserBubble(userText);
-  const questions = await api.fetchFaqQuestions();
+  const questions = await api.fetchFaqQuestions(5); // 리롤은 CSV 무작위 5개 유지
+
   ui.appendRerollBlock(questions, ask);
 }
 
