@@ -4,6 +4,16 @@
 # 배포 대상이 Apple Silicon Mac mini 라서 linux/arm64 단일 플랫폼으로 빌드한다.
 # QEMU 에뮬레이션 대신 arm64 러너에서 네이티브로 돈다 (public 레포라 무료).
 name: docker
+
+# 빌드를 한 번에 하나씩, 큐 순서대로. PR 두 개를 연달아 머지하면 빌드 둘이 나란히
+# 돌고, **옛 커밋 빌드가 늦게 끝나면 latest 를 도로 덮어쓴다** — 2026-08-19 실측:
+# #26(05:45:19) 푸시 뒤 #25(05:45:41)가 latest 를 덮어 배포가 옛 코드로 돌아갔다.
+# cancel-in-progress 는 켜지 않는다: 돌던 빌드를 죽이면 그 커밋의 sha 태그가 안
+# 남는다. 직렬화만으로 마지막 완주가 항상 최신 커밋이 된다.
+concurrency:
+  group: docker-push
+  cancel-in-progress: false
+
 on:
   push:
     branches: [main]
