@@ -159,7 +159,16 @@
   .faq .cat-intro { color: var(--text-muted); font-size: 14px; margin: 0 0 12px; line-height: 1.6; }
   .faq .manual-block { margin-bottom: 14px; }
   .faq .manual-block:last-child { margin-bottom: 0; }
-  .faq .manual-label { display: inline-block; font-size: 12px; font-weight: 700; color: var(--primary); margin: 0 0 8px; letter-spacing: .02em; }
+  /* 매뉴얼 최상위 칩: 카테고리 칩보다 한 급 무겁게(굵기·크림슨 테두리). 펼치면
+     테두리를 채워 어떤 매뉴얼이 열려 있는지 보인다. */
+  .faq .manual-chip {
+    font-weight: 700; font-size: 15px; padding: 10px 18px;
+    border: 1.5px solid var(--primary); color: var(--primary);
+    border-radius: 999px; margin-bottom: 10px;
+  }
+  .faq .manual-chip.open, .faq .manual-chip:hover { background: var(--primary); color: #fff; }
+  .faq .manual-chip.open .arrow, .faq .manual-chip:hover .arrow { color: #fff; }
+  .faq .chip-grid { margin-top: 2px; }
   .faq .chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
   .faq .cat-chip {
     background: var(--surface); border: 1px solid var(--border); color: var(--text);
