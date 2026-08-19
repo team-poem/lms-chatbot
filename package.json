@@ -12,7 +12,8 @@
     "qa:paraphrase:judge": "devtools-qa-runner-judge --report reports/faq-paraphrase --profile lms-faq-paraphrase --llm",
     "qa:conversation": "devtools-qa-runner --profile qa/devtools-profiles/lms-conversation.json --out reports/conversation --timeout 200000",
     "qa:human-report": "devtools-qa-runner-human-report --report reports/conversation",
-    "qa:human-report:html": "devtools-qa-runner-human-report-html --report reports/conversation"
+    "qa:human-report:html": "devtools-qa-runner-human-report-html --report reports/conversation",
+    "qa:store": "node qa/check-store.mjs"
   },
   "devDependencies": {
     "chrome-devtools-mcp": "^1.1.0",
