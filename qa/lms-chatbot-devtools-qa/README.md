@@ -7,7 +7,7 @@ Chrome DevTools for Agents CLI만 사용해서 `lms-chatbot`을 조작하고 검
 ## 실행
 
 ```bash
-npm run qa:chatbot:devtools -- --url https://121.145.133.68.sslip.io --timeout 120000
+npm run qa:chatbot:devtools -- --url https://<배포 호스트> --timeout 120000
 ```
 
 ## 현재 시나리오

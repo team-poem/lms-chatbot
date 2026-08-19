@@ -20,7 +20,7 @@ Refactor the project-local QA prototype toward a reusable `devtools-qa-runner` p
 
 ## Verification
 - `node --check qa/devtools-qa-runner/src/cli.mjs`
-- `npm run qa:devtools-runner -- --url https://121.145.133.68.sslip.io --profile qa/devtools-qa-runner/profiles/lms-chatbot.json --timeout 120000`
+- `npm run qa:devtools-runner -- --url https://<배포 호스트> --profile qa/devtools-qa-runner/profiles/lms-chatbot.json --timeout 120000`
 - Report generated: `reports/devtools-qa-runner/lms-chatbot/latest/qa-report.md`
 - Result: PASS, 4 passed / 0 failed / 4 total, quality warning due to favicon console noise.
 

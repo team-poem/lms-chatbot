@@ -22,7 +22,7 @@ Continue from the prototype package under `qa/devtools-qa-runner` and make it cl
 ## Verification
 - `find qa/devtools-qa-runner/src -name '*.mjs' -print0 | xargs -0 -n1 node --check`
 - `node --check qa/devtools-qa-runner/src/cli.mjs`
-- `npm run qa:devtools-runner -- --url https://121.145.133.68.sslip.io --profile qa/devtools-qa-runner/profiles/lms-chatbot.json --timeout 120000`
+- `npm run qa:devtools-runner -- --url https://<배포 호스트> --profile qa/devtools-qa-runner/profiles/lms-chatbot.json --timeout 120000`
 - Report: `reports/devtools-qa-runner/lms-chatbot/latest/qa-report.md`
 - Result: PASS, 4 passed / 0 failed / 4 total, quality warning due to favicon console noise.
 

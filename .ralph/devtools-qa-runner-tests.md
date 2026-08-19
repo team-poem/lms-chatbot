@@ -20,7 +20,7 @@ Harden `qa/devtools-qa-runner` with basic tests and extraction-ready CI/docs.
 - `npm run qa:devtools-runner:check`
 - `npm run qa:devtools-runner:test`
 - Test result: 8 passed / 0 failed.
-- `npm run qa:devtools-runner -- --url https://121.145.133.68.sslip.io --profile qa/devtools-qa-runner/profiles/lms-chatbot.json --timeout 120000`
+- `npm run qa:devtools-runner -- --url https://<배포 호스트> --profile qa/devtools-qa-runner/profiles/lms-chatbot.json --timeout 120000`
 - Smoke report: `reports/devtools-qa-runner/lms-chatbot/latest/qa-report.md`
 - Smoke result: PASS, 4 passed / 0 failed / 4 total, quality warning due to favicon console noise.
 
