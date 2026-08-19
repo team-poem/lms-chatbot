@@ -5,9 +5,10 @@ import os
 import time
 from contextlib import asynccontextmanager
 from dataclasses import asdict, is_dataclass
+from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
-from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -70,28 +71,42 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="LMS 챗봇", lifespan=lifespan)
 
 
-# 프론트엔드 자산(HTML/CSS/JS)은 항상 재검증한다.
+# 프론트엔드 자산 캐시 — 두 겹으로 막는다.
 #
-# StaticFiles 와 FileResponse 는 ETag·Last-Modified 만 붙이고 Cache-Control 은 붙이지
-# 않는다. Cache-Control 이 없으면 브라우저는 **휴리스틱 캐싱**을 한다 — Last-Modified
-# 로부터 지난 시간의 10% 정도를 임의로 신선하다고 보고 서버에 묻지도 않는다. 그래서
-# 새 이미지를 배포해도 이미 방문한 사용자는 옛 index.html·app.css·main.js 를 계속
-# 쓴다. 빌드 해시(/health 의 build)는 최신인데 화면만 옛것인 상태가 된다.
+# **문제.** StaticFiles 와 FileResponse 는 ETag·Last-Modified 만 붙이고 Cache-Control 을
+# 붙이지 않는다. Cache-Control 이 없으면 브라우저는 휴리스틱 캐싱을 한다 —
+# Last-Modified 로부터 지난 시간의 10% 정도를 임의로 신선하다고 보고 서버에 묻지도
+# 않는다. 그래서 배포를 해도 이미 방문한 사용자는 옛 자산을 계속 쓴다.
 #
-# index.html 이 자산을 버전 없는 경로(/static/js/main.js)로 참조하므로 URL 로는 캐시를
-# 깰 수 없다. no-cache 로 매번 재검증하게 한다 — 내용이 같으면 304 라 비용은 조건부
-# 요청 세 번뿐이고, 바뀌면 즉시 새것을 받는다.
+# 단순히 '옛 화면이 보인다'로 끝나지 않는다. HTML 은 갱신됐는데 JS 만 캐시에서 오면
+# **페이지가 통째로 죽는다** — 2026-08-19 실측: 옛 main.js 가 새 HTML 에 없는 `#agree`
+# 에 addEventListener 를 걸다 TypeError 로 모듈이 중단됐고, 추천 질문·세션 발급·입력창
+# 활성화가 전부 실행되지 않았다.
 #
-# /assets(매뉴얼 이미지)는 제외한다. 수가 많고 거의 바뀌지 않아 캐시가 이득이다.
+# **1겹: 경로에 빌드 해시.** index.html 이 `/static/<sha>/js/main.js` 를 참조하면 배포
+# 마다 URL 이 달라져 캐시가 원천적으로 안 맞는다. `?v=` 쿼리로는 부족하다 — main.js 가
+# `./ui.js` 를 상대경로로 import 하는데 거기엔 쿼리가 안 붙어 옛 ui.js 가 그대로 온다.
+# 경로 접두라야 상대 import 까지 같은 버전으로 따라온다.
+#
+# **2겹: no-cache.** index.html 자신은 버전을 붙일 곳이 없으므로 매번 재검증한다.
+# 내용이 같으면 304(본문 0B)라 비용은 조건부 요청 한 번이다.
+#
+# /assets(매뉴얼 이미지)는 제외한다 — 수가 많고 거의 바뀌지 않아 캐시가 이득이다.
+BUILD_SHA = os.environ.get("BUILD_SHA", "dev")
+STATIC_PREFIX = f"/static/{BUILD_SHA[:12]}"
+
+
 @app.middleware("http")
-async def revalidate_frontend(request: Request, call_next):
+async def revalidate_html(request: Request, call_next):
     resp = await call_next(request)
-    path = request.url.path
-    if path in ("/", "/privacy") or path.startswith("/static/"):
+    if request.url.path in ("/", "/privacy"):
         resp.headers["Cache-Control"] = "no-cache"
     return resp
 
 
+# 버전 경로를 먼저 등록한다(Starlette 는 등록 순서로 매칭한다). 버전 없는 /static 은
+# 캐시에 남은 옛 HTML 이 찾아올 수 있으므로 함께 남겨 둔다.
+app.mount(STATIC_PREFIX, StaticFiles(directory="static"), name="static_versioned")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 if config.assets_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(config.assets_dir)), name="assets")
@@ -99,7 +114,12 @@ if config.assets_dir.exists():
 
 @app.get("/")
 def index():
-    return FileResponse("static/index.html")
+    """index.html 의 자산 경로에 빌드 해시를 끼워 넣어 내보낸다.
+
+    매 요청 파일을 읽는다 — 홈 요청 자체는 드물고(무거운 자산은 캐시된다),
+    개발 중 --reload 로 고친 내용이 바로 반영되는 편이 낫다."""
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    return HTMLResponse(html.replace('"/static/', f'"{STATIC_PREFIX}/'))
 
 
 @app.get("/privacy")
