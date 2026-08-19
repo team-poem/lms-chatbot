@@ -155,7 +155,19 @@
   }
   .faq .faq-chip:hover { background: var(--primary); color: #fff; }
   /* 가이드 네비게이션: 대분류(카테고리) 칩 + 하위 문서 칩 */
-  .faq .cat-section { margin-top: 18px; padding-top: 14px; border-top: 1px dashed var(--border); }
+  /* 위아래 점선: 위는 FAQ 와의 경계, 아래는 뒤이어 붙는 대화 턴(사용자 말풍선)과의
+     경계다. 아래가 없으면 첫 질문 말풍선이 카탈로그에 붙어 보인다. */
+  .faq .cat-section { margin-top: 18px; padding: 14px 0;
+                      border-top: 1px dashed var(--border);
+                      border-bottom: 1px dashed var(--border); }
+  /* 폴백 답변 아래 게시판 이동 버튼 — 크림슨 알약, 매뉴얼 칩과 같은 급 */
+  .qna-btn-row { margin-top: 12px; }
+  .a .qna-btn, .qna-btn {
+    display: inline-block; padding: 9px 16px; border-radius: 999px;
+    border: 1.5px solid var(--primary); color: var(--primary);
+    font-weight: 700; font-size: 14px; text-decoration: none;
+  }
+  .a .qna-btn:hover, .qna-btn:hover { background: var(--primary); color: #fff; }
   .faq .cat-intro { color: var(--text-muted); font-size: 14px; margin: 0 0 12px; line-height: 1.6; }
   .faq .manual-block { margin-bottom: 14px; }
   .faq .manual-block:last-child { margin-bottom: 0; }

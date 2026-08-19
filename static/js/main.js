@@ -136,7 +136,7 @@ async function showFaqSuggestions() {
   const questions = await api.fetchFaqQuestions();
   const sec = ui.buildCatalogSection(
     await loadCatalog(),
-    "이외에도 아래 주제들을 안내해 드릴 수 있습니다. 주제를 선택하면 세부 항목을 보여드립니다.",
+    "궁금한 주제를 선택하면 관련 세부 내용을 확인할 수 있습니다.",
     onPickCategory);
   if (!questions.length && !sec) return;
   ui.renderEntry(questions, sec, ask);
