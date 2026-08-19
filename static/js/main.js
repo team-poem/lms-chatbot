@@ -86,7 +86,7 @@ async function consultSearch(q) {
   ui.appendCandidateBlock(q, candidates, selectNode);
 }
 
-async function ask(query, manual) {
+async function ask(query, manual, isRetry = false) {
   const {div, removeLoading} = ui.appendTurnSkeleton(query, "가이드를 찾는 중");
 
   const body = {session_id: session, query};
@@ -94,14 +94,18 @@ async function ask(query, manual) {
   // 입력은 생략 → 서버가 직접 언급 라우팅(기본 LMS)으로 처리.
   if (manual) body.manual = manual;
   const resp = await api.postChat(body);
-  // 세션이 서버에 없으면(컨테이너 재시작·DB 리셋으로 캐시 세션이 만료) 403.
-  // 옛 세션을 비우고 동의 모달을 다시 띄워 재동의 → 새 세션을 받게 한다.
-  // 컨테이너 재시작·DB 리셋으로 캐시 세션이 서버에 없으면 403. 새 세션을 바로
-  // 발급하고 다시 물어봐 달라고만 안내한다(여기서 자동 재전송하면 실패가 반복될
-  // 때 무한 루프가 된다).
+  // 저장된 세션이 서버에 없으면(재배포·DB 리셋·다른 계보의 옛 세션) 403. 부팅이
+  // localStorage 세션을 검증 없이 신뢰하므로, 그런 브라우저는 **첫 질문이 반드시
+  // 여기로 떨어진다**. 세션을 재발급하고 같은 질문을 한 번만 자동 재시도한다 —
+  // 사용자가 배관 사정("다시 물어봐 주세요")을 볼 이유가 없다. 재시도 한 번
+  // 제한이라 무한 루프는 없고, 재시도까지 403 이면 서버 쪽 문제이므로 드러낸다.
   if (resp.status === 403) {
     removeLoading();
     await newSession(store.getItem("lms_label"));
+    if (!isRetry) {
+      div.remove();                     // 첫 시도 턴을 지우고 같은 질문으로 재시도
+      return ask(query, manual, true);
+    }
     ui.setAnswerPlain(div, "연결이 끊겨 새로 시작했습니다. 한 번만 다시 물어봐 주세요.");
     return;
   }
