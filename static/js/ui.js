@@ -192,10 +192,14 @@ export function makeChip(label, cls, onClick, withArrow) {
   return b;
 }
 
+// 항목은 문자열(리롤: 표시=전송) 또는 {label, text}(첫 진입: 메달 이모지는 표시만).
 export function faqRowOf(questions, onAsk) {
   const row = document.createElement("div");
   row.className = "faq-row";
-  questions.forEach(q => row.appendChild(makeChip(q, "faq-chip", () => onAsk(q))));
+  questions.forEach(q => {
+    const label = q.label || q, text = q.text || q;
+    row.appendChild(makeChip(label, "faq-chip", () => onAsk(text)));
+  });
   return row;
 }
 
@@ -244,7 +248,7 @@ export function appendCategoryBlock(cat, onAskDoc) {
   log.scrollTop = log.scrollHeight;
 }
 
-// 첫 진입 화면: 인트로 + 랜덤 FAQ 칩 + (있으면) 가이드 대분류 섹션. 로그를 비우고 채운다.
+// 첫 진입 화면: 인트로 + 고정 FAQ TOP 칩 + (있으면) 가이드 대분류 섹션. 로그를 비우고 채운다.
 export function renderEntry(questions, catalogSectionEl, onAsk) {
   const log = $("#log");
   log.innerHTML = "";
@@ -252,7 +256,7 @@ export function renderEntry(questions, catalogSectionEl, onAsk) {
   wrap.className = "faq";
   const intro = document.createElement("p");
   intro.className = "faq-intro";
-  intro.textContent = "저는 동서대학교 LMS 교수자 가이드를 담당하고 있습니다. 아래와 같은 질문을 주시면 빠르게 답변해 드립니다.";
+  intro.textContent = "자주하는 질문(FAQ) TOP 5";
   wrap.appendChild(intro);
   if (questions.length) wrap.appendChild(faqRowOf(questions, onAsk));
   if (catalogSectionEl) wrap.appendChild(catalogSectionEl);
