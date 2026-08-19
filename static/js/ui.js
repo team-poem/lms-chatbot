@@ -7,7 +7,14 @@ export function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({"&":"&amp;",
 // 답변 텍스트를 렌더한다(평문). 단 게시판 문구('e-Class QnA 게시판', 'Q&A 바로가기'
 // 등)는 게시판 하이퍼링크로 건다 — 안내 시 게시판으로 바로 이동할 수 있게.
 const QNA_LINK_PHRASES = ["e-Class QnA 게시판", "Q&A 바로가기", "Q&A 게시판"];
-export function setAnswerText(el, text, qnaBoardUrl) {
+
+// 게시판 URL 은 모듈이 들고 있는다. 호출부마다 넘기게 두면 넘기는 걸 잊은 곳만
+// 조용히 맨 텍스트가 된다 — 실제로 상담 카드(renderAnswerCard)가 빈 문자열을
+// 넘기고 있었고, 후보 블록은 아예 textContent 로 찍고 있었다.
+let qnaBoardUrl = "";
+export function setQnaBoardUrl(url) { qnaBoardUrl = url || ""; }
+
+export function setAnswerText(el, text) {
   let html = escapeHtml(text);
   if (qnaBoardUrl) {
     QNA_LINK_PHRASES.forEach(phrase => {
@@ -358,7 +365,7 @@ export function renderAnswerCard(card, {onSelect, onBack, showBack}) {
     + `<div class="src"></div>`;
   log.appendChild(turn);
 
-  setAnswerText(turn.querySelector(".a"), card.answer, "");
+  setAnswerText(turn.querySelector(".a"), card.answer);
   renderImages(turn, card.images || []);
 
   if (card.links?.length) {
@@ -392,7 +399,7 @@ export function appendCandidateBlock(userText, candidates, onSelect) {
     candidates.forEach(c => row.appendChild(makeChip(c.label, "faq-chip", () => { wrap.remove(); onSelect(c.id); })));
     wrap.appendChild(row);
   } else {
-    p.textContent = "준비된 안내에서 찾지 못했습니다. e-Class QnA 게시판으로 문의 부탁드립니다.";
+    setAnswerText(p, "준비된 안내에서 찾지 못했습니다. e-Class QnA 게시판으로 문의 부탁드립니다.");
     wrap.appendChild(p);
   }
   log.appendChild(wrap);

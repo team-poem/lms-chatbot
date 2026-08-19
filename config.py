@@ -58,10 +58,11 @@ def load_config() -> AppConfig:
         admin_token=os.environ.get("ADMIN_TOKEN") or None,
         # 매뉴얼에 근거 없는 질문을 안내할 QnA 게시판 URL. 동서대 e-Class QnA 게시판이
         # 기본값이며, 다른 배포에선 QNA_BOARD_URL 로 덮어쓴다.
-        qna_board_url=os.environ.get(
-            "QNA_BOARD_URL",
-            "https://eclass1.dongseo.ac.kr/catalogs/5c5d29852b16ce2565531c02/boards_v2/3/posts",
-        ),
+        # `.get(name, default)` 이 아니라 `or` 인 이유: .env 에 `QNA_BOARD_URL=` 만
+        # 남겨두는 것이 자연스러운데, 그러면 키가 **존재하고 값이 빈 문자열**이라
+        # 기본값이 안 먹는다. 링크가 조용히 사라지고 폴백 안내가 맨 텍스트가 된다.
+        qna_board_url=os.environ.get("QNA_BOARD_URL")
+        or "https://eclass1.dongseo.ac.kr/catalogs/5c5d29852b16ce2565531c02/boards_v2/3/posts",
         # 폴백 안내에 함께 노출할 문의처. 기본값은 비움 — 안내는 e-Class QnA 게시판만
         # 한다(전화번호 미노출). 필요 시 QNA_CONTACT 로 연락처를 덧붙일 수 있다.
         qna_contact=os.environ.get("QNA_CONTACT", ""),

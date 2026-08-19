@@ -6,9 +6,9 @@ let session = null;
 const CONSULT = new URLSearchParams(location.search).get("mode") === "consult";
 const navStack = [];          // 방문한 노드 id (뒤로가기)
 const cardCache = new Map();  // id → card (뒤로 시 재요청·재로그 없음)
-// 폴백 답변의 'e-Class QnA 게시판' 문구를 하이퍼링크로 걸 때 쓸 게시판 URL(로드 시 1회 조회).
-let qnaBoardUrl = "";
-api.fetchHealth().then(d => { qnaBoardUrl = d.qna_board_url || ""; });
+// 폴백 안내의 'e-Class QnA 게시판' 문구를 하이퍼링크로 걸 게시판 URL(로드 시 1회
+// 조회). ui 가 들고 있다가 답변·상담 카드·후보 블록 어디서든 같은 규칙으로 건다.
+api.fetchHealth().then(d => ui.setQnaBoardUrl(d.qna_board_url));
 
 let catalogCache = null;
 async function loadCatalog() {
@@ -115,7 +115,7 @@ async function ask(query, manual) {
       ui.appendAnswerDelta(div, evt.delta);
     } else if (evt.type === "text_final") {
       removeLoading();
-      ui.setAnswerText(div.querySelector(".a"), evt.text, qnaBoardUrl);
+      ui.setAnswerText(div.querySelector(".a"), evt.text);
     } else if (evt.type === "done") {
       removeLoading();
       ui.renderImages(div, evt.images);
@@ -167,16 +167,6 @@ ui.$("#form").addEventListener("submit", e => {
   ask(q);
 });
 
-ui.$("#purge").addEventListener("click", async e => {
-  e.preventDefault();
-  if (!session) return;
-  if (!confirm("이 세션의 대화 기록을 모두 삭제합니다. 진행할까요?")) return;
-  await api.postPurge(session);
-  localStorage.removeItem("lms_session");
-  localStorage.removeItem("lms_consent");
-  localStorage.removeItem("lms_label");
-  location.reload();
-});
 
 ui.initLightbox();
 
