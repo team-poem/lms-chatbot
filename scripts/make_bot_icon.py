@@ -97,6 +97,44 @@ def _invert(icon: Image.Image) -> Image.Image:
     return out
 
 
+def readme_banner() -> Image.Image:
+    """README 히어로 배너 — 앱 테마(크림슨 원판·흰 로봇·Pretendard 계열) 그대로.
+
+    크림슨 바탕이므로 아이콘은 흰 원판·크림슨 로봇으로 뒤집는다(_invert).
+    하단의 어두운 띠는 앱 상단 크림슨 바(.topbar)의 반전 오마주다.
+    """
+    W, H = 1600 * 2, 400 * 2          # 2배로 그려 절반 축소(안티에일리어싱)
+    img = Image.new("RGB", (W, H), CRIMSON[:3])
+    d = ImageDraw.Draw(img)
+
+    # 하단 악센트 띠 (primary-hover 색)
+    d.rectangle((0, H - 24, W, H), fill=(155, 2, 29))
+
+    # 아이콘: 흰 원판 + 크림슨 로봇
+    icon = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    draw(ImageDraw.Draw(icon))
+    icon = _invert(icon)
+    icon_px = 480
+    icon = icon.resize((icon_px, icon_px), Image.LANCZOS)
+
+    title = "동서대학교 LMS 챗봇"
+    subtitle = "LearningX 교수자 가이드 · e-Class"
+    f_title = _font(150)
+    f_sub = _font(56)
+    tmp = ImageDraw.Draw(Image.new("RGB", (1, 1)))
+    tw = int(tmp.textlength(title, font=f_title))
+    gap = 90
+    total = icon_px + gap + tw
+    x0 = (W - total) // 2
+
+    img.paste(icon, (x0, (H - icon_px) // 2 - 20), icon)
+    tx = x0 + icon_px + gap
+    d.text((tx, H // 2 - 46), title, font=f_title, fill=WHITE[:3], anchor="lm")
+    d.text((tx + 8, H // 2 + 106), subtitle, font=f_sub,
+           fill=(255, 214, 221), anchor="lm")
+    return img.resize((W // 2, H // 2), Image.LANCZOS)
+
+
 def main() -> None:
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
     draw(ImageDraw.Draw(img))
@@ -108,7 +146,9 @@ def main() -> None:
         b = banner(filled)
         b.resize((b.width // S, b.height // S), Image.LANCZOS).save(OUT / name)
 
-    print("wrote bot-{512,192,64,32}.png, ask-bot-banner.png, ask-bot-banner-filled.png")
+    readme_banner().save(OUT / "readme-banner.png")
+
+    print("wrote bot-{512,192,64,32}.png, ask-bot-banner{,-filled}.png, readme-banner.png")
 
 
 if __name__ == "__main__":
