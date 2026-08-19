@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="LMS 챗봇">
+  <!-- 동서대 크림슨(#c51130) 원판 위에 흰 로봇. 배경을 채워 두는 이유는 Notion·브라우저
+       탭처럼 어두운 테마 위에 얹혔을 때도 형태가 유지되게 하기 위해서다. -->
+  <circle cx="64" cy="64" r="64" fill="#c51130"/>
+  <g fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- 안테나 -->
+    <path d="M64 24v10"/>
+    <circle cx="64" cy="21" r="4" fill="#fff" stroke="none"/>
+    <!-- 머리 -->
+    <rect x="34" y="36" width="60" height="46" rx="12"/>
+    <!-- 귀 -->
+    <path d="M28 54v12M100 54v12"/>
+    <!-- 말풍선 꼬리: 챗봇이라는 것을 형태로 드러낸다 -->
+    <path d="M52 82v14l16-14"/>
+  </g>
+  <!-- 눈 -->
+  <circle cx="52" cy="58" r="6" fill="#fff"/>
+  <circle cx="76" cy="58" r="6" fill="#fff"/>
+</svg>

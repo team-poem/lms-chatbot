@@ -127,15 +127,13 @@ async function ask(query, manual) {
   }
 }
 
-// 첫 진입 화면: 랜덤 FAQ 칩 + 가이드 대분류 네비.
+// 첫 진입 화면: 추천 질문 top 5 만. 가이드 대분류 네비는 뺐다(2026-08-19 결정) —
+// 첫 화면에서 고를 것이 많을수록 무엇을 눌러야 할지 결정을 미루게 된다. 카탈로그는
+// "가이드 뭐 있어" 로 물으면 여전히 나온다(appendCatalogList).
 async function showFaqSuggestions() {
   const questions = await api.fetchFaqQuestions();
-  const sec = ui.buildCatalogSection(
-    await loadCatalog(),
-    "이외에도 아래 주제들을 안내해 드릴 수 있습니다. 주제를 선택하면 세부 항목을 보여드립니다.",
-    onPickCategory);
-  if (!questions.length && !sec) return;
-  ui.renderEntry(questions, sec, ask);
+  if (!questions.length) return;
+  ui.renderEntry(questions, null, ask);
 }
 
 async function appendRerollSuggestions(userText) {
