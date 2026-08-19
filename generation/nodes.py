@@ -10,7 +10,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Iterable
 
-from app_types import AnswerCard, Chunk, NodeLink, NodeRef, ScoredChunk, Source
+from app_types import ChatEvent, AnswerCard, Chunk, NodeLink, NodeRef, ScoredChunk, Source
 from generation.catalog import Manual, build_catalog
 from generation.faq import faq_answer, plain_answer
 from index.vector_store import get_collection
@@ -198,6 +198,7 @@ def dockey_index(nodes: dict[str, Node]) -> dict[tuple[str, str], Node]:
     return {(n.manual, _norm(n.doc_title)): n for n in nodes.values()}
 
 
+
 def find_related(items: Iterable[ScoredChunk], nodes: dict[str, Node], *, limit: int = 5) -> list[NodeRef]:
     """검색 결과(ScoredChunk) → 노드 후보. (manual, _norm(doc_title))로 매핑,
     중복 노드 제거, 점수 순 상위 limit. 노드 없는 청크는 건너뜀. LLM 미경유."""
@@ -254,6 +255,47 @@ def enumerate_chunks(state: RagState) -> list[Chunk]:
         _chunk_from_meta(cid, doc, meta)
         for cid, doc, meta in zip(res["ids"], res["documents"], res["metadatas"])
     ]
+
+
+def build_pinned_events(state: RagState, pins: dict[str, tuple[str, str]]
+                        ) -> dict[str, tuple[ChatEvent, ...]]:
+    """기동 시 1회: 핀 질문 → 확정 답변 SSE 이벤트 맵.
+
+    레지스트리(find_by_doc)가 아니라 인덱스 전수 열거로 찾는 이유: 노드는 카탈로그
+    카테고리에서만 만들어지는데, 메타 네비('전체 메뉴 안내' 등)로 제외된 카테고리의
+    문서는 인덱스에는 있어도 노드가 없다 — '로그인 - 대시보드 유형 선택'이 그렇다.
+    핀은 문서를 가리키는 것이지 노드를 가리키는 것이 아니다.
+
+    없는 핀 대상은 맵에서 빠지고 경고만 남는다 — 문서가 노션에서 사라져도 부팅은
+    막지 않되, /chat 은 검색 경로로 자연 폴백한다.
+    """
+    docs = group_docs(enumerate_chunks(state))
+    out: dict[str, tuple[ChatEvent, ...]] = {}
+    for query, (manual, title) in pins.items():
+        doc = docs.get((manual, _norm(title)))
+        if doc is None:
+            print(f"[nodes] 핀 대상 문서 없음: {manual}/{title} — '{query}' 는 검색 경로로",
+                  flush=True)
+            continue
+        answer = (faq_answer if doc["doc_set"] == "faq" else plain_answer)(doc["text"])
+        out[query] = (
+            ChatEvent(type="text", delta=answer),
+            ChatEvent(type="text_final", text=answer),
+            ChatEvent(type="done", images=doc["images"],
+                      sources=(Source(title=doc["doc_title"], url=doc["notion_url"]),),
+                      score=1.0),
+        )
+    return out
+
+
+def fixed_events(text: str) -> tuple[ChatEvent, ...]:
+    """고정 문안 → /chat SSE 이벤트. 문서 없이 문안이 답의 전부인 질문용
+    (예: 자료실 링크 안내). 출처·이미지 없음, score=1.0 — 확정 답변이다."""
+    return (
+        ChatEvent(type="text", delta=text),
+        ChatEvent(type="text_final", text=text),
+        ChatEvent(type="done", score=1.0),
+    )
 
 
 def build_registry(state: RagState, *, overlay_path: Path) -> Registry:

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from generation.faq import _find_faq_csv, faq_answer, parse_questions, pick, plain_answer
-from tuning import FAQ_TOP
+from tuning import FAQ_TOP, FAQ_TOP_FIXED, FAQ_TOP_PINS
 
 
 def _write_csv(tmp_path: Path, rows: str) -> Path:
@@ -52,10 +52,10 @@ def test_pick_empty_pool():
 def test_faq_top_labels_display_only_emoji():
     # 첫 화면은 고정 TOP 목록을 노출한다는 결정(2026-08-19). 라벨의 메달 이모지는
     # 표시용 — 전송 질문에 섞이면 임베딩 매칭이 흔들릴 수 있어 전송 텍스트에는 없어야 한다.
-    assert len(FAQ_TOP) == 3  # 추후 2개 추가 예정 — 추가 시 이 숫자만 올린다
+    assert len(FAQ_TOP) == 3  # 4·5번은 준비될 때까지 숨김(핀은 유지)
     for label, text in FAQ_TOP:
-        assert not any(ch in text for ch in "🥇🥈🥉")
-        assert text == label.lstrip("🥇🥈🥉 ")  # 라벨 = 메달 + 전송 텍스트
+        assert not any(ch in text for ch in "🥇🥈🥉🏅")
+        assert text == label.lstrip("🥇🥈🥉🏅 ")  # 라벨 = 메달 + 전송 텍스트
 
 
 def test_faq_answer_extracts_answer_only():
@@ -112,3 +112,19 @@ def test_plain_answer_keeps_table_pipes():
 
 def test_faq_answer_still_strips_label():
     assert faq_answer("# Q\n\n**답변** : 내용") == "내용"
+
+
+def test_faq_top_pins_are_wellformed():
+    """핀은 숨긴 질문에도 걸려 있을 수 있다(직접 입력 시험용). 형식만 고정한다 —
+    (manual, 제목) 이 유효하고, 고정 문안 질문과 겹치지 않아야 한다(겹치면 어느
+    쪽이 이기는지가 병합 순서에 달린 조용한 우연이 된다)."""
+    for manual, title in FAQ_TOP_PINS.values():
+        assert manual in ("LMS", "CMS") and title
+    assert not set(FAQ_TOP_PINS) & set(FAQ_TOP_FIXED)
+
+
+def test_faq_top_fixed_gold_answer_carries_download_link():
+    """🥇 질문의 답은 자료실 링크 안내가 전부다(2026-08-19 결정). 링크가 빠지면
+    안내문만 남는 빈 답이 된다."""
+    ans = FAQ_TOP_FIXED["원격수업, 블렌디드수업, 플립러닝 수업 운영 방법"]
+    assert "https://dcms.dongseo.ac.kr/em/6a7c05f03e7d6" in ans
