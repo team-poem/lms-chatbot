@@ -51,13 +51,29 @@ export function appendUserBubble(text) {
   log.appendChild(div);
 }
 
+const LOADING_HTML = `<span class="loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>`;
+
+// 응답을 기다리는 동안만 띄우는 로딩 턴. 반환한 함수를 부르면 통째로 사라진다.
+// (선택형 상담 경로처럼 스켈레톤에 답변을 채워 넣지 않는 곳에서 쓴다.)
+export function appendLoading(userText) {
+  const log = $("#log");
+  if (log.querySelector(".empty")) log.innerHTML = "";
+  const div = document.createElement("div");
+  div.className = "turn";
+  div.innerHTML = (userText ? `<div class="q">${escapeHtml(userText)}</div>` : "")
+    + `<div class="a">${LOADING_HTML}</div>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return () => div.remove();
+}
+
 // 질문 말풍선 + 로딩 점 3개 + 빈 답변/이미지/출처/피드백 영역을 가진 턴 스켈레톤.
 export function appendTurnSkeleton(query) {
   const log = $("#log");
   if (log.querySelector(".empty")) log.innerHTML = "";
   const div = document.createElement("div");
   div.className = "turn";
-  div.innerHTML = `<div class="q">${escapeHtml(query)}</div><div class="a"><span class="loading"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></div><div class="imgs"></div><div class="src"></div><div class="fb"></div>`;
+  div.innerHTML = `<div class="q">${escapeHtml(query)}</div><div class="a">${LOADING_HTML}</div><div class="imgs"></div><div class="src"></div><div class="fb"></div>`;
   log.appendChild(div);
   log.scrollTop = log.scrollHeight;
   let loadingActive = true;

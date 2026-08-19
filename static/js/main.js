@@ -50,7 +50,9 @@ async function enterMenu() {
 async function selectNode(id) {
   let card = cardCache.get(id);
   if (!card) {
+    const stopLoading = ui.appendLoading();   // 캐시 히트는 즉답이라 로딩 없음
     card = await api.fetchAnswer(id);
+    stopLoading();
     if (!card) { return; }
     cardCache.set(id, card);
   }
@@ -70,7 +72,9 @@ function goBack() {
 }
 
 async function consultSearch(q) {
+  const stopLoading = ui.appendLoading(q);
   const candidates = await api.searchNodes(q);
+  stopLoading();
   ui.appendCandidateBlock(q, candidates, selectNode);
 }
 
