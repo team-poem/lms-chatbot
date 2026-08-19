@@ -219,6 +219,9 @@ export function faqRowOf(questions, onAsk) {
 
 // 1뎁스: 매뉴얼별 대분류 칩 섹션(엘리먼트 반환, 데이터 없으면 null).
 // onPickCategory(manualName, cat) — 2뎁스 전개는 호출부가 결정.
+// 매뉴얼(LMS/CMS)이 최상위다(2026-08-19 결정). 첫 화면에는 매뉴얼 칩만 보이고,
+// 누르면 그 매뉴얼의 카테고리가 펼쳐진다(토글). 카테고리 18개가 첫 화면을 덮던
+// 것을 두 칩으로 접는다 — 펼침 동작은 상담 모드(renderEntryMenu)의 토글과 같다.
 export function buildCatalogSection(manuals, introText, onPickCategory) {
   if (!manuals.length) return null;
   const sec = document.createElement("div");
@@ -230,15 +233,17 @@ export function buildCatalogSection(manuals, introText, onPickCategory) {
   manuals.forEach(m => {
     const block = document.createElement("div");
     block.className = "manual-block";
-    const label = document.createElement("span");
-    label.className = "manual-label";
-    label.textContent = m.title;
-    block.appendChild(label);
-    const grid = document.createElement("div");
-    grid.className = "chip-grid";
-    m.categories.forEach(cat =>
-      grid.appendChild(makeChip(cat.name, "cat-chip", () => onPickCategory(m.name, cat), true)));
-    block.appendChild(grid);
+    const head = makeChip(m.title, "manual-chip", () => {
+      const open = block.querySelector(".chip-grid");
+      if (open) { open.remove(); head.classList.remove("open"); return; }   // 토글
+      head.classList.add("open");
+      const grid = document.createElement("div");
+      grid.className = "chip-grid";
+      m.categories.forEach(cat =>
+        grid.appendChild(makeChip(cat.name, "cat-chip", () => onPickCategory(m.name, cat), true)));
+      block.appendChild(grid);
+    }, true);
+    block.appendChild(head);
     sec.appendChild(block);
   });
   return sec;
