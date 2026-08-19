@@ -52,10 +52,10 @@ def test_pick_empty_pool():
 def test_faq_top_labels_display_only_emoji():
     # 첫 화면은 고정 TOP 목록을 노출한다는 결정(2026-08-19). 라벨의 메달 이모지는
     # 표시용 — 전송 질문에 섞이면 임베딩 매칭이 흔들릴 수 있어 전송 텍스트에는 없어야 한다.
-    assert len(FAQ_TOP) == 3  # 추후 2개 추가 예정 — 추가 시 이 숫자만 올린다
+    assert len(FAQ_TOP) == 5
     for label, text in FAQ_TOP:
-        assert not any(ch in text for ch in "🥇🥈🥉")
-        assert text == label.lstrip("🥇🥈🥉 ")  # 라벨 = 메달 + 전송 텍스트
+        assert not any(ch in text for ch in "🥇🥈🥉🏅")
+        assert text == label.lstrip("🥇🥈🥉🏅 ")  # 라벨 = 메달 + 전송 텍스트
 
 
 def test_faq_answer_extracts_answer_only():

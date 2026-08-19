@@ -17,7 +17,9 @@ from config import load_config
 from db import store
 from generation.catalog import build_catalog
 from generation.faq import entry_questions, sample_questions
-from generation.nodes import build_registry, card_of, entry_payload, find_related
+from generation.nodes import (build_pinned_events, build_registry, card_of,
+                              entry_payload, find_related)
+from tuning import FAQ_TOP_PINS
 from generation.stream import stream_response
 from rag.state import RagState, load_rag_state
 from ratelimit import Limits, RateLimiter, client_ip
@@ -65,6 +67,11 @@ async def lifespan(app: FastAPI):
         build_registry, app.state.rag, overlay_path=config.nodes_overlay_path
     )
     print(f"[startup] 노드 레지스트리 {len(app.state.nodes.by_id)}개", flush=True)
+    # 고정 TOP 질문의 확정 답변(왜 핀하는지는 tuning.FAQ_TOP_PINS 주석).
+    app.state.pinned = await asyncio.to_thread(
+        build_pinned_events, app.state.rag, FAQ_TOP_PINS
+    )
+    print(f"[startup] 핀 답변 {len(app.state.pinned)}개", flush=True)
     yield
 
 
@@ -237,21 +244,35 @@ async def chat(body: ChatBody, request: Request):
     state = getattr(request.app.state, "rag", None)
     if state is None:
         raise HTTPException(status_code=503, detail="서버 초기화 중입니다")
-    # 이 지점을 통과하면 실제로 Gemini 과금이 일어난다.
-    decision = limiter.check_chat(body.session_id)
-    if not decision.allowed:
-        raise _too_many(decision)
-    return StreamingResponse(_chat_sse(state, body), media_type="text/event-stream")
+    # 고정 TOP 질문 중 핀이 걸린 것은 검색·게이트·LLM 없이 확정 답변을 그대로
+    # 내보낸다(기동 시 build_pinned_events 로 준비). Gemini 를 부르지 않으므로
+    # 레이트리밋 앞에서 본다 — 확정 답변이 상한을 태우면 안 된다.
+    pinned = getattr(request.app.state, "pinned", {}).get(body.query.strip())
+    if pinned is None:
+        # 이 지점을 통과하면 실제로 Gemini 과금이 일어난다.
+        decision = limiter.check_chat(body.session_id)
+        if not decision.allowed:
+            raise _too_many(decision)
+    return StreamingResponse(_chat_sse(state, body, pinned=pinned), media_type="text/event-stream")
 
 
-async def _chat_sse(state: RagState, body: ChatBody):
+async def _as_stream(events):
+    """미리 만들어 둔 이벤트 튜플을 스트림 인터페이스로 감싼다(핀 경로용)."""
+    for evt in events:
+        yield evt
+
+
+async def _chat_sse(state: RagState, body: ChatBody, pinned=None):
     started = time.time()
     final_text = ""
     sources: tuple[Source, ...] = ()
     score = 0.0
     text_parts: list[str] = []
 
-    async for evt in stream_response(state, body.query, manual=body.manual):
+    source = _as_stream(pinned) if pinned is not None else stream_response(
+        state, body.query, manual=body.manual
+    )
+    async for evt in source:
         if evt.type == "text":
             text_parts.append(evt.delta)
         elif evt.type == "text_final":
