@@ -1,6 +1,7 @@
-// 엔트리: 세션 상태(localStorage)·이벤트 바인딩을 소유하고 api(통신)와 ui(렌더)를 잇는다.
+// 엔트리: 세션 상태(store)·이벤트 바인딩을 소유하고 api(통신)와 ui(렌더)를 잇는다.
 import * as api from "./api.js";
 import * as ui from "./ui.js";
+import * as store from "./store.js";
 
 let session = null;
 const CONSULT = new URLSearchParams(location.search).get("mode") === "consult";
@@ -30,10 +31,10 @@ function onPickCategory(manualName, cat) {
 async function newSession(userLabel) {
   const d = await api.postConsent(userLabel);
   session = d.session_id;
-  localStorage.setItem("lms_session", session);
-  localStorage.setItem("lms_consent", d.consent_version);
+  store.setItem("lms_session", session);
+  store.setItem("lms_consent", d.consent_version);
   if (userLabel) {
-    localStorage.setItem("lms_label", userLabel);
+    store.setItem("lms_label", userLabel);
     ui.setUserLabel(userLabel);
   }
   return d;
@@ -100,7 +101,7 @@ async function ask(query, manual) {
   // 때 무한 루프가 된다).
   if (resp.status === 403) {
     removeLoading();
-    await newSession(localStorage.getItem("lms_label"));
+    await newSession(store.getItem("lms_label"));
     ui.setAnswerPlain(div, "연결이 끊겨 새로 시작했습니다. 한 번만 다시 물어봐 주세요.");
     return;
   }
@@ -170,11 +171,11 @@ ui.$("#form").addEventListener("submit", e => {
 
 ui.initLightbox();
 
-const saved = localStorage.getItem("lms_session");
+const saved = store.getItem("lms_session");
 if (saved) {
   session = saved;
   ui.setChatEnabled(true);
-  const lbl = localStorage.getItem("lms_label");
+  const lbl = store.getItem("lms_label");
   if (lbl) ui.setUserLabel(lbl);
   if (CONSULT) enterMenu(); else showFaqSuggestions();
 } else {
