@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from generation.faq import _find_faq_csv, faq_answer, parse_questions, pick, plain_answer
-from tuning import FAQ_ENTRY_MAX, FAQ_ENTRY_MIN
+from tuning import FAQ_ENTRY_COUNT
 
 
 def _write_csv(tmp_path: Path, rows: str) -> Path:
@@ -49,8 +49,10 @@ def test_pick_empty_pool():
     assert pick((), 5) == []
 
 
-def test_entry_range_is_sane():
-    assert 1 <= FAQ_ENTRY_MIN <= FAQ_ENTRY_MAX
+def test_entry_count_is_five():
+    # 첫 화면은 "top 5" 를 노출한다는 결정(2026-08-19). 개수가 흔들리면 화면 구성이
+    # 같이 흔들리므로 상수를 테스트로 못박는다.
+    assert FAQ_ENTRY_COUNT == 5
 
 
 def test_faq_answer_extracts_answer_only():

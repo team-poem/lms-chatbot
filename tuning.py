@@ -49,9 +49,10 @@ RELEVANCE_OPTIONS = {"temperature": 0.0}
 RELEVANCE_TIMEOUT_S = 30.0
 
 # ── FAQ 첫 진입 제안 (generation/faq) ───────────────────────────────
-# 첫 진입에 노출할 FAQ 질문 개수 범위(무작위).
-FAQ_ENTRY_MIN = 5
-FAQ_ENTRY_MAX = 7
+# 첫 화면 추천 질문 수. 5 고정 — "top 5" 를 노출한다는 결정이다(2026-08-19).
+# 지금은 어느 5개인지가 아직 안 정해져서 무작위로 뽑는다. 질문이 확정되면
+# data/faq_top5.json 같은 고정 목록을 두고 sample_for_entry 를 그쪽으로 돌린다.
+FAQ_ENTRY_COUNT = 5
 
 # ── 인제스트 (ingest/chunk) ─────────────────────────────────────────
 CHUNK_MAX_CHARS = 3000  # 임베더(BGE-M3, max_seq=1024)에 안전하게 들어가는 한국어 청크 상한

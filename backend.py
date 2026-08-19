@@ -145,7 +145,7 @@ def health():
 
 @app.get("/faq")
 def faq(n: int | None = Query(None, ge=1, le=12)):
-    """첫 진입 화면에 노출할 FAQ 질문을 랜덤으로 반환한다. n 미지정 시 5~7개."""
+    """첫 진입 화면에 노출할 FAQ 질문을 반환한다. n 미지정 시 5개(top 5)."""
     questions = sample_questions(n) if n is not None else sample_for_entry()
     return {"questions": questions}
 
