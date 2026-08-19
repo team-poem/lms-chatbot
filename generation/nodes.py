@@ -288,6 +288,16 @@ def build_pinned_events(state: RagState, pins: dict[str, tuple[str, str]]
     return out
 
 
+def fixed_events(text: str) -> tuple[ChatEvent, ...]:
+    """고정 문안 → /chat SSE 이벤트. 문서 없이 문안이 답의 전부인 질문용
+    (예: 자료실 링크 안내). 출처·이미지 없음, score=1.0 — 확정 답변이다."""
+    return (
+        ChatEvent(type="text", delta=text),
+        ChatEvent(type="text_final", text=text),
+        ChatEvent(type="done", score=1.0),
+    )
+
+
 def build_registry(state: RagState, *, overlay_path: Path) -> Registry:
     """기동 시 1회: 인덱스 전수 열거 → 노드 도출 → 자동 related → 오버레이 병합."""
     chunks = enumerate_chunks(state)
