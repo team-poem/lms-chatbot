@@ -23,23 +23,15 @@ const ICON_DOC = '<svg width="14" height="16" viewBox="0 0 24 24" fill="currentC
 const ICON_THUMBS_UP = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H7V10l4.66-9.32a.5.5 0 0 1 .66-.22l1.06.53a2 2 0 0 1 1.02 2.4L15 5.88Z"/></svg>';
 const ICON_THUMBS_DOWN = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H17v12l-4.66 9.32a.5.5 0 0 1-.66.22l-1.06-.53a2 2 0 0 1-1.02-2.4L9 18.12Z"/></svg>';
 
-// ── 입력/모달 게이트 ─────────────────────────────────────────────
+// ── 입력 게이트 ─────────────────────────────────────────────────
 export function setChatEnabled(enabled) {
   $("#q").disabled = !enabled;
   $("#form button[type=submit]").disabled = !enabled;
 }
 
-export function showConsentModal(show) {
-  $("#modal").style.display = show ? "flex" : "none";
-}
-
 export function setUserLabel(label) { $("#user-label").textContent = label; }
 
 export function focusComposer() { $("#q").focus(); }
-
-export function renderDenied() {
-  document.body.innerHTML = "<div style='padding:40px;text-align:center'>동의하지 않으시면 챗봇을 사용하실 수 없습니다.</div>";
-}
 
 // ── 대화 턴 ──────────────────────────────────────────────────────
 export function appendUserBubble(text) {

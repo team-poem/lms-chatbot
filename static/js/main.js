@@ -24,7 +24,10 @@ function onPickCategory(manualName, cat) {
   ui.appendCategoryBlock(cat, doc => ask(doc, scope));
 }
 
-async function consent(userLabel) {
+// 세션 발급. /consent 는 서버에 동의 버전을 기록하는 자리이기도 하다 — 모달을
+// 걷어냈어도 이 호출은 남긴다(무엇을 어느 버전으로 고지했는지의 기록).
+// 고지 본문은 푸터의 /privacy 링크가 상시 제공한다.
+async function newSession(userLabel) {
   const d = await api.postConsent(userLabel);
   session = d.session_id;
   localStorage.setItem("lms_session", session);
@@ -33,7 +36,11 @@ async function consent(userLabel) {
     localStorage.setItem("lms_label", userLabel);
     ui.setUserLabel(userLabel);
   }
-  ui.showConsentModal(false);
+  return d;
+}
+
+async function start() {
+  await newSession(null);
   ui.setChatEnabled(true);
   ui.focusComposer();
   if (CONSULT) enterMenu(); else showFaqSuggestions();
@@ -88,14 +95,13 @@ async function ask(query, manual) {
   const resp = await api.postChat(body);
   // 세션이 서버에 없으면(컨테이너 재시작·DB 리셋으로 캐시 세션이 만료) 403.
   // 옛 세션을 비우고 동의 모달을 다시 띄워 재동의 → 새 세션을 받게 한다.
+  // 컨테이너 재시작·DB 리셋으로 캐시 세션이 서버에 없으면 403. 새 세션을 바로
+  // 발급하고 다시 물어봐 달라고만 안내한다(여기서 자동 재전송하면 실패가 반복될
+  // 때 무한 루프가 된다).
   if (resp.status === 403) {
     removeLoading();
-    ui.setAnswerPlain(div, "세션이 만료되었습니다. 다시 동의해 주시면 이어서 도와드릴게요.");
-    localStorage.removeItem("lms_session");
-    localStorage.removeItem("lms_consent");
-    session = null;
-    ui.showConsentModal(true);
-    ui.setChatEnabled(false);
+    await newSession(localStorage.getItem("lms_label"));
+    ui.setAnswerPlain(div, "연결이 끊겨 새로 시작했습니다. 한 번만 다시 물어봐 주세요.");
     return;
   }
   if (!resp.ok || !resp.body) {
@@ -161,12 +167,10 @@ ui.$("#form").addEventListener("submit", e => {
   ask(q);
 });
 
-ui.$("#agree").addEventListener("click", e => { e.preventDefault(); consent(null); });
-ui.$("#deny").addEventListener("click", e => { e.preventDefault(); ui.renderDenied(); });
 ui.$("#purge").addEventListener("click", async e => {
   e.preventDefault();
   if (!session) return;
-  if (!confirm("이 세션의 대화 기록을 모두 삭제하고 동의를 철회합니다. 진행할까요?")) return;
+  if (!confirm("이 세션의 대화 기록을 모두 삭제합니다. 진행할까요?")) return;
   await api.postPurge(session);
   localStorage.removeItem("lms_session");
   localStorage.removeItem("lms_consent");
@@ -177,12 +181,12 @@ ui.$("#purge").addEventListener("click", async e => {
 ui.initLightbox();
 
 const saved = localStorage.getItem("lms_session");
-const savedConsent = localStorage.getItem("lms_consent");
-if (saved && savedConsent) {
+if (saved) {
   session = saved;
-  ui.showConsentModal(false);
   ui.setChatEnabled(true);
   const lbl = localStorage.getItem("lms_label");
   if (lbl) ui.setUserLabel(lbl);
   if (CONSULT) enterMenu(); else showFaqSuggestions();
+} else {
+  start();
 }
