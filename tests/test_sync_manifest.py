@@ -145,3 +145,15 @@ def test_fetch_targets_and_summary():
     # 받아올 대상 = 신규 + 변경 + 확인필요. 이 수가 곧 API 호출 수다.
     assert {p.page_id for p in plan.fetch_targets} == {ID_A, ID_B}
     assert plan.summary() == "신규 1 · 변경 1 · 삭제 0 · 확인필요 0 · 유지 0"
+
+
+def test_cli_scan_and_plan_smoke(tmp_path, monkeypatch):
+    """scripts/sync_manifest.py 가 스킬(notion-sync)의 앞단이다 — 시그니처가
+    깨지면 갱신 절차가 첫 단계에서 죽으므로 스모크로 고정한다."""
+    import subprocess, sys, json
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    py = sys.executable
+    r = subprocess.run([py, str(root / "scripts/sync_manifest.py")],
+                       capture_output=True, text=True)
+    assert r.returncode == 2 and "scan" in r.stdout   # 사용법 출력
