@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from db import jsonl
 from db.schema import SCHEMA
 
 
@@ -49,6 +50,10 @@ def new_session(db_path: Path, *, consent_version: str, user_label: str | None) 
             "VALUES (?,?,?,?,?)",
             (sid, ts, consent_version, ts, user_label),
         )
+    jsonl.append(db_path.parent, sid, {
+        "type": "session_start", "session_id": sid,
+        "consent_version": consent_version, "user_label": user_label,
+    })
     return sid
 
 
@@ -60,16 +65,27 @@ def get_session(db_path: Path, session_id: str) -> dict | None:
 
 def add_turn(db_path: Path, *, session_id: str, query: str, response: str,
              retrieved_sources: list, retrieved_score: float | None,
-             latency_ms: int | None) -> int:
+             latency_ms: int | None, model: str | None = None,
+             manual: str | None = None, pinned: bool = False) -> int:
+    # model/manual/pinned 는 DB 스키마엔 없고 JSONL 에만 남는다(평가용 메타).
+    sources_json = json.dumps(retrieved_sources, ensure_ascii=False,
+                              default=_sources_default)
     with _conn(db_path) as c:
         cur = c.execute(
             "INSERT INTO turns(session_id, created_at, query, response, retrieved_sources, "
             "retrieved_score, latency_ms) VALUES (?,?,?,?,?,?,?)",
-            (session_id, _now(), query, response,
-             json.dumps(retrieved_sources, ensure_ascii=False, default=_sources_default),
+            (session_id, _now(), query, response, sources_json,
              retrieved_score, latency_ms),
         )
-        return int(cur.lastrowid)
+        turn_id = int(cur.lastrowid)
+    jsonl.append(db_path.parent, session_id, {
+        "type": "turn", "session_id": session_id, "turn_id": turn_id,
+        "query": query, "response": response,
+        "sources": json.loads(sources_json), "score": retrieved_score,
+        "latency_ms": latency_ms, "model": model, "manual": manual,
+        "pinned": pinned,
+    })
+    return turn_id
 
 
 def list_turns(db_path: Path, *, limit: int = 100, offset: int = 0) -> list[dict]:
@@ -106,6 +122,13 @@ def add_feedback(db_path: Path, *, turn_id: int, rating: int, comment: str | Non
             "INSERT INTO feedback(turn_id, rating, comment, created_at) VALUES (?,?,?,?)",
             (turn_id, rating, comment, _now()),
         )
+        r = c.execute("SELECT session_id FROM turns WHERE turn_id = ?",
+                      (turn_id,)).fetchone()
+    if r:
+        jsonl.append(db_path.parent, r["session_id"], {
+            "type": "feedback", "session_id": r["session_id"],
+            "turn_id": turn_id, "rating": rating, "comment": comment,
+        })
 
 
 def feedback_for(db_path: Path, turn_id: int) -> list[dict]:
@@ -117,3 +140,4 @@ def feedback_for(db_path: Path, turn_id: int) -> list[dict]:
 def purge_session(db_path: Path, session_id: str) -> None:
     with _conn(db_path) as c:
         c.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+    jsonl.purge(db_path.parent, session_id)
