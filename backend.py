@@ -296,6 +296,10 @@ async def _chat_sse(state: RagState, body: ChatBody, pinned=None):
         retrieved_sources=list(sources),
         retrieved_score=score,
         latency_ms=latency_ms,
+        # 핀 답변은 LLM 을 거치지 않으므로 model 을 남기지 않는다.
+        model=None if pinned is not None else config.gemini_model,
+        manual=body.manual,
+        pinned=pinned is not None,
     )
     yield _serialize_sse(ChatEvent(type="turn_id", turn_id=turn_id))
 
